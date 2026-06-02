@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # Проверка готовности CoreOps к деплою на сервере.
-set -euo pipefail
+set -eu
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
@@ -12,30 +12,24 @@ if [[ ! -f "$BACKEND_DIR/.env" ]]; then
   exit 1
 fi
 
-required_vars=(
-  "DATABASE_URL"
-  "SECRET_KEY"
-  "APP_ENV"
-)
-
-for var_name in "${required_vars[@]}"; do
-  if ! rg -n "^${var_name}=" "$BACKEND_DIR/.env" >/dev/null; then
+for var_name in DATABASE_URL SECRET_KEY APP_ENV; do
+  if ! grep -Eq "^${var_name}=" "$BACKEND_DIR/.env"; then
     echo "ERROR: $var_name is missing in backend/.env"
     exit 1
   fi
 done
 
-if rg -n "^DEBUG=true" "$BACKEND_DIR/.env" >/dev/null; then
+if grep -Eq "^DEBUG=true" "$BACKEND_DIR/.env"; then
   echo "WARN: DEBUG=true in backend/.env (recommended false on server)"
 fi
 
-if rg -n "^SEED_ON_STARTUP=true" "$BACKEND_DIR/.env" >/dev/null; then
+if grep -Eq "^SEED_ON_STARTUP=true" "$BACKEND_DIR/.env"; then
   echo "WARN: SEED_ON_STARTUP=true in backend/.env (recommended false on server)"
 fi
 
 echo "Running DB migrations dry check (upgrade head)..."
 cd "$BACKEND_DIR"
-"$VENV_PYTHON" -m alembic upgrade head
+"$VENV_PYTHON" -m alembic.config upgrade head
 
 echo "Checking health endpoint: $BASE_URL/api/v1/health"
 curl -fsS "$BASE_URL/api/v1/health" >/dev/null

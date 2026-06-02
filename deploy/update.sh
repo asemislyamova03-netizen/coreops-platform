@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # Обновление staging на сервере: git pull -> precheck -> restart -> smoke
-set -euo pipefail
+set -eu
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
@@ -17,7 +17,17 @@ BASE_URL="$BASE_URL" VENV_PYTHON="$VENV_PYTHON" "$ROOT_DIR/deploy/predeploy-chec
 
 echo "==> Restart service: $SERVICE_NAME"
 sudo systemctl restart "$SERVICE_NAME"
-sudo systemctl --no-pager --full status "$SERVICE_NAME" | rg -n "Active:|Main PID:" || true
+sudo systemctl --no-pager --full status "$SERVICE_NAME" | grep -E "Active:|Main PID:" || true
+
+echo "==> Wait for local health"
+attempt=0
+while [ "$attempt" -lt 20 ]; do
+  if curl -fsS "$BASE_URL/api/v1/health" >/dev/null 2>&1; then
+    break
+  fi
+  attempt=$((attempt + 1))
+  sleep 1
+done
 
 echo "==> Smoke checks"
 curl -fsS "$BASE_URL/api/v1/health" | head -c 300

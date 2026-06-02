@@ -63,7 +63,9 @@ python scripts/mvp_smoke.py
 
 ## Деплой на сервер
 
-Пошагово: [deploy/server-setup.md](deploy/server-setup.md). Production Compose: `backend/docker-compose.prod.yml`.
+- Staging на **flexity.asia** (рядом с Consult/Trailers): [deploy/flexity-asia-nginx.md](deploy/flexity-asia-nginx.md) — `/api/` → порт **8005**; prod позже на **flexity.kz**
+- Общая инструкция: [deploy/server-setup.md](deploy/server-setup.md)
+- Docker (опционально): `backend/docker-compose.prod.yml`
 
 ## Что не входит в MVP (см. ТЗ)
 

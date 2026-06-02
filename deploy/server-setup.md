@@ -1,21 +1,30 @@
 # Деплой Flexity / CoreOps на сервер (первый раз)
 
-Требования на сервере: **Docker** и **Docker Compose v2**, открытый порт **8000** (или за reverse proxy).
+**Staging:** Lightsail (`ssh flexity`), **flexity.asia**.  
+Trailers и Consult **пока остаются** — CoreOps только на `/api/` и `/docs`, порт **8005**.  
+Схема nginx: [flexity-asia-nginx.md](flexity-asia-nginx.md). Production позже — **flexity.kz**.
+
+| Что | Значение |
+|-----|----------|
+| Код | `/opt/flexity/coreops` |
+| API (внутри) | `127.0.0.1:8005` |
+| Снаружи | `https://flexity.asia/api/v1/...`, `/docs` |
+
+venv + systemd + локальный PostgreSQL (Docker опционален).
 
 ## 1. Клонирование
 
 ```bash
-sudo mkdir -p /opt/flexity
-sudo chown "$USER:$USER" /opt/flexity
-cd /opt/flexity
+sudo mkdir -p /opt/flexity/coreops
+sudo chown "$USER:$USER" /opt/flexity/coreops
+cd /opt/flexity/coreops
 git clone <URL_ВАШЕГО_РЕПОЗИТОРИЯ> .
-# или: git clone <URL> flexity && cd flexity
 ```
 
 ## 2. Переменные окружения
 
 ```bash
-cd /opt/flexity/backend
+cd /opt/flexity/coreops/backend
 cp .env.example .env
 nano .env
 ```
@@ -39,27 +48,41 @@ API_PORT=8000
 
 ## 3. Запуск
 
+**Вариант A — как на сервере сейчас (venv + systemd, рекомендуется):**
+
 ```bash
-cd /opt/flexity/backend
-docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs -f api
+python3 -m venv /opt/flexity/envs/coreops
+/opt/flexity/envs/coreops/bin/pip install -e /opt/flexity/coreops/backend
+cd /opt/flexity/coreops/backend && /opt/flexity/envs/coreops/bin/alembic upgrade head
+# systemd unit → uvicorn на 127.0.0.1:8005 (см. flexity-asia-nginx.md)
 ```
 
-Проверка: `curl -s http://127.0.0.1:8000/api/v1/health`
-
-## 4. Обновление после `git push`
+**Вариант B — Docker** (если установлен):
 
 ```bash
-cd /opt/flexity
-git pull
-cd backend
+cd /opt/flexity/coreops/backend
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-## 5. Nginx (опционально)
+Проверка локально: `curl -s http://127.0.0.1:8005/api/v1/health`  
+Через сайт (после nginx): `curl -s https://flexity.asia/api/v1/health`
 
-Проксируйте `https://api.example.com` → `127.0.0.1:8000`, включите TLS (certbot).
+## 4. Nginx на flexity.asia
+
+В `/etc/nginx/sites-enabled/flexity.asia.conf` добавить `location ^~ /api/` **перед** `location /` → 8002.  
+Готовый фрагмент: [flexity-asia-nginx.md](flexity-asia-nginx.md).
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+## 5. Обновление после `git push`
+
+```bash
+cd /opt/flexity/coreops && git pull
+cd backend && /opt/flexity/envs/coreops/bin/alembic upgrade head
+sudo systemctl restart coreops
+```
 
 ## 6. Первый пользователь
 

@@ -32,4 +32,5 @@ done
 echo "==> Smoke checks"
 curl -fsS "$BASE_URL/api/v1/health" | head -c 300
 echo
-curl -fsSI "${PUBLIC_BASE_URL:-https://flexity.asia}/api/v1/health" | head -n 5
+curl -fsS "${PUBLIC_BASE_URL:-https://flexity.asia}/api/v1/health" | head -c 300
+echo

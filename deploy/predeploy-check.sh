@@ -7,7 +7,7 @@ BACKEND_DIR="$ROOT_DIR/backend"
 VENV_PYTHON="${VENV_PYTHON:-/opt/flexity/envs/coreops/bin/python}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:8005}"
 
-if [[ ! -f "$BACKEND_DIR/.env" ]]; then
+if [ ! -f "$BACKEND_DIR/.env" ]; then
   echo "ERROR: missing $BACKEND_DIR/.env"
   exit 1
 fi

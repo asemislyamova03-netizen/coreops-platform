@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.exception_handlers import core_ops_error_handler
 from app.core.exceptions import CoreOpsError
+from app.modules.audit.middleware import install_audit_middleware
 from app.modules.industry_templates.service import IndustryTemplateService
 from app.modules.integrations.service import IntegrationService
 from app.modules.module_registry.service import ModuleRegistryService
@@ -43,6 +44,7 @@ app = FastAPI(
 )
 
 app.add_exception_handler(CoreOpsError, core_ops_error_handler)
+install_audit_middleware(app)
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 

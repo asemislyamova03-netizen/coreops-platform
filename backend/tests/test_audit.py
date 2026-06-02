@@ -102,3 +102,52 @@ def test_ai_approval_writes_audit_log(client):
     )
     assert logs.status_code == 200
     assert any(log["ai_proposal_id"] == proposal_id for log in logs.json())
+
+
+def test_mutation_request_writes_generic_audit_log(client):
+    client.post("/api/v1/auth/register", json=REGISTER_PAYLOAD)
+    token = client.post(
+        "/api/v1/auth/login",
+        json={"email": REGISTER_PAYLOAD["email"], "password": REGISTER_PAYLOAD["password"]},
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    tenant_id = client.post(
+        "/api/v1/tenants",
+        json={
+            "name": "Audit Mutation Tenant",
+            "slug": "audit-mutation-tenant",
+            "industry_template_code": "kindergarten_basic",
+            "plan_code": "business",
+        },
+        headers=headers,
+    ).json()["id"]
+    tenant_headers = {**headers, "X-Tenant-ID": tenant_id}
+
+    party = client.post(
+        "/api/v1/parties",
+        headers=tenant_headers,
+        json={
+            "party_type": "person",
+            "display_name": "Родитель",
+            "party_role": "guardian",
+        },
+    )
+    assert party.status_code == 201
+    party_id = party.json()["id"]
+
+    updated = client.patch(
+        f"/api/v1/parties/{party_id}",
+        headers=tenant_headers,
+        json={"display_name": "Родитель Обновлен"},
+    )
+    assert updated.status_code == 200
+
+    logs = client.get("/api/v1/audit/logs?action=update&limit=500", headers=headers)
+    assert logs.status_code == 200
+    assert any(
+        log["summary"] == f"PATCH /api/v1/parties/{party_id}"
+        and log["entity_type"] == "parties"
+        and log["tenant_id"] == tenant_id
+        for log in logs.json()
+    )

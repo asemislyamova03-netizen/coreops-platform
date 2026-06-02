@@ -57,6 +57,38 @@ cd /opt/flexity/coreops/backend && /opt/flexity/envs/coreops/bin/alembic upgrade
 # systemd unit → uvicorn на 127.0.0.1:8005 (см. flexity-asia-nginx.md)
 ```
 
+Установка готового unit-файла из репозитория:
+
+```bash
+cd /opt/flexity/coreops
+sudo cp deploy/coreops.service /etc/systemd/system/coreops.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now coreops
+sudo systemctl status coreops --no-pager
+```
+
+Логи:
+
+```bash
+sudo journalctl -u coreops -f
+```
+
+Установка готового unit-файла из репозитория:
+
+```bash
+cd /opt/flexity/coreops
+sudo cp deploy/coreops.service /etc/systemd/system/coreops.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now coreops
+sudo systemctl status coreops --no-pager
+```
+
+Логи:
+
+```bash
+sudo journalctl -u coreops -f
+```
+
 **Вариант B — Docker** (если установлен):
 
 ```bash
@@ -66,6 +98,24 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 Проверка локально: `curl -s http://127.0.0.1:8005/api/v1/health`  
 Через сайт (после nginx): `curl -s https://flexity.asia/api/v1/health`
+
+## 3.1 Pre-deploy проверка (рекомендуется)
+
+Перед перезапуском сервиса:
+
+```bash
+cd /opt/flexity/coreops
+chmod +x deploy/predeploy-check.sh
+BASE_URL=http://127.0.0.1:8005 VENV_PYTHON=/opt/flexity/envs/coreops/bin/python ./deploy/predeploy-check.sh
+```
+
+Скрипт проверяет:
+
+- наличие `backend/.env`;
+- обязательные env (`DATABASE_URL`, `SECRET_KEY`, `APP_ENV`);
+- предупреждает о `DEBUG=true` и `SEED_ON_STARTUP=true`;
+- применяет миграции `alembic upgrade head`;
+- проверяет health endpoint.
 
 ## 4. Nginx на flexity.asia
 
@@ -80,8 +130,17 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ```bash
 cd /opt/flexity/coreops && git pull
+BASE_URL=http://127.0.0.1:8005 VENV_PYTHON=/opt/flexity/envs/coreops/bin/python ./deploy/predeploy-check.sh
 cd backend && /opt/flexity/envs/coreops/bin/alembic upgrade head
 sudo systemctl restart coreops
+```
+
+или одной командой:
+
+```bash
+cd /opt/flexity/coreops
+chmod +x deploy/*.sh
+./deploy/update.sh
 ```
 
 ## 6. Первый пользователь

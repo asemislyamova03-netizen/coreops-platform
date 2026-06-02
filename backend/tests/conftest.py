@@ -1,4 +1,5 @@
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -52,8 +53,9 @@ def seed_catalog(db_session: Session) -> None:
 
 @pytest.fixture
 def client(db_session: Session) -> TestClient:
-    def override_get_db():
+    def override_get_db(request: Request):
         try:
+            request.state.db = db_session
             yield db_session
         finally:
             pass

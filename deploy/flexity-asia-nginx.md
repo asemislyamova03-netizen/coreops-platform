@@ -86,6 +86,13 @@ sudo systemctl enable --now coreops
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+Перед `restart coreops` и после `git pull` запускайте pre-check:
+
+```bash
+cd /opt/flexity/coreops
+BASE_URL=http://127.0.0.1:8005 VENV_PYTHON=/opt/flexity/envs/coreops/bin/python ./deploy/predeploy-check.sh
+```
+
 Подробнее: [server-setup.md](server-setup.md).
 
 ---

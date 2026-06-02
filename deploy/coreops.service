@@ -1,0 +1,22 @@
+[Unit]
+Description=CoreOps Platform API (FastAPI/Uvicorn)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/flexity/coreops/backend
+EnvironmentFile=/opt/flexity/coreops/backend/.env
+ExecStart=/opt/flexity/envs/coreops/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8005
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=30
+KillSignal=SIGINT
+# Логи удобнее смотреть через journalctl -u coreops -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

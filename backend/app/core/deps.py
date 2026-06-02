@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Generator
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -19,9 +19,10 @@ from app.modules.tenants.models import UserTenantMembership
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db(request: Request) -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
+        request.state.db = db
         yield db
     finally:
         db.close()
@@ -45,6 +46,7 @@ def _load_user(db: Session, user_id: uuid.UUID) -> User:
 
 
 def get_current_user(
+    request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> User:
@@ -56,7 +58,9 @@ def get_current_user(
     except ValueError as exc:
         raise AuthenticationError("Invalid access token") from exc
 
-    return _load_user(db, user_id)
+    user = _load_user(db, user_id)
+    request.state.user_id = str(user.id)
+    return user
 
 
 def require_provider_owner(

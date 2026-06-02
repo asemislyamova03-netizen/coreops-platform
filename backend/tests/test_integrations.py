@@ -73,3 +73,44 @@ def test_webhook_receive(client):
     )
     assert response.status_code == 200
     assert response.json()["status"] == "processed"
+
+
+def test_create_connection_with_unknown_provider_returns_404(client):
+    headers, _, _ = _integration_tenant(client)
+    response = client.post(
+        "/api/v1/integrations/connections",
+        headers=headers,
+        json={
+            "provider_code": "unknown_provider",
+            "module_code": "crm",
+            "name": "Unknown",
+            "credentials_json": {},
+        },
+    )
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_create_connection_with_unsupported_module_returns_409(client):
+    headers, _, _ = _integration_tenant(client)
+    response = client.post(
+        "/api/v1/integrations/connections",
+        headers=headers,
+        json={
+            "provider_code": "bitrix24",
+            "module_code": "finance",
+            "name": "Bitrix for finance",
+            "credentials_json": {"portal_url": "https://demo.bitrix24.ru"},
+        },
+    )
+    assert response.status_code == 409
+    assert "does not support module" in response.json()["detail"]
+
+
+def test_webhook_unknown_provider_returns_404(client):
+    response = client.post(
+        "/api/v1/integrations/webhooks/unknown_provider",
+        json={"event_type": "PING", "payload": {}},
+    )
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()

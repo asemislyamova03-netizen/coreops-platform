@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
@@ -22,6 +22,7 @@ class TenantContext:
 
 
 def get_tenant_context(
+    request: Request,
     tenant_id: uuid.UUID | None = None,
     x_tenant_id: Annotated[str | None, Header(alias="X-Tenant-ID")] = None,
     current_user: User = Depends(get_current_user),
@@ -40,6 +41,8 @@ def get_tenant_context(
         raise NotFoundError("Tenant not found")
 
     staff = get_provider_staff(current_user)
+    request.state.tenant_id = str(tenant.id)
+
     if staff and staff.provider_company_id == tenant.provider_company_id:
         return TenantContext(tenant=tenant, user=current_user)
 

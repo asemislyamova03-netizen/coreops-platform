@@ -22,6 +22,13 @@ API: http://localhost:8000
 Документация: http://localhost:8000/docs  
 Health: http://localhost:8000/api/v1/health
 
+Для локальной разработки можно включить:
+
+```env
+DEBUG=true
+SEED_ON_STARTUP=true
+```
+
 ### Локально без Docker API
 
 ```bash
@@ -47,7 +54,7 @@ alembic upgrade head
 alembic upgrade head
 ```
 
-При первом запуске API сидятся модули, тарифы и фичи (`SEED_ON_STARTUP=true` по умолчанию).
+При первом запуске API можно включить сидирование (`SEED_ON_STARTUP=true`), на сервере рекомендуется `false`.
 
 ### Модули и тарифы (Phase 2)
 

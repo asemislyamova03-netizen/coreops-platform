@@ -1,0 +1,42 @@
+---
+alwaysApply: true
+---
+
+# Legacy and Reference Projects Rule
+
+The user has legacy/reference projects:
+- Trailers Flask
+- Consulting Flask
+- Clinic App Flask
+
+These projects are sources of business logic, not target architecture.
+
+Do not copy legacy code blindly.
+
+When using a legacy project as reference:
+
+1. Extract the business process.
+2. Identify entities, statuses, roles, reports, and rules.
+3. Map them to existing Flexity modules.
+4. Only create new Flexity code if the logic cannot be expressed through existing modules.
+5. Prefer templates and configuration over new code when possible.
+
+Trailers-specific logic should become:
+- industry_trailers package
+
+Kindergarten-specific logic should become:
+- kindergarten_basic template
+
+Consulting-specific logic should become:
+- consulting_basic template
+
+Do not duplicate:
+- CRM
+- documents
+- finance
+- payments
+- tenants
+- subscriptions
+- AI
+- audit
+- integrations

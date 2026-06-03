@@ -1,0 +1,64 @@
+---
+alwaysApply: true
+---
+
+# Flexity Platform Rule
+
+This repository is Flexity.
+
+Flexity is the main target platform:
+- FastAPI multi-tenant ERP platform
+- universal business modules
+- industry templates
+- industry packages
+- AI foundation
+- subscriptions
+- audit
+
+Do not treat Flexity as a small app.
+
+Before changing code, always read:
+- docs/ai/PRODUCT_ARCHITECTURE.md
+- AGENTS.md if present
+- relevant module files
+
+Main architectural decisions:
+
+1. Flexity is the only target platform.
+2. Trailers is a legacy/reference Flask project and future industry_trailers package.
+3. Kindergarten is an industry template/tenant, not a separate Flask app.
+4. Consulting is an industry template, not a separate CRM.
+5. Universal modules must not be duplicated in industry projects.
+
+Universal modules belong in Flexity:
+- auth
+- tenants
+- RBAC
+- module_registry
+- subscriptions
+- parties
+- workflows / CRM
+- catalog
+- documents
+- finance
+- accounting
+- sales
+- inventory
+- production
+- tax
+- HR
+- payroll
+- data_quality
+- learning
+- AI
+- audit
+- integrations
+
+When a task is requested, first classify it as:
+- platform core
+- universal module
+- industry template
+- industry package
+- legacy/reference analysis
+
+Do not implement before this classification.

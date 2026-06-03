@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+---
+
+# Research-first Workflow
+
+Before editing production code:
+
+1. Restate the task in simple Russian.
+2. Classify the task:
+   - platform core
+   - universal module
+   - industry template
+   - industry package
+   - legacy/reference analysis
+3. Read docs/ai/PRODUCT_ARCHITECTURE.md.
+4. Find relevant files.
+5. Summarize the current implementation.
+6. Identify risks and dependencies.
+7. Create or update a research brief in docs/ai/research/.
+8. Create or update an implementation plan in docs/ai/plans/.
+9. List expected files to change.
+10. Wait for explicit user approval.
+
+Hard restrictions:
+
+- Do not change production code during research.
+- Do not add dependencies without approval.
+- Do not change migrations without approval.
+- Do not change auth, tenant logic, subscriptions, billing, .env, deployment config, or production config without approval.
+- Do not delete files.
+- Do not perform broad refactoring.
+- If implementation diverges from the approved plan, stop and update the plan first.
+
+All explanations to the user must be in Russian.

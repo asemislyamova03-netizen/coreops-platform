@@ -1,0 +1,197 @@
+---
+description: Flexity orchestration guardrail. Classifies tasks before work, requires approved plan before code, and protects live/client projects.
+alwaysApply: true
+---
+
+# Flexity Coordinator / Orchestrator Rule
+
+You are working inside the Flexity ecosystem.
+
+Before doing any task, classify it into exactly one primary category:
+
+- platform_core
+- universal_module
+- industry_template
+- industry_package
+- tenant_customization
+- live_client_hotfix
+- migration_map
+- documentation_only
+- research_only
+
+## Required pre-work
+
+Before editing files, output a short Task Classification block:
+
+1. Project:
+   - Flexity
+   - Trailers
+   - Consulting Flask
+   - Other
+
+2. Category:
+   - one of the categories above
+
+3. Risk level:
+   - low
+   - medium
+   - high
+
+4. Intended scope:
+   - exact files/folders likely to be touched
+
+5. Forbidden scope:
+   - exact files/folders that must not be touched
+
+6. Required plan:
+   - research brief only
+   - implementation plan
+   - live hotfix plan
+   - migration map
+   - documentation-only change
+   - QA verification
+
+## No code without approved plan
+
+Do not write or modify code until an implementation plan has been created and explicitly approved.
+
+Documentation-only changes may be made after a documentation plan.
+
+Research-only tasks must not modify production code.
+
+## Flexity architecture layers
+
+Flexity architecture is layered:
+
+    Flexity Core
+    -> Universal modules
+    -> Industry template / industry package
+    -> Tenant customization
+
+Definitions:
+
+- platform_core:
+  Core tenancy, auth, permissions, shared infra, billing, common API patterns.
+
+- universal_module:
+  CRM, documents, payments, tasks, notifications, analytics, files, comments, audit log.
+
+- industry_template:
+  Seed/configuration layer for a specific industry, such as kindergarten_basic.
+
+- industry_package:
+  Deeper domain package with models, routes, services, workflows specific to an industry.
+
+- tenant_customization:
+  Client-specific settings on top of an industry template/package: logo, colors, legal details, document templates, field labels, workflow settings, notification settings, signature settings.
+
+- live_client_hotfix:
+  Minimal safe fix to an existing live project under Nginx, such as Trailers or Consulting Flask.
+
+- migration_map:
+  Mapping from legacy/live projects into future Flexity modules/templates/packages.
+
+- documentation_only:
+  Docs, plans, change requests, handoffs.
+
+- research_only:
+  Read-only audit, mapping, explanation.
+
+## Live project guardrails
+
+Trailers and Consulting Flask are live/reference projects.
+
+Never:
+
+- rewrite them from scratch;
+- change architecture broadly;
+- run deploy commands;
+- run migrations;
+- change Nginx/systemd;
+- push to GitHub;
+- remove files;
+- run destructive git commands.
+
+Allowed only after explicit approval:
+
+- minimal hotfix;
+- read-only mapping;
+- documentation;
+- test command;
+- git status/diff/log.
+
+## Kindergarten guardrail
+
+Kindergarten must be implemented inside Flexity as tenant/template/package.
+
+Do not create a separate Flask project.
+
+Current approved next code step for kindergarten, after orchestration setup only:
+
+- edit only backend/app/modules/industry_templates/seed.py;
+- add kindergarten_basic document body_template values;
+- add document fields;
+- add guardian_relationship;
+- add start_date;
+- add base_price;
+- add currency;
+- no migrations;
+- no frontend;
+- no new dependencies;
+- no other files.
+
+## Tenant customization guardrail
+
+Tenant customization is a separate layer above industry templates/packages.
+
+Do not mix client-specific branding, legal details, custom templates, or field labels directly into core or industry package code unless an approved design says so.
+
+For now, tenant customization is a Change Request and roadmap item only. Do not implement it in code yet.
+
+## Commands policy
+
+Safe commands may be proposed and run in Auto-review when configured:
+
+- git status
+- git status --short
+- git diff
+- git diff --stat
+- git log --oneline -n 20
+- python -m pytest
+- python -m compileall
+- ls
+- pwd
+- cat
+- grep
+- find
+
+Never run without explicit approval:
+
+- git reset
+- git clean
+- git push
+- git pull
+- git merge
+- rm
+- del
+- flask db upgrade
+- alembic upgrade
+- pip install
+- npm install
+- docker compose down
+- systemctl
+- nginx
+- ssh
+- scp
+- deploy scripts
+
+## Required finish
+
+At the end of each task, provide:
+
+1. Files changed.
+2. Files intentionally not touched.
+3. Tests/checks run.
+4. Risks.
+5. Next safe step.
+6. Whether a handoff should be created.

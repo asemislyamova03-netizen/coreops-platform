@@ -50,11 +50,19 @@ def test_apply_template_to_tenant(client):
     assert "crm" in body["modules_enabled"]
     assert "parties" in body["modules_enabled"]
     assert body["pipelines_created"] == ["enrollment"]
-    assert body["custom_fields_created"] == 5
+    assert body["custom_fields_created"] == 7
 
     labels = client.get(f"/api/v1/tenants/{tenant_id}/labels", headers=headers)
     assert labels.status_code == 200
     assert labels.json()["entities"]["work_item"] == "Заявка"
+
+    tenant_headers = {**headers, "X-Tenant-ID": tenant_id}
+    catalog = client.get("/api/v1/catalog/items", headers=tenant_headers)
+    assert catalog.status_code == 200
+    items_by_sku = {item["sku"]: item for item in catalog.json()}
+    assert set(items_by_sku) == {"edu-monthly", "registration-fee", "enrollment-fee"}
+    assert items_by_sku["edu-monthly"]["base_price"] == "25000.00"
+    assert items_by_sku["edu-monthly"]["currency"] == "KZT"
 
 
 def test_pipelines_after_template_apply(client):
@@ -99,3 +107,12 @@ def test_apply_template_idempotent_modules(client):
     assert second.status_code == 200
     assert second.json()["pipelines_created"] == []
     assert second.json()["custom_fields_created"] == 0
+
+    tenant_headers = {**headers, "X-Tenant-ID": tenant_id}
+    catalog = client.get("/api/v1/catalog/items", headers=tenant_headers)
+    assert catalog.status_code == 200
+    assert sorted(item["sku"] for item in catalog.json()) == [
+        "edu-monthly",
+        "enrollment-fee",
+        "registration-fee",
+    ]

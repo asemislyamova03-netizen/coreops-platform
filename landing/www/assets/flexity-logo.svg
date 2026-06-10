@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256">
+  <rect x="16" y="16" width="224" height="224" rx="40" fill="#3B82F6" />
+  <path d="M78,180 C78,120 110,116 150,116             M78,76 L168,76" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" />
+  <circle cx="168" cy="76" r="10" fill="#10B981" />
+<g id="wordmark_lexity_lower_plus"><text x="108.08" y="184.32" fill="#10B981" font-size="25.6" font-weight="700" style="font-family: Inter, Arial, Helvetica, sans-serif;font-weight:700;letter-spacing:0.4px;paint-order:stroke fill;stroke:#0E3A2E;stroke-width:0.6;stroke-linejoin:round" text-anchor="start" dominant-baseline="middle" letter-spacing="-0.5" id="lexity-label">LEXITY</text></g></svg>

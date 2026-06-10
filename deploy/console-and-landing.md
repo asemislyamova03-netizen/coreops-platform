@@ -226,7 +226,7 @@ curl -sI https://flexity.asia/console/index.html | grep -i cache
 
 ## Nginx: `www.flexity.asia` — Landing
 
-Требует наличия файлов в репозитории: `landing/www/` (Stage B). До Stage B этот блок — целевая конфигурация.
+Файлы в репозитории: `landing/www/` (Stage B ✅). На сервере — выкладка в `/var/www/flexity-landing/` при live deploy.
 
 ```nginx
 server {
@@ -392,7 +392,7 @@ sudo nginx -t && sudo systemctl reload nginx
 | Этап | Содержание | Статус |
 |------|------------|--------|
 | A | `base` + `basename` `/console/`, vite proxy `127.0.0.1` | ✅ выполнен |
-| B | `landing/www/` в репозитории | ⏳ не выполнен |
+| B | `landing/www/` в репозитории | ✅ выполнен |
 | C | этот документ | ✅ |
 
-До завершения Stage B блок nginx для `www.flexity.asia` — только подготовка; выкладка landing возможна после появления файлов в `landing/www/`.
+`landing/www/` в git: `index.html`, `assets/` (logo, favicon), ссылка входа → `https://flexity.asia/console/login`. Live deploy landing на `www.flexity.asia` — отдельный этап с approval (rsync + nginx).

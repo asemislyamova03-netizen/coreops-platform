@@ -79,17 +79,98 @@ KINDERGARTEN_BASIC = {
             "label": "Желаемая дата начала",
             "sort_order": 10,
         },
+        {
+            "entity_type": "party",
+            "field_key": "guardian_relationship",
+            "field_type": "select",
+            "label": "Тип представителя",
+            "applies_to_json": {"party_role": "guardian"},
+            "options_json": {"options": ["мать", "отец", "законный опекун"]},
+            "is_required": False,
+            "sort_order": 10,
+        },
+        {
+            "entity_type": "party",
+            "field_key": "start_date",
+            "field_type": "date",
+            "label": "Дата начала посещения",
+            "applies_to_json": {"party_role": "enrollee"},
+            "is_required": False,
+            "sort_order": 50,
+        },
     ],
     "default_document_templates": [
         {
             "code": "parent_contract",
             "name": "Договор с законным представителем",
             "document_type": "contract",
+            "body_template": (
+                "ДОГОВОР ОБ ОКАЗАНИИ ОБРАЗОВАТЕЛЬНЫХ УСЛУГ № {{contract_number}}\n\n"
+                "г. Алматы  {{contract_date}}\n\n"
+                "{{kindergarten_name}}, именуемое в дальнейшем «Исполнитель», "
+                "и {{guardian_name}} ({{guardian_relationship}}), именуемый(-ая) "
+                "в дальнейшем «Заказчик», заключили настоящий договор:\n\n"
+                "1. ПРЕДМЕТ ДОГОВОРА\n"
+                "1.1. Исполнитель оказывает образовательные услуги для ребёнка: "
+                "{{child_name}}.\n"
+                "1.2. Срок начала посещения: {{start_date}}.\n\n"
+                "2. СТОИМОСТЬ И ПОРЯДОК ОПЛАТЫ\n"
+                "2.1. Ежемесячная оплата составляет {{monthly_fee}} тенге.\n"
+                "2.2. Оплата производится не позднее 5-го числа каждого месяца.\n\n"
+                "3. ПОДПИСИ СТОРОН\n"
+                "Заказчик: {{guardian_name}}\n"
+                "Исполнитель: ____________________\n"
+            ),
+            "fields": [
+                {"field_key": "contract_number", "label": "Номер договора",
+                 "field_type": "string", "is_required": True},
+                {"field_key": "contract_date", "label": "Дата договора",
+                 "field_type": "date", "is_required": True},
+                {"field_key": "kindergarten_name", "label": "Название детского сада",
+                 "field_type": "string", "is_required": True},
+                {"field_key": "guardian_name", "label": "Законный представитель",
+                 "field_type": "string", "is_required": True},
+                {"field_key": "guardian_relationship", "label": "Кем является представитель",
+                 "field_type": "string", "is_required": False,
+                 "default_value": "законный представитель"},
+                {"field_key": "child_name", "label": "Ребёнок",
+                 "field_type": "string", "is_required": True},
+                {"field_key": "start_date", "label": "Дата начала посещения",
+                 "field_type": "date", "is_required": True},
+                {"field_key": "monthly_fee", "label": "Ежемесячная оплата",
+                 "field_type": "string", "is_required": True},
+            ],
         },
         {
             "code": "enrollment_application",
             "name": "Заявление на зачисление",
             "document_type": "application",
+            "body_template": (
+                "ЗАЯВЛЕНИЕ О ЗАЧИСЛЕНИИ В ДОШКОЛЬНУЮ ОРГАНИЗАЦИЮ\n\n"
+                "Дата: {{application_date}}\n\n"
+                "Я, {{guardian_name}}, прошу зачислить моего ребёнка "
+                "{{child_name}}, дата рождения {{birth_date}}, "
+                "в группу «{{group_name}}».\n\n"
+                "Желаемая дата начала посещения: {{start_date}}.\n\n"
+                "Подпись заявителя: ____________________\n"
+                "{{guardian_name}}\n"
+            ),
+            "fields": [
+                {"field_key": "application_date", "label": "Дата заявления",
+                 "field_type": "date", "is_required": True},
+                {"field_key": "guardian_name", "label": "Законный представитель",
+                 "field_type": "string", "is_required": True},
+                {"field_key": "child_name", "label": "Ребёнок",
+                 "field_type": "string", "is_required": True},
+                {"field_key": "birth_date", "label": "Дата рождения ребёнка",
+                 "field_type": "date", "is_required": True},
+                {"field_key": "group_name", "label": "Группа",
+                 "field_type": "string", "is_required": False,
+                 "default_value": "не указана"},
+                {"field_key": "start_date", "label": "Желаемая дата начала",
+                 "field_type": "date", "is_required": False,
+                 "default_value": "не указана"},
+            ],
         },
     ],
     "default_catalog_items": [
@@ -97,16 +178,22 @@ KINDERGARTEN_BASIC = {
             "item_type": "subscription_service",
             "name": "Обучение (месяц)",
             "sku": "edu-monthly",
+            "base_price": "25000.00",
+            "currency": "KZT",
         },
         {
             "item_type": "fee",
             "name": "Регистрационный взнос",
             "sku": "registration-fee",
+            "base_price": "5000.00",
+            "currency": "KZT",
         },
         {
             "item_type": "fee",
             "name": "Вступительный взнос",
             "sku": "enrollment-fee",
+            "base_price": "10000.00",
+            "currency": "KZT",
         },
     ],
     "default_dashboards": [],

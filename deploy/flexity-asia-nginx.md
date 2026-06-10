@@ -3,6 +3,8 @@
 **Сейчас на сервере остаются:** Consult (`/`, порт 8002), Trailers (`/trailers/`, 8003), лендинг www, clinic и пр.  
 **CoreOps добавляем рядом**, ничего из этого не трогаем.
 
+**Platform Console и landing:** см. [console-and-landing.md](console-and-landing.md) (`/console/` static SPA, `www.flexity.asia` static).
+
 Позже (отдельным этапом): перенос Trailers/Consult к клиентам, очистка сервера, перенос на **flexity.kz**.
 
 ---

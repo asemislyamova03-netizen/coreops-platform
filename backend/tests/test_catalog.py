@@ -44,8 +44,8 @@ def test_catalog_item_and_price_list(client):
         headers=headers,
         json={
             "item_type": "subscription_service",
-            "name": "Обучение (месяц)",
-            "sku": "edu-monthly",
+            "name": "Дополнительные занятия (месяц)",
+            "sku": "extra-classes-monthly",
             "unit_id": unit.json()["id"],
             "base_price": "15000.00",
             "currency": "RUB",
@@ -59,8 +59,8 @@ def test_catalog_item_and_price_list(client):
         headers=headers,
         json={
             "item_type": "fee",
-            "name": "Регистрационный взнос",
-            "sku": "registration-fee",
+            "name": "Материальный взнос",
+            "sku": "materials-fee",
             "base_price": "5000",
             "currency": "RUB",
         },
@@ -72,7 +72,7 @@ def test_catalog_item_and_price_list(client):
         headers=headers,
     )
     assert listed.status_code == 200
-    assert len(listed.json()) == 1
+    assert any(item["id"] == item_id for item in listed.json())
 
     price_list = client.post(
         "/api/v1/catalog/price-lists",

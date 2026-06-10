@@ -64,9 +64,13 @@ def test_document_template_generate_and_sign(client, storage_path):
             "template_id": contract["id"],
             "context": {
                 "contract_number": "2025-001",
-                "guardian_name": "Иванова Мария",
-                "child_name": "Иванов Пётр",
                 "contract_date": "2025-09-01",
+                "kindergarten_name": "Documents Tenant",
+                "guardian_name": "Иванова Мария",
+                "guardian_relationship": "мать",
+                "child_name": "Иванов Пётр",
+                "start_date": "2025-09-01",
+                "monthly_fee": "25000",
             },
         },
     )

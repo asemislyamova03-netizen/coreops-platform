@@ -1,10 +1,13 @@
 import uuid
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from app.core.enums import CatalogItemType
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.permissions import get_provider_staff
 from app.modules.auth.models import User
+from app.modules.catalog.repository import CatalogRepository
 from app.modules.industry_templates.repository import IndustryTemplateRepository
 from app.modules.industry_templates.schemas import (
     ApplyTemplateResponse,
@@ -100,6 +103,11 @@ class IndustryTemplateService:
             user,
             list(template.default_document_templates),
         )
+        self._apply_catalog_items(
+            tenant_id,
+            user,
+            list(template.default_catalog_items),
+        )
         AIService(self.db, tenant_id).import_agents_from_config(
             user,
             list(template.default_ai_agents),
@@ -176,6 +184,40 @@ class IndustryTemplateService:
                 is_required=field_data.get("is_required", False),
                 sort_order=field_data.get("sort_order", 0),
                 source_template_code=template_code,
+            )
+            created += 1
+        return created
+
+    def _apply_catalog_items(
+        self,
+        tenant_id: uuid.UUID,
+        user: User,
+        items: list,
+    ) -> int:
+        repo = CatalogRepository(self.db)
+        created = 0
+        for item_data in items:
+            sku = item_data.get("sku")
+            if sku and repo.get_item_by_sku(tenant_id, sku):
+                continue
+
+            repo.create_item(
+                tenant_id=tenant_id,
+                item_type=CatalogItemType(item_data["item_type"]),
+                name=item_data["name"],
+                description=item_data.get("description"),
+                sku=sku,
+                unit_id=None,
+                base_price=(
+                    Decimal(str(item_data["base_price"]))
+                    if item_data.get("base_price") is not None
+                    else None
+                ),
+                currency=item_data.get("currency"),
+                is_active=item_data.get("is_active", True),
+                custom_fields_json={},
+                created_by_user_id=user.id,
+                updated_by_user_id=user.id,
             )
             created += 1
         return created

@@ -8,8 +8,13 @@ import { LoginPage } from "./pages/LoginPage";
 import { TenantCreatePage } from "./pages/TenantCreatePage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
 import { TenantsListPage } from "./pages/TenantsListPage";
+import { ClientsPage } from "./pages/workspace/ClientsPage";
+import { CrmPage } from "./pages/workspace/CrmPage";
+import { DashboardPage } from "./pages/workspace/DashboardPage";
+import { DocumentsPage } from "./pages/workspace/DocumentsPage";
+import { FinancePage } from "./pages/workspace/FinancePage";
+import { ReportsPage } from "./pages/workspace/ReportsPage";
 import { WorkspaceAccessDeniedPage } from "./pages/workspace/WorkspaceAccessDeniedPage";
-import { WorkspacePlaceholderPage } from "./pages/workspace/WorkspacePlaceholderPage";
 import { RootRedirect } from "./routes/RootRedirect";
 
 export function AppRoutes() {
@@ -21,66 +26,16 @@ export function AppRoutes() {
       <Route path="/workspace/:tenantSlug" element={<TenantWorkspaceGuard />}>
         <Route element={<WorkspaceLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
-          <Route
-            path="dashboard"
-            element={
-              <WorkspacePlaceholderPage
-                title="Dashboard"
-                description="Сводка по детскому саду и ключевые показатели."
-                plannedStage="W2"
-              />
-            }
-          />
-          <Route
-            path="children"
-            element={
-              <WorkspacePlaceholderPage
-                title="Children"
-                description="Список воспитанников и карточки детей."
-                plannedStage="W2"
-              />
-            }
-          />
-          <Route
-            path="parents"
-            element={
-              <WorkspacePlaceholderPage
-                title="Parents"
-                description="Родители и законные представители."
-                plannedStage="W2"
-              />
-            }
-          />
-          <Route
-            path="services"
-            element={
-              <WorkspacePlaceholderPage
-                title="Services"
-                description="Услуги, тарифы и каталог kindergarten_basic."
-                plannedStage="W2"
-              />
-            }
-          />
-          <Route
-            path="invoices"
-            element={
-              <WorkspacePlaceholderPage
-                title="Invoices"
-                description="Счета, оплаты и финансовые операции."
-                plannedStage="W3"
-              />
-            }
-          />
-          <Route
-            path="documents"
-            element={
-              <WorkspacePlaceholderPage
-                title="Documents"
-                description="Договоры, шаблоны и документооборот."
-                plannedStage="W3"
-              />
-            }
-          />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="crm" element={<CrmPage />} />
+          <Route path="clients" element={<ClientsPage />} />
+          <Route path="documents" element={<DocumentsPage />} />
+          <Route path="finance" element={<FinancePage />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="children" element={<Navigate to="../clients" replace />} />
+          <Route path="parents" element={<Navigate to="../clients" replace />} />
+          <Route path="services" element={<Navigate to="../dashboard" replace />} />
+          <Route path="invoices" element={<Navigate to="../finance" replace />} />
         </Route>
       </Route>
       <Route element={<ProtectedRoute />}>

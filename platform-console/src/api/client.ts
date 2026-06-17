@@ -1,5 +1,6 @@
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "../auth/tokenStorage";
 import type { TokenPair } from "../types/auth";
+import { getWorkspaceTenantId } from "./workspaceTenant";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 
@@ -66,18 +67,23 @@ async function refreshAccessToken(): Promise<string | null> {
 
 export interface ApiFetchOptions extends RequestInit {
   skipAuth?: boolean;
+  /** Attach X-Tenant-ID from workspace context (Platform Console calls omit this). */
+  workspaceTenant?: boolean;
 }
 
 export async function apiFetch<T>(
   path: string,
   options: ApiFetchOptions = {},
 ): Promise<T> {
-  const { skipAuth = false, headers, ...rest } = options;
+  const { skipAuth = false, workspaceTenant = false, headers, ...rest } = options;
   const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+
+  const workspaceTenantId = workspaceTenant ? getWorkspaceTenantId() : null;
 
   const buildHeaders = (token: string | null): HeadersInit => ({
     "Content-Type": "application/json",
     ...(token && !skipAuth ? { Authorization: `Bearer ${token}` } : {}),
+    ...(workspaceTenantId ? { "X-Tenant-ID": workspaceTenantId } : {}),
     ...headers,
   });
 

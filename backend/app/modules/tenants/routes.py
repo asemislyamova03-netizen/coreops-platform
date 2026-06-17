@@ -8,6 +8,7 @@ from app.modules.auth.models import User
 from app.modules.tenants.schemas import (
     TenantCreate,
     TenantMembershipCreate,
+    TenantMembershipResponse,
     TenantResponse,
     TenantUpdate,
 )
@@ -54,6 +55,15 @@ def update_tenant(
 ) -> TenantResponse:
     tenant = TenantService(db).update(current_user, tenant_id, payload)
     return TenantResponse.model_validate(tenant)
+
+
+@router.get("/{tenant_id}/memberships", response_model=list[TenantMembershipResponse])
+def list_tenant_memberships(
+    tenant_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[TenantMembershipResponse]:
+    return TenantService(db).list_memberships(current_user, tenant_id)
 
 
 @router.post("/{tenant_id}/memberships", status_code=201)

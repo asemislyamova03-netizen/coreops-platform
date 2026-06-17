@@ -47,3 +47,14 @@ class TenantResponse(BaseModel):
 class TenantMembershipCreate(BaseModel):
     user_id: uuid.UUID
     role: TenantRole = TenantRole.TENANT_OWNER
+
+
+class TenantMembershipResponse(BaseModel):
+    membership_id: uuid.UUID
+    user_id: uuid.UUID
+    email: EmailStr
+    full_name: str
+    user_is_active: bool
+    role: TenantRole
+    membership_is_active: bool
+    created_at: datetime

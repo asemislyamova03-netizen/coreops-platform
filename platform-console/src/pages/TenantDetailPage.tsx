@@ -6,20 +6,27 @@ import { applyTemplate, listTemplates } from "../api/industry-templates";
 import { getTenantLabels } from "../api/labels";
 import { disableModule, enableModule, listTenantModules } from "../api/modules";
 import { assignPlan, getSubscription, listPlans } from "../api/subscriptions";
-import { getTenant, patchTenant } from "../api/tenants";
+import { getTenant, listTenantMemberships, patchTenant } from "../api/tenants";
 import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Loading } from "../components/ui/Loading";
 import { Select } from "../components/ui/Select";
 import { Table } from "../components/ui/Table";
 import type { TenantModule } from "../types/module";
-import type { TenantStatus } from "../types/tenant";
+import type { TenantMembership, TenantStatus } from "../types/tenant";
 import type { ApplyTemplateResponse } from "../types/template";
 
-type TabId = "info" | "modules" | "subscription" | "labels" | "apply-template";
+type TabId =
+  | "info"
+  | "users"
+  | "modules"
+  | "subscription"
+  | "labels"
+  | "apply-template";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "info", label: "Info" },
+  { id: "users", label: "Users" },
   { id: "modules", label: "Modules" },
   { id: "subscription", label: "Subscription" },
   { id: "labels", label: "Labels" },
@@ -57,6 +64,12 @@ export function TenantDetailPage() {
     queryKey: ["tenant-modules", tenantId],
     queryFn: () => listTenantModules(tenantId),
     enabled: Boolean(tenantId) && activeTab === "modules",
+  });
+
+  const membershipsQuery = useQuery({
+    queryKey: ["tenant-memberships", tenantId],
+    queryFn: () => listTenantMemberships(tenantId),
+    enabled: Boolean(tenantId) && activeTab === "users",
   });
 
   const subscriptionQuery = useQuery({
@@ -273,6 +286,42 @@ export function TenantDetailPage() {
                       )}
                     </div>
                   ),
+                },
+              ]}
+            />
+          )}
+        </div>
+      )}
+
+      {activeTab === "users" && (
+        <div className="panel">
+          {membershipsQuery.isLoading ? (
+            <Loading />
+          ) : membershipsQuery.error ? (
+            <Alert variant="error">Не удалось загрузить memberships</Alert>
+          ) : (
+            <Table<TenantMembership>
+              data={membershipsQuery.data ?? []}
+              rowKey={(row) => row.membership_id}
+              emptyText="Пользователи tenant не найдены"
+              columns={[
+                { key: "email", header: "Email", render: (row) => row.email },
+                { key: "full_name", header: "Имя", render: (row) => row.full_name },
+                {
+                  key: "user_status",
+                  header: "User status",
+                  render: (row) => (row.user_is_active ? "active" : "inactive"),
+                },
+                { key: "role", header: "Tenant role", render: (row) => row.role },
+                {
+                  key: "membership_status",
+                  header: "Membership status",
+                  render: (row) => (row.membership_is_active ? "active" : "inactive"),
+                },
+                {
+                  key: "created_at",
+                  header: "Added at",
+                  render: (row) => dateFormatter.format(new Date(row.created_at)),
                 },
               ]}
             />

@@ -13,7 +13,11 @@ from app.modules.industry_templates.service import IndustryTemplateService
 from app.modules.module_registry.service import ModuleRegistryService
 from app.modules.subscriptions.service import SubscriptionService
 from app.modules.tenants.repository import TenantRepository
-from app.modules.tenants.schemas import TenantCreate, TenantUpdate
+from app.modules.tenants.schemas import (
+    TenantCreate,
+    TenantMembershipResponse,
+    TenantUpdate,
+)
 
 
 class TenantService:
@@ -115,6 +119,27 @@ class TenantService:
             raise NotFoundError("User not found")
 
         return self._assign_membership(tenant_id, member_user_id, role)
+
+    def list_memberships(
+        self,
+        user: User,
+        tenant_id: uuid.UUID,
+    ) -> list[TenantMembershipResponse]:
+        tenant = self.get_accessible(user, tenant_id)
+        memberships = self.tenants.list_memberships(tenant.id)
+        return [
+            TenantMembershipResponse(
+                membership_id=membership.id,
+                user_id=membership.user_id,
+                email=membership.user.email,
+                full_name=membership.user.full_name,
+                user_is_active=membership.user.is_active,
+                role=membership.role,
+                membership_is_active=membership.is_active,
+                created_at=membership.created_at,
+            )
+            for membership in memberships
+        ]
 
     def _assign_membership(
         self,

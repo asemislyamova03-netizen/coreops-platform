@@ -23,3 +23,14 @@ export interface TenantUpdate {
   name?: string;
   status?: TenantStatus;
 }
+
+export interface TenantMembership {
+  membership_id: string;
+  user_id: string;
+  email: string;
+  full_name: string;
+  user_is_active: boolean;
+  role: string;
+  membership_is_active: boolean;
+  created_at: string;
+}

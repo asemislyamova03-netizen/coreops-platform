@@ -94,3 +94,12 @@ class TenantRepository:
             UserTenantMembership.user_id == user_id,
         )
         return self.db.scalar(stmt)
+
+    def list_memberships(self, tenant_id: uuid.UUID) -> list[UserTenantMembership]:
+        stmt = (
+            select(UserTenantMembership)
+            .where(UserTenantMembership.tenant_id == tenant_id)
+            .options(selectinload(UserTenantMembership.user))
+            .order_by(UserTenantMembership.created_at.asc())
+        )
+        return list(self.db.scalars(stmt).all())

@@ -15,7 +15,7 @@ interface AuthContextValue {
   me: MeResponse | null;
   isLoading: boolean;
   isProviderOwner: boolean;
-  login: (payload: LoginRequest) => Promise<void>;
+  login: (payload: LoginRequest) => Promise<MeResponse>;
   logout: () => void;
   refreshMe: () => Promise<void>;
 }
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokens(tokens.access_token, tokens.refresh_token);
     const data = await getMe();
     setMe(data);
+    return data;
   }, []);
 
   const logout = useCallback(() => {

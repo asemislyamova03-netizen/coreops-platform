@@ -417,3 +417,42 @@ code {
   border-radius: 10px;
   background: #fafafa;
 }
+
+.workspace-sidebar {
+  background: #0f3d5c;
+}
+
+.workspace-shell .workspace-sidebar .nav-link:hover,
+.workspace-shell .workspace-sidebar .nav-link.active {
+  background: #155a87;
+}
+
+.workspace-header {
+  align-items: flex-start;
+}
+
+.workspace-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workspace-tenant-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.workspace-tenant-meta {
+  margin: 4px 0 0;
+}
+
+.workspace-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.workspace-context-panel {
+  margin-top: 20px;
+}

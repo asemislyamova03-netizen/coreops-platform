@@ -7,9 +7,10 @@ import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Loading } from "../components/ui/Loading";
+import { resolveHomePath } from "../routes/resolveHomePath";
 
 export function LoginPage() {
-  const { login, isLoading, isProviderOwner } = useAuth();
+  const { login, isLoading, isProviderOwner, me } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,12 +21,9 @@ export function LoginPage() {
     return <Loading text="Проверка сессии..." />;
   }
 
-  if (hasTokens() && isProviderOwner) {
-    return <Navigate to="/tenants" replace />;
-  }
-
-  if (hasTokens() && !isProviderOwner) {
-    return <Navigate to="/access-denied" replace />;
+  if (hasTokens() && me) {
+    const tenantSlugs = me.tenants.map((item) => item.tenant_slug);
+    return <Navigate to={resolveHomePath(isProviderOwner, tenantSlugs)} replace />;
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -33,8 +31,10 @@ export function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await login({ email, password });
-      navigate("/tenants");
+      const session = await login({ email, password });
+      const tenantSlugs = session.tenants.map((item) => item.tenant_slug);
+      const isProvider = session.provider?.role === "provider_owner";
+      navigate(resolveHomePath(isProvider, tenantSlugs));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -50,7 +50,7 @@ export function LoginPage() {
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
         <h1>Flexity Platform Console</h1>
-        <p className="muted">Вход для provider_owner</p>
+        <p className="muted">Вход для provider_owner и tenant users</p>
         {error && <Alert variant="error">{error}</Alert>}
         <Input
           label="Email"

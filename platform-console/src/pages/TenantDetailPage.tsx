@@ -214,9 +214,14 @@ export function TenantDetailPage() {
             <span className={`badge badge-${tenant.status}`}>{tenant.status}</span>
           </p>
         </div>
-        <Link to="/tenants">
-          <Button variant="secondary">К списку</Button>
-        </Link>
+        <div className="actions-row">
+          <Link to={`/workspace/${tenant.slug}/dashboard`}>
+            <Button>Open workspace</Button>
+          </Link>
+          <Link to="/tenants">
+            <Button variant="secondary">К списку</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="tabs">

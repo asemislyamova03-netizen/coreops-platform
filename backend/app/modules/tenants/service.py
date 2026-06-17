@@ -13,7 +13,11 @@ from app.modules.industry_templates.service import IndustryTemplateService
 from app.modules.module_registry.service import ModuleRegistryService
 from app.modules.subscriptions.service import SubscriptionService
 from app.modules.tenants.repository import TenantRepository
-from app.modules.tenants.schemas import TenantCreate, TenantUpdate
+from app.modules.tenants.schemas import (
+    TenantCreate,
+    TenantMembershipResponse,
+    TenantUpdate,
+)
 
 
 class TenantService:
@@ -102,7 +106,8 @@ class TenantService:
         self,
         user: User,
         tenant_id: uuid.UUID,
-        member_user_id: uuid.UUID,
+        member_user_id: uuid.UUID | None,
+        member_user_email: str | None,
         role: TenantRole,
     ):
         tenant = self.get_accessible(user, tenant_id)
@@ -110,11 +115,42 @@ class TenantService:
         if not staff or staff.provider_company_id != tenant.provider_company_id:
             raise PermissionDeniedError("Only provider staff can assign tenant members")
 
-        member = self.users.get_by_id(member_user_id)
+        resolved_user_id = member_user_id
+        if resolved_user_id is None and member_user_email:
+            member = self.users.get_by_email(member_user_email)
+            if not member:
+                raise NotFoundError("User not found")
+            resolved_user_id = member.id
+
+        if resolved_user_id is None:
+            raise NotFoundError("User not found")
+
+        member = self.users.get_by_id(resolved_user_id)
         if not member:
             raise NotFoundError("User not found")
 
-        return self._assign_membership(tenant_id, member_user_id, role)
+        return self._assign_membership(tenant_id, resolved_user_id, role)
+
+    def list_memberships(
+        self,
+        user: User,
+        tenant_id: uuid.UUID,
+    ) -> list[TenantMembershipResponse]:
+        tenant = self.get_accessible(user, tenant_id)
+        memberships = self.tenants.list_memberships(tenant.id)
+        return [
+            TenantMembershipResponse(
+                membership_id=membership.id,
+                user_id=membership.user_id,
+                email=membership.user.email,
+                full_name=membership.user.full_name,
+                user_is_active=membership.user.is_active,
+                role=membership.role,
+                membership_is_active=membership.is_active,
+                created_at=membership.created_at,
+            )
+            for membership in memberships
+        ]
 
     def _assign_membership(
         self,

@@ -6,20 +6,33 @@ import { applyTemplate, listTemplates } from "../api/industry-templates";
 import { getTenantLabels } from "../api/labels";
 import { disableModule, enableModule, listTenantModules } from "../api/modules";
 import { assignPlan, getSubscription, listPlans } from "../api/subscriptions";
-import { getTenant, patchTenant } from "../api/tenants";
+import {
+  addTenantMembership,
+  getTenant,
+  listTenantMemberships,
+  patchTenant,
+} from "../api/tenants";
 import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
 import { Loading } from "../components/ui/Loading";
 import { Select } from "../components/ui/Select";
 import { Table } from "../components/ui/Table";
 import type { TenantModule } from "../types/module";
-import type { TenantStatus } from "../types/tenant";
+import type { TenantMembership, TenantMembershipRole, TenantStatus } from "../types/tenant";
 import type { ApplyTemplateResponse } from "../types/template";
 
-type TabId = "info" | "modules" | "subscription" | "labels" | "apply-template";
+type TabId =
+  | "info"
+  | "users"
+  | "modules"
+  | "subscription"
+  | "labels"
+  | "apply-template";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "info", label: "Info" },
+  { id: "users", label: "Users" },
   { id: "modules", label: "Modules" },
   { id: "subscription", label: "Subscription" },
   { id: "labels", label: "Labels" },
@@ -31,6 +44,12 @@ const STATUS_OPTIONS: Array<{ value: TenantStatus; label: string }> = [
   { value: "active", label: "active" },
   { value: "suspended", label: "suspended" },
   { value: "archived", label: "archived" },
+];
+
+const MEMBERSHIP_ROLE_OPTIONS: Array<{ value: TenantMembershipRole; label: string }> = [
+  { value: "tenant_owner", label: "tenant_owner" },
+  { value: "tenant_admin", label: "tenant_admin" },
+  { value: "member", label: "member" },
 ];
 
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
@@ -45,6 +64,8 @@ export function TenantDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState("");
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [newMemberRole, setNewMemberRole] = useState<TenantMembershipRole>("member");
   const [applyResult, setApplyResult] = useState<ApplyTemplateResponse | null>(null);
 
   const tenantQuery = useQuery({
@@ -57,6 +78,12 @@ export function TenantDetailPage() {
     queryKey: ["tenant-modules", tenantId],
     queryFn: () => listTenantModules(tenantId),
     enabled: Boolean(tenantId) && activeTab === "modules",
+  });
+
+  const membershipsQuery = useQuery({
+    queryKey: ["tenant-memberships", tenantId],
+    queryFn: () => listTenantMemberships(tenantId),
+    enabled: Boolean(tenantId) && activeTab === "users",
   });
 
   const subscriptionQuery = useQuery({
@@ -142,6 +169,21 @@ export function TenantDetailPage() {
       setActionSuccess(null);
       setApplyResult(null);
       setActionError(err instanceof ApiError ? err.message : "Ошибка применения шаблона");
+    },
+  });
+
+  const addMembershipMutation = useMutation({
+    mutationFn: ({ email, role }: { email: string; role: TenantMembershipRole }) =>
+      addTenantMembership(tenantId, { user_email: email, role }),
+    onSuccess: () => {
+      setActionSuccess("Пользователь добавлен в tenant");
+      setActionError(null);
+      setNewMemberEmail("");
+      void queryClient.invalidateQueries({ queryKey: ["tenant-memberships", tenantId] });
+    },
+    onError: (err: unknown) => {
+      setActionSuccess(null);
+      setActionError(err instanceof ApiError ? err.message : "Ошибка добавления пользователя");
     },
   });
 
@@ -273,6 +315,70 @@ export function TenantDetailPage() {
                       )}
                     </div>
                   ),
+                },
+              ]}
+            />
+          )}
+        </div>
+      )}
+
+      {activeTab === "users" && (
+        <div className="panel">
+          <div className="form-inline">
+            <Input
+              label="User email"
+              name="membership_user_email"
+              type="email"
+              value={newMemberEmail}
+              onChange={(e) => setNewMemberEmail(e.target.value)}
+              placeholder="user@example.com"
+            />
+            <Select
+              label="Role"
+              name="membership_role"
+              value={newMemberRole}
+              options={MEMBERSHIP_ROLE_OPTIONS}
+              onChange={(e) => setNewMemberRole(e.target.value as TenantMembershipRole)}
+            />
+            <Button
+              disabled={!newMemberEmail.trim() || addMembershipMutation.isPending}
+              onClick={() =>
+                addMembershipMutation.mutate({
+                  email: newMemberEmail.trim(),
+                  role: newMemberRole,
+                })
+              }
+            >
+              Add existing user
+            </Button>
+          </div>
+          {membershipsQuery.isLoading ? (
+            <Loading />
+          ) : membershipsQuery.error ? (
+            <Alert variant="error">Не удалось загрузить memberships</Alert>
+          ) : (
+            <Table<TenantMembership>
+              data={membershipsQuery.data ?? []}
+              rowKey={(row) => row.membership_id}
+              emptyText="Пользователи tenant не найдены"
+              columns={[
+                { key: "email", header: "Email", render: (row) => row.email },
+                { key: "full_name", header: "Имя", render: (row) => row.full_name },
+                {
+                  key: "user_status",
+                  header: "User status",
+                  render: (row) => (row.user_is_active ? "active" : "inactive"),
+                },
+                { key: "role", header: "Tenant role", render: (row) => row.role },
+                {
+                  key: "membership_status",
+                  header: "Membership status",
+                  render: (row) => (row.membership_is_active ? "active" : "inactive"),
+                },
+                {
+                  key: "created_at",
+                  header: "Added at",
+                  render: (row) => dateFormatter.format(new Date(row.created_at)),
                 },
               ]}
             />

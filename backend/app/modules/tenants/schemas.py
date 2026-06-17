@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from app.core.enums import TenantRole, TenantStatus
 
@@ -45,8 +45,17 @@ class TenantResponse(BaseModel):
 
 
 class TenantMembershipCreate(BaseModel):
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None = None
+    user_email: EmailStr | None = None
     role: TenantRole = TenantRole.TENANT_OWNER
+
+    @model_validator(mode="after")
+    def validate_identifier(self):
+        has_user_id = self.user_id is not None
+        has_user_email = self.user_email is not None
+        if has_user_id == has_user_email:
+            raise ValueError("Exactly one of user_id or user_email must be provided")
+        return self
 
 
 class TenantMembershipResponse(BaseModel):

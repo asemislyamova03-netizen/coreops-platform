@@ -115,3 +115,149 @@ def test_list_tenant_memberships_denies_user_without_access(client, db_session):
 
     forbidden = client.get(f"/api/v1/tenants/{tenant_id}/memberships", headers=outsider_headers)
     assert forbidden.status_code == 403
+
+
+def test_add_tenant_membership_by_user_id_still_works(client, db_session):
+    from app.core.security import hash_password
+    from app.modules.auth.models import User
+
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "By Id Tenant", "slug": "by-id-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    user = User(
+        email="byid@example.com",
+        full_name="By Id Member",
+        hashed_password=hash_password("memberpass123"),
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    added = client.post(
+        f"/api/v1/tenants/{tenant_id}/memberships",
+        json={"user_id": str(user.id), "role": "member"},
+        headers=headers,
+    )
+    assert added.status_code == 201
+    assert added.json()["role"] == "member"
+
+
+def test_add_tenant_membership_by_user_email(client, db_session):
+    from app.core.security import hash_password
+    from app.modules.auth.models import User
+
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "By Email Tenant", "slug": "by-email-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    user = User(
+        email="byemail@example.com",
+        full_name="By Email Member",
+        hashed_password=hash_password("memberpass123"),
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    added = client.post(
+        f"/api/v1/tenants/{tenant_id}/memberships",
+        json={"user_email": "byemail@example.com", "role": "tenant_admin"},
+        headers=headers,
+    )
+    assert added.status_code == 201
+    assert added.json()["role"] == "tenant_admin"
+
+
+def test_add_tenant_membership_invalid_payload_cases(client):
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Invalid Payload Tenant", "slug": "invalid-payload-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    both_missing = client.post(
+        f"/api/v1/tenants/{tenant_id}/memberships",
+        json={"role": "member"},
+        headers=headers,
+    )
+    assert both_missing.status_code == 422
+
+    both_present = client.post(
+        f"/api/v1/tenants/{tenant_id}/memberships",
+        json={
+            "user_id": created.json()["id"],
+            "user_email": "owner@example.com",
+            "role": "member",
+        },
+        headers=headers,
+    )
+    assert both_present.status_code == 422
+
+
+def test_add_tenant_membership_unknown_email_returns_404(client):
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Unknown Email Tenant", "slug": "unknown-email-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    missing = client.post(
+        f"/api/v1/tenants/{tenant_id}/memberships",
+        json={"user_email": "missing@example.com", "role": "member"},
+        headers=headers,
+    )
+    assert missing.status_code == 404
+
+
+def test_add_tenant_membership_duplicate_returns_409(client, db_session):
+    from app.core.security import hash_password
+    from app.modules.auth.models import User
+
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Duplicate Tenant", "slug": "duplicate-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    user = User(
+        email="duplicate@example.com",
+        full_name="Duplicate Member",
+        hashed_password=hash_password("memberpass123"),
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    first = client.post(
+        f"/api/v1/tenants/{tenant_id}/memberships",
+        json={"user_email": "duplicate@example.com", "role": "member"},
+        headers=headers,
+    )
+    assert first.status_code == 201
+
+    second = client.post(
+        f"/api/v1/tenants/{tenant_id}/memberships",
+        json={"user_email": "duplicate@example.com", "role": "member"},
+        headers=headers,
+    )
+    assert second.status_code == 409

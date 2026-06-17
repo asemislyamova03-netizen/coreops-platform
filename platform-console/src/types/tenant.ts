@@ -34,3 +34,11 @@ export interface TenantMembership {
   membership_is_active: boolean;
   created_at: string;
 }
+
+export type TenantMembershipRole = "tenant_owner" | "tenant_admin" | "member";
+
+export interface TenantMembershipCreatePayload {
+  user_id?: string;
+  user_email?: string;
+  role: TenantMembershipRole;
+}

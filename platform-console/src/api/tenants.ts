@@ -1,6 +1,7 @@
 import type {
   Tenant,
   TenantCreate,
+  TenantMembershipCreatePayload,
   TenantMembership,
   TenantUpdate,
 } from "../types/tenant";
@@ -30,4 +31,17 @@ export function patchTenant(tenantId: string, payload: TenantUpdate): Promise<Te
 
 export function listTenantMemberships(tenantId: string): Promise<TenantMembership[]> {
   return apiFetch<TenantMembership[]>(`/tenants/${tenantId}/memberships`);
+}
+
+export function addTenantMembership(
+  tenantId: string,
+  payload: TenantMembershipCreatePayload,
+): Promise<{ id: string; tenant_id: string; role: string }> {
+  return apiFetch<{ id: string; tenant_id: string; role: string }>(
+    `/tenants/${tenantId}/memberships`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }

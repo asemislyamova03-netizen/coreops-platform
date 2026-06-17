@@ -77,6 +77,7 @@ def add_tenant_membership(
         current_user,
         tenant_id,
         payload.user_id,
+        payload.user_email,
         payload.role,
     )
     return {"id": membership.id, "tenant_id": membership.tenant_id, "role": membership.role}

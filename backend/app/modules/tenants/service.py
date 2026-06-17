@@ -106,7 +106,8 @@ class TenantService:
         self,
         user: User,
         tenant_id: uuid.UUID,
-        member_user_id: uuid.UUID,
+        member_user_id: uuid.UUID | None,
+        member_user_email: str | None,
         role: TenantRole,
     ):
         tenant = self.get_accessible(user, tenant_id)
@@ -114,11 +115,21 @@ class TenantService:
         if not staff or staff.provider_company_id != tenant.provider_company_id:
             raise PermissionDeniedError("Only provider staff can assign tenant members")
 
-        member = self.users.get_by_id(member_user_id)
+        resolved_user_id = member_user_id
+        if resolved_user_id is None and member_user_email:
+            member = self.users.get_by_email(member_user_email)
+            if not member:
+                raise NotFoundError("User not found")
+            resolved_user_id = member.id
+
+        if resolved_user_id is None:
+            raise NotFoundError("User not found")
+
+        member = self.users.get_by_id(resolved_user_id)
         if not member:
             raise NotFoundError("User not found")
 
-        return self._assign_membership(tenant_id, member_user_id, role)
+        return self._assign_membership(tenant_id, resolved_user_id, role)
 
     def list_memberships(
         self,

@@ -490,3 +490,104 @@ code {
 .workspace-sidebar .nav-link.active .workspace-nav-hint {
   color: #d1d5db;
 }
+
+.crm-pipeline-board {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-top: 16px;
+}
+
+.crm-pipeline-column {
+  flex: 0 0 260px;
+  min-width: 260px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+.crm-pipeline-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 10px 10px 0 0;
+}
+
+.crm-pipeline-column-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.crm-pipeline-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #667085;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.crm-pipeline-cards {
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.crm-pipeline-empty {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.crm-pipeline-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.crm-pipeline-card-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.crm-pipeline-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.crm-pipeline-card-date {
+  margin-top: 6px;
+  font-size: 0.8rem;
+}
+
+.badge-open,
+.badge-in_progress {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-won {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-lost,
+.badge-cancelled,
+.badge-archived {
+  background: #f3f4f6;
+  color: #4b5563;
+}

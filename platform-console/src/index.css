@@ -591,3 +591,77 @@ code {
   background: #f3f4f6;
   color: #4b5563;
 }
+
+.workspace-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.workspace-kpi-card {
+  padding: 16px;
+}
+
+.workspace-kpi-label {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #667085;
+}
+
+.workspace-kpi-value {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.workspace-kpi-hint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+}
+
+.workspace-dashboard-links h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.workspace-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.workspace-back-link {
+  display: inline-block;
+  margin-bottom: 8px;
+  text-decoration: none;
+}
+
+.workspace-detail-tabs {
+  margin-top: 8px;
+}
+
+.workspace-detail-section {
+  margin-top: 16px;
+}
+
+.workspace-detail-section h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.workspace-finance-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f9fafb;
+}

@@ -8,6 +8,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { TenantCreatePage } from "./pages/TenantCreatePage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
 import { TenantsListPage } from "./pages/TenantsListPage";
+import { ClientDetailPage } from "./pages/workspace/ClientDetailPage";
 import { ClientsPage } from "./pages/workspace/ClientsPage";
 import { CrmPage } from "./pages/workspace/CrmPage";
 import { DashboardPage } from "./pages/workspace/DashboardPage";
@@ -29,6 +30,7 @@ export function AppRoutes() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="crm" element={<CrmPage />} />
           <Route path="clients" element={<ClientsPage />} />
+          <Route path="clients/:partyId" element={<ClientDetailPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="finance" element={<FinancePage />} />
           <Route path="reports" element={<ReportsPage />} />

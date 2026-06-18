@@ -13,6 +13,7 @@ export function listWorkItems(params: ListWorkItemsParams = {}): Promise<WorkIte
       stage_id: params.stage_id,
       status: params.status,
       work_item_type: params.work_item_type,
+      primary_party_id: params.primary_party_id,
       search: params.search,
       skip: params.skip,
       limit: params.limit,

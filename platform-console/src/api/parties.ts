@@ -7,6 +7,7 @@ export function listParties(params: ListPartiesParams = {}): Promise<Party[]> {
     `/parties${buildQuery({
       party_type: params.party_type,
       status: params.status,
+      party_role: params.party_role,
       search: params.search,
       skip: params.skip,
       limit: params.limit,

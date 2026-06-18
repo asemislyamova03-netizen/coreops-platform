@@ -12,7 +12,6 @@ import { Table } from "../../components/ui/Table";
 import type { Document } from "../../types/document";
 import type { Invoice, Payment } from "../../types/finance";
 import type { WorkItem } from "../../types/workflows";
-import { filterDocumentsByParty } from "../../workspace/documentHelpers";
 import { formatDate, formatMoney } from "../../workspace/formatters";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 import { getPartyRole } from "../../types/party";
@@ -36,7 +35,7 @@ export function ClientDetailPage() {
 
   const workItemsQuery = useQuery({
     queryKey: ["workspace-party-work-items", partyId],
-    queryFn: () => listWorkItems({ limit: 200 }),
+    queryFn: () => listWorkItems({ primary_party_id: partyId, limit: 200 }),
     enabled: Boolean(partyId) && !labelsLoading,
   });
 
@@ -54,7 +53,7 @@ export function ClientDetailPage() {
 
   const documentsQuery = useQuery({
     queryKey: ["workspace-party-documents", partyId],
-    queryFn: () => listDocuments({ limit: 200 }),
+    queryFn: () => listDocuments({ party_id: partyId, limit: 200 }),
     enabled: Boolean(partyId) && !labelsLoading,
   });
 
@@ -77,13 +76,8 @@ export function ClientDetailPage() {
   const roleLabel = role ? partyRoleLabel(role, role) : "—";
   const workItemLabel = entityLabel("work_item", "Заявка");
 
-  const relatedDeals = (workItemsQuery.data ?? []).filter(
-    (item) =>
-      item.primary_party_id === partyId ||
-      item.participants.some((p) => p.party_id === partyId),
-  );
-
-  const partyDocuments = filterDocumentsByParty(documentsQuery.data ?? [], partyId);
+  const relatedDeals = workItemsQuery.data ?? [];
+  const partyDocuments = documentsQuery.data ?? [];
 
   return (
     <div className="page">

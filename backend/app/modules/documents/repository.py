@@ -77,6 +77,7 @@ class DocumentRepository:
         tenant_id: uuid.UUID,
         *,
         status: DocumentStatus | None = None,
+        party_id: uuid.UUID | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> list[DocumentInstance]:
@@ -94,6 +95,8 @@ class DocumentRepository:
         )
         if status:
             stmt = stmt.where(DocumentInstance.status == status)
+        if party_id:
+            stmt = stmt.where(DocumentInstance.party_id == party_id)
         return list(self.db.scalars(stmt).all())
 
     def get_document(

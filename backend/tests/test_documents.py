@@ -105,6 +105,50 @@ def test_document_template_generate_and_sign(client, storage_path):
     assert len(listed.json()) == 1
 
 
+def test_list_documents_by_party_id(client, storage_path):
+    headers = _documents_tenant(client)
+
+    party = client.post(
+        "/api/v1/parties",
+        headers=headers,
+        json={
+            "party_type": "person",
+            "display_name": "Иванова Мария",
+            "party_role": "guardian",
+        },
+    )
+    assert party.status_code == 201
+    party_id = party.json()["id"]
+
+    templates = client.get("/api/v1/document-templates", headers=headers)
+    contract = next(t for t in templates.json() if t["code"] == "parent_contract")
+
+    generated = client.post(
+        "/api/v1/documents/generate",
+        headers=headers,
+        json={
+            "template_id": contract["id"],
+            "party_id": party_id,
+            "context": {
+                "contract_number": "2025-002",
+                "contract_date": "2025-09-01",
+                "kindergarten_name": "Documents Tenant",
+                "guardian_name": "Иванова Мария",
+                "guardian_relationship": "мать",
+                "child_name": "Иванов Пётр",
+                "start_date": "2025-09-01",
+                "monthly_fee": "25000",
+            },
+        },
+    )
+    assert generated.status_code == 201
+
+    by_party = client.get(f"/api/v1/documents?party_id={party_id}", headers=headers)
+    assert by_party.status_code == 200
+    assert len(by_party.json()) == 1
+    assert by_party.json()[0]["party_id"] == party_id
+
+
 def test_custom_template_and_missing_placeholder(client, storage_path):
     headers = _documents_tenant(client)
 

@@ -5,7 +5,7 @@ import { ApiError } from "../../api/client";
 import { Alert } from "../../components/ui/Alert";
 import { Loading } from "../../components/ui/Loading";
 import { Table } from "../../components/ui/Table";
-import { getPartyRole, type Party } from "../../types/party";
+import type { Party } from "../../types/party";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 
 export function ClientsPage() {
@@ -15,8 +15,8 @@ export function ClientsPage() {
   const guardianLabel = partyRoleLabel("guardian", "Родитель");
 
   const partiesQuery = useQuery({
-    queryKey: ["workspace-parties"],
-    queryFn: () => listParties({ limit: 200 }),
+    queryKey: ["workspace-parties", "guardian"],
+    queryFn: () => listParties({ party_role: "guardian", limit: 200 }),
     enabled: !labelsLoading,
   });
 
@@ -37,9 +37,7 @@ export function ClientsPage() {
     );
   }
 
-  const guardians = (partiesQuery.data ?? []).filter(
-    (party) => getPartyRole(party) === "guardian",
-  );
+  const guardians = partiesQuery.data ?? [];
 
   return (
     <div className="page">

@@ -76,7 +76,7 @@ class WorkflowService:
 
     def get_work_item(self, work_item_id: uuid.UUID) -> WorkItemResponse:
         item = self._get_work_item_or_404(work_item_id)
-        return self._to_work_item_response(item)
+        return self._to_work_item_response(item, include_related=True)
 
     def create_work_item(self, user: User, payload: WorkItemCreate) -> WorkItemResponse:
         pipeline = self.repo.get_pipeline(self.tenant_id, payload.pipeline_id)
@@ -266,8 +266,13 @@ class WorkflowService:
         if not party:
             raise NotFoundError("Party not found")
 
-    def _to_work_item_response(self, item) -> WorkItemResponse:
+    def _to_work_item_response(self, item, *, include_related: bool = False) -> WorkItemResponse:
         custom = self.custom_fields.get_values_map(ENTITY_WORK_ITEM, item.id)
+        activities: list[ActivityResponse] = []
+        tasks: list[TaskResponse] = []
+        if include_related:
+            activities = [ActivityResponse.model_validate(a) for a in item.activities]
+            tasks = [TaskResponse.model_validate(t) for t in item.tasks]
         return WorkItemResponse(
             id=item.id,
             tenant_id=item.tenant_id,
@@ -283,6 +288,8 @@ class WorkflowService:
             source=item.source,
             custom_fields=custom,
             participants=item.participants,
+            activities=activities,
+            tasks=tasks,
             created_at=item.created_at,
             updated_at=item.updated_at,
             created_by_user_id=item.created_by_user_id,

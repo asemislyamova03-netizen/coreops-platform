@@ -39,6 +39,7 @@ export interface Party {
 export interface ListPartiesParams {
   party_type?: PartyType;
   status?: PartyStatus;
+  party_role?: string;
   search?: string;
   skip?: number;
   limit?: number;

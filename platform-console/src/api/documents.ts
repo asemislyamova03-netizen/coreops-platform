@@ -6,6 +6,7 @@ export function listDocuments(params: ListDocumentsParams = {}): Promise<Documen
   return workspaceApiFetch<Document[]>(
     `/documents${buildQuery({
       status: params.status,
+      party_id: params.party_id,
       skip: params.skip,
       limit: params.limit,
     })}`,

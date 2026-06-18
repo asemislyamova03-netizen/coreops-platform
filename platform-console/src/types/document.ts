@@ -36,6 +36,7 @@ export interface Document {
 
 export interface ListDocumentsParams {
   status?: DocumentStatus;
+  party_id?: string;
   skip?: number;
   limit?: number;
 }

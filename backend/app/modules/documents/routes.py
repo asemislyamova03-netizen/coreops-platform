@@ -70,12 +70,18 @@ def update_document_template(
 @documents_router.get("", response_model=list[DocumentResponse])
 def list_documents(
     status: DocumentStatus | None = None,
+    party_id: uuid.UUID | None = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     ctx: TenantContext = Depends(require_module("documents")),
     db: Session = Depends(get_db),
 ) -> list[DocumentResponse]:
-    return _service(ctx, db).list_documents(status=status, skip=skip, limit=limit)
+    return _service(ctx, db).list_documents(
+        status=status,
+        party_id=party_id,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @documents_router.post("/generate", response_model=DocumentResponse, status_code=201)

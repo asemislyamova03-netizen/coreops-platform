@@ -70,6 +70,7 @@ class WorkflowRepository:
         stage_id: uuid.UUID | None = None,
         status: WorkItemStatus | None = None,
         work_item_type: str | None = None,
+        primary_party_id: uuid.UUID | None = None,
         search: str | None = None,
         skip: int = 0,
         limit: int = 50,
@@ -90,6 +91,8 @@ class WorkflowRepository:
             stmt = stmt.where(WorkItem.status == status)
         if work_item_type:
             stmt = stmt.where(WorkItem.work_item_type == work_item_type)
+        if primary_party_id:
+            stmt = stmt.where(WorkItem.primary_party_id == primary_party_id)
         if search:
             stmt = stmt.where(WorkItem.title.ilike(f"%{search}%"))
         return list(self.db.scalars(stmt).all())

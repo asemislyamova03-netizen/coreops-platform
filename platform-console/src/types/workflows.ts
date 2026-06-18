@@ -57,6 +57,7 @@ export interface ListWorkItemsParams {
   stage_id?: string;
   status?: WorkItemStatus;
   work_item_type?: string;
+  primary_party_id?: string;
   search?: string;
   skip?: number;
   limit?: number;

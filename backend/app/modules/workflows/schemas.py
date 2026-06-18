@@ -157,6 +157,8 @@ class WorkItemResponse(BaseModel):
     source: str | None
     custom_fields: dict[str, Any] = Field(default_factory=dict)
     participants: list[WorkItemParticipantResponse] = Field(default_factory=list)
+    activities: list[ActivityResponse] = Field(default_factory=list)
+    tasks: list[TaskResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     created_by_user_id: uuid.UUID | None

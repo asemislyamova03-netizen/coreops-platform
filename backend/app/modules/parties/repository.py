@@ -17,6 +17,7 @@ class PartyRepository:
         *,
         party_type: PartyType | None = None,
         status: PartyStatus | None = None,
+        party_role: str | None = None,
         search: str | None = None,
         skip: int = 0,
         limit: int = 50,
@@ -36,6 +37,8 @@ class PartyRepository:
             stmt = stmt.where(Party.party_type == party_type)
         if status:
             stmt = stmt.where(Party.status == status)
+        if party_role:
+            stmt = stmt.where(Party.metadata_json["party_role"].as_string() == party_role)
         if search:
             stmt = stmt.where(Party.display_name.ilike(f"%{search}%"))
         return list(self.db.scalars(stmt).all())

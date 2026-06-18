@@ -6,10 +6,12 @@ Flexity — основная FastAPI multi-tenant ERP-платформа.
 
 Все новые универсальные бизнес-функции разрабатываются во Flexity, а не в отдельных Flask-проектах.
 
-Trailers, детский сад, консалтинг и другие отрасли должны подключаться к Flexity как:
+Trailers, детский сад, консалтинг, клиника и другие отрасли должны подключаться к Flexity как:
 
 * industry templates — если достаточно настроек;
 * industry packages — если нужна отдельная отраслевая бизнес-логика.
+
+Старые Flask-проекты (Trailers, Consulting, Clinic) — **reference systems**: источник бизнес-логики для обобщения во Flexity, а не целевая архитектура. Код Flask **не копировать напрямую**.
 
 ## 2. Роли текущих проектов
 
@@ -70,6 +72,62 @@ Legacy/reference-проект.
 Будущий consulting_basic template внутри Flexity.
 
 Если есть старый Flask-проект — использовать его как reference, но новые CRM, документы, оплаты и AI делать во Flexity.
+
+### Clinic App Flask
+
+Legacy/reference-проект.
+
+Используется как источник бизнес-логики для clinic_basic template / future industry_clinic package.
+
+Целевое состояние: clinic_basic template внутри Flexity.
+
+Не поддерживать Clinic Flask как параллельную долгосрочную продуктовую линию.
+
+## 2.1 Четыре reference-направления (validation)
+
+Эти направления **не отдельные CRM**. Они валидируют универсальную модель Flexity через industry templates/packages.
+
+### Kindergarten (kindergarten_basic)
+
+Валидирует:
+
+* recurring services / абонементы;
+* documents (договоры, заявления);
+* payments / finance;
+* packages / subscriptions;
+* parties (родитель / ребёнок) через универсальный parties + metadata.
+
+### Consulting (consulting_basic)
+
+Валидирует:
+
+* CRM / leads;
+* commercial proposals;
+* contracts;
+* retainers;
+* tasks;
+* acts / reports;
+* payments.
+
+### Clinic (clinic_basic)
+
+Валидирует:
+
+* leads;
+* call-center workflow;
+* appointments;
+* service execution / visit-like flow;
+* payments.
+
+### Trailers (trailers_basic / industry_trailers)
+
+Валидирует:
+
+* CRM-to-order;
+* reservation / availability;
+* fulfillment / production;
+* warehouse / location;
+* VIN-like asset and integration references.
 
 ## 3. Разделение template и package
 
@@ -300,13 +358,33 @@ Tenant customization — это не отраслевой модуль.
 
 ## 7. Первичный порядок разработки
 
+### Текущий приоритет: W3 Manager Operations
+
+Универсальный менеджерский поток во Flexity tenant workspace:
+
+    client (party)
+    -> work item
+    -> activity / task
+    -> stage transition
+    -> document
+    -> invoice / payment
+
+**Не начинать** до завершения этого потока (если нет отдельного approval):
+
+* child / group / attendance (детский сад);
+* medical records / MedElement (клиника);
+* VIN / production / warehouse depth (Trailers);
+* consulting-specific project accounting.
+
+### Долгосрочный порядок
+
 1. Стабилизировать Flexity как платформу.
-2. Проверить структуру, тесты и миграции Flexity.
-3. Сделать kindergarten_basic как первый коммерческий tenant/template.
-4. Сделать consulting_basic как второй template.
+2. Завершить W3 Manager Operations (read + controlled write в universal modules).
+3. Развивать kindergarten_basic как первый коммерческий validation tenant/template.
+4. Развивать consulting_basic и clinic_basic как validation templates.
 5. Параллельно анализировать Trailers Flask как reference.
 6. Составить карту миграции Trailers Flask → Flexity industry_trailers.
-7. Только после карты начинать кодировать industry_trailers.
+7. Только после карты начинать кодировать industry_trailers package.
 
 ## 8. Главные запреты
 
@@ -315,6 +393,9 @@ Tenant customization — это не отраслевой модуль.
 * строить вторую CRM в Trailers;
 * строить вторую CRM для детского сада;
 * строить вторую CRM для консалтинга;
+* строить вторую CRM для клиники;
+* поддерживать Clinic / Consulting / Trailers Flask как параллельные долгосрочные продукты;
+* копировать legacy Flask-код напрямую во Flexity;
 * строить второй механизм подписки;
 * строить второй механизм документов;
 * строить второй AI-оркестратор;

@@ -72,6 +72,27 @@ Not allowed:
 - broad rewrite;
 - deploy/migrations without approval.
 
+### Clinic App Flask
+
+Status:
+
+    Live/reference Flask project.
+    Future clinic_basic template source.
+
+Allowed work:
+
+- read-only mapping;
+- minimal hotfix after approval;
+- documentation;
+- migration map to Flexity.
+
+Not allowed:
+
+- duplicate CRM/documents/payments outside Flexity when it belongs in core/universal modules;
+- broad rewrite;
+- deploy/migrations without approval;
+- maintaining Clinic as a parallel long-term product line.
+
 ### Kindergarten
 
 Status:
@@ -86,6 +107,51 @@ Current approved future code direction after orchestration setup:
 - no migration;
 - no frontend;
 - no dependencies.
+
+---
+
+## Single product direction
+
+Flexity is the **only target product**.
+
+Clinic App Flask, Consulting Flask, Trailers Flask and Kindergarten are **reference systems and validation directions**.
+
+They exist to:
+
+- validate the universal Flexity model against real business processes;
+- supply requirements for universal modules, industry templates and industry packages;
+- support controlled live hotfixes where needed.
+
+They must **not** become parallel CRM/ERP product lines.
+
+### Reference project policy
+
+- Read and map legacy/reference projects; do not copy Flask code directly.
+- Extract entities, statuses, workflows, documents, finance rules and integrations as requirements.
+- Implement in Flexity using existing universal modules first.
+- Use `kindergarten_basic`, `consulting_basic`, `clinic_basic`, `trailers_basic` as **validation templates/packages** — not separate CRM systems.
+- Tenant-specific branding, legal details, templates and workflow overrides belong to **tenant customization** (planned; requires explicit approval).
+
+### Current W3 focus
+
+**W3 Manager Operations** — universal manager workflow inside Flexity tenant workspace:
+
+    client (party)
+    -> work item
+    -> activity / task
+    -> stage transition
+    -> document
+    -> invoice / payment
+
+W3 is **not** kindergarten-specific functionality.
+
+Out of scope for W3 unless separately approved:
+
+- child / group / attendance specifics;
+- medical records and MedElement;
+- VIN / production / warehouse depth;
+- consulting-specific project accounting;
+- tenant customization implementation.
 
 ---
 
@@ -130,6 +196,7 @@ Examples:
 
 - kindergarten_basic;
 - consulting_basic;
+- clinic_basic;
 - trailers_basic.
 
 ### Industry package
@@ -140,7 +207,8 @@ Examples:
 
 - industry_kindergarten;
 - industry_trailers;
-- industry_consulting.
+- industry_consulting;
+- industry_clinic.
 
 ### Tenant customization
 

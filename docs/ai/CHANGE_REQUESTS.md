@@ -124,3 +124,61 @@ Recommended first planning file:
     tenant custom template
     -> industry template default
     -> universal document default
+
+---
+
+## CR-2026-06-18-001: Single Flexity Product Direction and Reference Systems Policy
+
+### Status
+
+Accepted.
+
+### Type
+
+Product / Architecture direction.
+
+### Summary
+
+Flexity is the **single target product**.
+
+Clinic App Flask, Consulting Flask, Trailers Flask and Kindergarten (inside Flexity) are **reference systems and validation directions**.
+
+Their common business logic should be extracted into Flexity **universal modules**.
+
+Industry-specific behavior should go into **industry templates/packages**.
+
+Tenant-specific behavior belongs to **tenant customization**.
+
+### Rules
+
+- Do not copy legacy Flask code directly.
+- Do not create separate CRM systems for Clinic, Consulting, Trailers or Kindergarten.
+- Do not duplicate documents, finance, CRM, subscriptions, integrations or AI orchestration.
+- Do not continue several Flask apps as the long-term product strategy.
+- Use reference projects to validate the universal Flexity model.
+
+### Current W3 priority
+
+**W3 Manager Operations:**
+
+    client (party)
+    -> work item
+    -> activity / task
+    -> stage transition
+    -> document
+    -> invoice / payment
+
+### Out of scope (unless separately approved)
+
+- child / group / attendance specifics;
+- medical records and MedElement;
+- VIN / production / warehouse depth;
+- consulting-specific project accounting;
+- tenant customization implementation.
+
+### Related docs
+
+- AGENTS.md — Current product direction
+- docs/ai/ORCHESTRATION.md — Single product direction, W3 focus
+- docs/ai/PRODUCT_ARCHITECTURE.md — Reference directions and development order
+- .cursor/rules/20-legacy-projects.mdc — Reference systems rule

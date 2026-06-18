@@ -9,9 +9,13 @@ The user has legacy/reference projects:
 - Consulting Flask
 - Clinic App Flask
 
-These projects are sources of business logic, not target architecture.
+These projects are **reference systems**, not target architecture.
 
-Do not copy legacy code blindly.
+**Flexity is the single main product.** Do not maintain Clinic, Consulting or Trailers as parallel long-term Flask product lines.
+
+Kindergarten is a **validation/reference direction inside Flexity** (`kindergarten_basic` template/tenant), not a separate Flask application.
+
+Do not copy legacy Flask code directly into Flexity.
 
 When using a legacy project as reference:
 
@@ -21,14 +25,23 @@ When using a legacy project as reference:
 4. Only create new Flexity code if the logic cannot be expressed through existing modules.
 5. Prefer templates and configuration over new code when possible.
 
+### Where logic belongs
+
+- If logic serves **two or more** reference directions → prefer **universal module** in Flexity.
+- If logic is **industry-specific** → prefer **industry template/package**.
+- If logic is **tenant/client-specific** → keep for **tenant customization** (requires explicit approval; not implemented yet).
+
 Trailers-specific logic should become:
 - industry_trailers package
 
 Kindergarten-specific logic should become:
-- kindergarten_basic template
+- kindergarten_basic template (inside Flexity)
 
 Consulting-specific logic should become:
 - consulting_basic template
+
+Clinic-specific logic should become:
+- clinic_basic template
 
 Do not duplicate:
 - CRM

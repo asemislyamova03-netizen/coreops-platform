@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { Alert } from "../components/ui/Alert";
 import { Button } from "../components/ui/Button";
+import { formatMembershipRole, ui } from "../i18n/ruUi";
 
 export function AccessDeniedPage() {
   const { me, logout } = useAuth();
@@ -11,8 +12,8 @@ export function AccessDeniedPage() {
       <div className="center-card">
         <h1>Доступ запрещён</h1>
         <Alert variant="error">
-          Platform Console доступна только пользователям с ролью{" "}
-          <strong>provider_owner</strong>.
+          {ui.platformConsole} доступна только пользователям с ролью{" "}
+          <strong>{formatMembershipRole("provider_owner")}</strong>.
           {me?.user.email ? ` Вы вошли как ${me.user.email}.` : ""}
         </Alert>
         <div className="actions-row">

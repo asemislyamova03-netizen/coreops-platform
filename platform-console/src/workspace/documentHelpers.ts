@@ -1,4 +1,5 @@
 import type { Document } from "../types/document";
+import { formatSignatureStatus } from "../i18n/ruUi";
 
 const PENDING_DOCUMENT_STATUSES = new Set([
   "sent_for_review",
@@ -25,5 +26,5 @@ export function getDocumentSignatureHint(document: Document): string {
     return "—";
   }
   const latest = document.signature_requests[document.signature_requests.length - 1];
-  return latest.status;
+  return formatSignatureStatus(latest.status);
 }

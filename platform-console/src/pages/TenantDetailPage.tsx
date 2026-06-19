@@ -21,6 +21,14 @@ import { Table } from "../components/ui/Table";
 import type { TenantModule } from "../types/module";
 import type { TenantMembership, TenantMembershipRole, TenantStatus } from "../types/tenant";
 import type { ApplyTemplateResponse } from "../types/template";
+import {
+  formatApiErrorMessage,
+  formatCommonStatus,
+  formatMembershipRole,
+  formatModuleStatus,
+  formatModuleMode,
+  formatTenantStatus,
+} from "../i18n/ruUi";
 
 type TabId =
   | "info"
@@ -31,25 +39,25 @@ type TabId =
   | "apply-template";
 
 const TABS: Array<{ id: TabId; label: string }> = [
-  { id: "info", label: "Info" },
-  { id: "users", label: "Users" },
-  { id: "modules", label: "Modules" },
-  { id: "subscription", label: "Subscription" },
-  { id: "labels", label: "Labels" },
-  { id: "apply-template", label: "Apply Template" },
+  { id: "info", label: "Сведения" },
+  { id: "users", label: "Пользователи" },
+  { id: "modules", label: "Модули" },
+  { id: "subscription", label: "Подписка" },
+  { id: "labels", label: "Метки" },
+  { id: "apply-template", label: "Применить шаблон" },
 ];
 
 const STATUS_OPTIONS: Array<{ value: TenantStatus; label: string }> = [
-  { value: "trial", label: "trial" },
-  { value: "active", label: "active" },
-  { value: "suspended", label: "suspended" },
-  { value: "archived", label: "archived" },
+  { value: "trial", label: formatTenantStatus("trial") },
+  { value: "active", label: formatTenantStatus("active") },
+  { value: "suspended", label: formatTenantStatus("suspended") },
+  { value: "archived", label: formatTenantStatus("archived") },
 ];
 
 const MEMBERSHIP_ROLE_OPTIONS: Array<{ value: TenantMembershipRole; label: string }> = [
-  { value: "tenant_owner", label: "tenant_owner" },
-  { value: "tenant_admin", label: "tenant_admin" },
-  { value: "member", label: "member" },
+  { value: "tenant_owner", label: formatMembershipRole("tenant_owner") },
+  { value: "tenant_admin", label: formatMembershipRole("tenant_admin") },
+  { value: "member", label: formatMembershipRole("member") },
 ];
 
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
@@ -176,27 +184,27 @@ export function TenantDetailPage() {
     mutationFn: ({ email, role }: { email: string; role: TenantMembershipRole }) =>
       addTenantMembership(tenantId, { user_email: email, role }),
     onSuccess: () => {
-      setActionSuccess("Пользователь добавлен в tenant");
+      setActionSuccess("Пользователь добавлен в организацию");
       setActionError(null);
       setNewMemberEmail("");
       void queryClient.invalidateQueries({ queryKey: ["tenant-memberships", tenantId] });
     },
     onError: (err: unknown) => {
       setActionSuccess(null);
-      setActionError(err instanceof ApiError ? err.message : "Ошибка добавления пользователя");
+      setActionError(err instanceof ApiError ? formatApiErrorMessage(err.message) : "Ошибка добавления пользователя");
     },
   });
 
   if (tenantQuery.isLoading) return <Loading />;
   if (tenantQuery.error || !tenantQuery.data) {
-    return <Alert variant="error">Tenant не найден или ошибка загрузки</Alert>;
+    return <Alert variant="error">Организация не найдена или ошибка загрузки</Alert>;
   }
 
   const tenant = tenantQuery.data;
 
   const handleApplyTemplate = (templateId: string, templateName: string) => {
     const confirmed = window.confirm(
-      `Применить шаблон «${templateName}» к tenant «${tenant.name}»?\n\nПовторное применение может создать дубликаты данных.`,
+      `Применить шаблон «${templateName}» к организации «${tenant.name}»?\n\nПовторное применение может создать дубликаты данных.`,
     );
     if (!confirmed) return;
     setActionError(null);
@@ -211,12 +219,14 @@ export function TenantDetailPage() {
           <h1>{tenant.name}</h1>
           <p className="muted">
             <code>{tenant.slug}</code> ·{" "}
-            <span className={`badge badge-${tenant.status}`}>{tenant.status}</span>
+            <span className={`badge badge-${tenant.status}`}>
+              {formatTenantStatus(tenant.status)}
+            </span>
           </p>
         </div>
         <div className="actions-row">
           <Link to={`/workspace/${tenant.slug}/dashboard`}>
-            <Button>Open workspace</Button>
+            <Button>Открыть рабочее место</Button>
           </Link>
           <Link to="/tenants">
             <Button variant="secondary">К списку</Button>
@@ -249,9 +259,9 @@ export function TenantDetailPage() {
           <dl className="detail-list">
             <dt>ID</dt>
             <dd><code>{tenant.id}</code></dd>
-            <dt>Provider company</dt>
+            <dt>Компания провайдера</dt>
             <dd><code>{tenant.provider_company_id}</code></dd>
-            <dt>Industry template ID</dt>
+            <dt>ID отраслевого шаблона</dt>
             <dd>
               {tenant.industry_template_id ? (
                 <code>{tenant.industry_template_id}</code>
@@ -289,8 +299,8 @@ export function TenantDetailPage() {
               emptyText="Модули не найдены"
               columns={[
                 { key: "code", header: "Модуль", render: (row) => row.module_code },
-                { key: "status", header: "Статус", render: (row) => row.status },
-                { key: "mode", header: "Режим", render: (row) => row.mode },
+                { key: "status", header: "Статус", render: (row) => formatModuleStatus(row.status) },
+                { key: "mode", header: "Режим", render: (row) => formatModuleMode(row.mode) },
                 {
                   key: "actions",
                   header: "Действия",
@@ -304,7 +314,7 @@ export function TenantDetailPage() {
                             moduleMutation.mutate({ code: row.module_code, action: "enable" })
                           }
                         >
-                          Enable
+                          Включить
                         </Button>
                       )}
                       {row.status !== "disabled" && (
@@ -315,7 +325,7 @@ export function TenantDetailPage() {
                             moduleMutation.mutate({ code: row.module_code, action: "disable" })
                           }
                         >
-                          Disable
+                          Отключить
                         </Button>
                       )}
                     </div>
@@ -331,7 +341,7 @@ export function TenantDetailPage() {
         <div className="panel">
           <div className="form-inline">
             <Input
-              label="User email"
+              label="Email пользователя"
               name="membership_user_email"
               type="email"
               value={newMemberEmail}
@@ -339,7 +349,7 @@ export function TenantDetailPage() {
               placeholder="user@example.com"
             />
             <Select
-              label="Role"
+              label="Роль"
               name="membership_role"
               value={newMemberRole}
               options={MEMBERSHIP_ROLE_OPTIONS}
@@ -354,35 +364,41 @@ export function TenantDetailPage() {
                 })
               }
             >
-              Add existing user
+              Добавить существующего пользователя
             </Button>
           </div>
           {membershipsQuery.isLoading ? (
             <Loading />
           ) : membershipsQuery.error ? (
-            <Alert variant="error">Не удалось загрузить memberships</Alert>
+            <Alert variant="error">Не удалось загрузить пользователей</Alert>
           ) : (
             <Table<TenantMembership>
               data={membershipsQuery.data ?? []}
               rowKey={(row) => row.membership_id}
-              emptyText="Пользователи tenant не найдены"
+              emptyText="Пользователи организации не найдены"
               columns={[
                 { key: "email", header: "Email", render: (row) => row.email },
                 { key: "full_name", header: "Имя", render: (row) => row.full_name },
                 {
                   key: "user_status",
-                  header: "User status",
-                  render: (row) => (row.user_is_active ? "active" : "inactive"),
+                  header: "Статус пользователя",
+                  render: (row) =>
+                    formatCommonStatus(row.user_is_active ? "active" : "inactive"),
                 },
-                { key: "role", header: "Tenant role", render: (row) => row.role },
+                {
+                  key: "role",
+                  header: "Роль в организации",
+                  render: (row) => formatMembershipRole(row.role),
+                },
                 {
                   key: "membership_status",
-                  header: "Membership status",
-                  render: (row) => (row.membership_is_active ? "active" : "inactive"),
+                  header: "Статус участия",
+                  render: (row) =>
+                    formatCommonStatus(row.membership_is_active ? "active" : "inactive"),
                 },
                 {
                   key: "created_at",
-                  header: "Added at",
+                  header: "Добавлен",
                   render: (row) => dateFormatter.format(new Date(row.created_at)),
                 },
               ]}
@@ -402,7 +418,8 @@ export function TenantDetailPage() {
                 {subscriptionQuery.data ? (
                   <p>
                     <strong>{subscriptionQuery.data.plan_name}</strong> (
-                    {subscriptionQuery.data.plan_code}) — {subscriptionQuery.data.status}
+                    {subscriptionQuery.data.plan_code}) —{" "}
+                    {formatCommonStatus(subscriptionQuery.data.status)}
                   </p>
                 ) : (
                   <p className="muted">Подписка не назначена</p>
@@ -437,11 +454,11 @@ export function TenantDetailPage() {
           {labelsQuery.isLoading ? (
             <Loading />
           ) : labelsQuery.error ? (
-            <Alert variant="error">Не удалось загрузить labels</Alert>
+            <Alert variant="error">Не удалось загрузить метки</Alert>
           ) : (
             <>
               <Alert variant="info">
-                Редактирование labels будет доступно в Track A (PATCH endpoint).
+                Редактирование меток будет доступно в Track A (PATCH endpoint).
               </Alert>
               <pre className="json-block">
                 {JSON.stringify(labelsQuery.data ?? {}, null, 2)}
@@ -458,7 +475,8 @@ export function TenantDetailPage() {
           ) : (
             <>
               <Alert variant="info">
-                Применение шаблона настраивает модули, labels, pipelines и другие сущности tenant.
+                Применение шаблона настраивает модули, метки, воронки и другие сущности
+                организации.
               </Alert>
               <div className="template-list">
                 {(templatesQuery.data ?? [])

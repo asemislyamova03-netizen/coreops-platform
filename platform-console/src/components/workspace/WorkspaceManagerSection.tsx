@@ -18,7 +18,7 @@ export function WorkspaceManagerSection({
   labelsLoading = false,
 }: WorkspaceManagerSectionProps) {
   if (labelsLoading) {
-    return <Loading text="Загрузка настроек tenant..." />;
+    return <Loading text="Загрузка настроек организации..." />;
   }
 
   return (
@@ -31,8 +31,8 @@ export function WorkspaceManagerSection({
       </div>
 
       <Alert variant="info">
-        Manager workspace foundation ({plannedStage}). Раздел готов к подключению API в следующих
-        слайсах.
+        Основа рабочего места менеджера ({plannedStage}). Раздел готов к подключению API в
+        следующих слайсах.
       </Alert>
 
       <PlaceholderWidgetGrid widgets={widgets} />

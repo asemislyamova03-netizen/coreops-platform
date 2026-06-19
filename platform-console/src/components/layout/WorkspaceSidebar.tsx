@@ -1,13 +1,14 @@
 import { NavLink, useParams } from "react-router-dom";
+import { ui } from "../../i18n/ruUi";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 
 const NAV_ITEMS = [
-  { segment: "dashboard", label: "Dashboard" },
-  { segment: "crm", label: "CRM" },
-  { segment: "clients", label: "Clients" },
-  { segment: "documents", label: "Documents" },
-  { segment: "finance", label: "Finance" },
-  { segment: "reports", label: "Reports" },
+  { segment: "dashboard", label: ui.dashboard },
+  { segment: "crm", label: ui.crmPipeline },
+  { segment: "clients", label: ui.clients },
+  { segment: "documents", label: ui.documents },
+  { segment: "finance", label: ui.finance },
+  { segment: "reports", label: ui.reports },
 ] as const;
 
 export function WorkspaceSidebar() {
@@ -23,7 +24,7 @@ export function WorkspaceSidebar() {
     <aside className="sidebar workspace-sidebar">
       <div className="sidebar-brand">
         <span className="brand-title">Flexity</span>
-        <span className="brand-subtitle">Manager Workspace</span>
+        <span className="brand-subtitle">{ui.managerWorkspace}</span>
       </div>
       <nav className="sidebar-nav">
         {NAV_ITEMS.map((item) => (

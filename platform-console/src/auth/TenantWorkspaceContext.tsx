@@ -7,6 +7,7 @@ import {
 import { useParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import type { TenantMembershipInfo } from "../types/auth";
+import { formatMembershipRole } from "../i18n/ruUi";
 
 export interface WorkspaceTenantInfo {
   tenantId: string;
@@ -24,8 +25,8 @@ interface TenantWorkspaceContextValue {
 
 const TenantWorkspaceContext = createContext<TenantWorkspaceContextValue | null>(null);
 
-function normalizeRole(role: string): string {
-  return role.toLowerCase();
+export function membershipRoleLabel(role: string | null): string {
+  return formatMembershipRole(role);
 }
 
 export function TenantWorkspaceProvider({
@@ -66,9 +67,4 @@ export function useTenantWorkspace(): TenantWorkspaceContextValue {
     throw new Error("useTenantWorkspace must be used within TenantWorkspaceProvider");
   }
   return ctx;
-}
-
-export function membershipRoleLabel(role: string | null): string {
-  if (!role) return "provider access";
-  return normalizeRole(role);
 }

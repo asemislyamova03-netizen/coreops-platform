@@ -10,6 +10,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Loading } from "../components/ui/Loading";
 import { Select } from "../components/ui/Select";
+import { ui } from "../i18n/ruUi";
 
 function slugifyName(name: string): string {
   return name
@@ -40,7 +41,7 @@ export function TenantCreatePage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Не удалось создать tenant");
+        setError("Не удалось создать организацию");
       }
     },
   });
@@ -71,7 +72,7 @@ export function TenantCreatePage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Создать tenant</h1>
+          <h1>Создать организацию</h1>
           <p className="muted">Новая клиентская организация на платформе</p>
         </div>
         <Link to="/tenants">
@@ -89,7 +90,7 @@ export function TenantCreatePage() {
           onChange={(e) => handleNameChange(e.target.value)}
         />
         <Input
-          label="Slug"
+          label={ui.slug}
           name="slug"
           required
           pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
@@ -112,7 +113,7 @@ export function TenantCreatePage() {
           }))}
         />
         <Select
-          label="Industry template"
+          label="Отраслевой шаблон"
           name="industry_template_code"
           emptyLabel="без шаблона"
           value={templateCode}

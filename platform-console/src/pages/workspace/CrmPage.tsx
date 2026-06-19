@@ -6,6 +6,7 @@ import { CreateWorkItemModal } from "../../components/workspace/CreateWorkItemMo
 import { CrmPipelineBoard } from "../../components/workspace/CrmPipelineBoard";
 import { Alert } from "../../components/ui/Alert";
 import { Loading } from "../../components/ui/Loading";
+import { ui } from "../../i18n/ruUi";
 import { pickDefaultPipeline } from "../../workspace/formatters";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 
@@ -39,7 +40,7 @@ export function CrmPage() {
         : "Не удалось загрузить воронки.";
     return (
       <div className="page">
-        <PageHeader title="CRM" subtitle={crmSectionTitle} />
+        <PageHeader title={ui.crm} subtitle={crmSectionTitle} />
         <Alert variant="error">{message}</Alert>
       </div>
     );
@@ -48,9 +49,9 @@ export function CrmPage() {
   if (!pipeline) {
     return (
       <div className="page">
-        <PageHeader title="CRM" subtitle={crmSectionTitle} />
+        <PageHeader title={ui.crm} subtitle={crmSectionTitle} />
         <Alert variant="info">
-          Воронка не настроена. Примените industry template для tenant.
+          Воронка не настроена. Примените отраслевой шаблон для организации.
         </Alert>
       </div>
     );
@@ -59,7 +60,7 @@ export function CrmPage() {
   return (
     <div className="page">
       <PageHeader
-        title="CRM"
+        title={ui.crm}
         subtitle={`${crmSectionTitle} · ${pipeline.name}`}
         action={
           <button type="button" className="btn btn-primary" onClick={() => setShowCreateModal(true)}>

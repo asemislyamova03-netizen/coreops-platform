@@ -6,21 +6,22 @@ import { Loading } from "../../components/ui/Loading";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 import { formatMoney } from "../../workspace/formatters";
 import { useDashboardData } from "../../workspace/useDashboardData";
+import { ui } from "../../i18n/ruUi";
 
 export function DashboardPage() {
   const { isLoading: labelsLoading } = useWorkspaceLabels();
   const { metrics, isLoading, error } = useDashboardData(!labelsLoading);
 
   if (labelsLoading || isLoading) {
-    return <Loading text="Загрузка dashboard..." />;
+    return <Loading text="Загрузка рабочего стола..." />;
   }
 
   if (error) {
     const message =
-      error instanceof ApiError ? error.message : "Не удалось загрузить данные dashboard.";
+      error instanceof ApiError ? error.message : "Не удалось загрузить данные рабочего стола.";
     return (
       <div className="page">
-        <PageHeader title="Dashboard" subtitle="Рабочий стол менеджера" />
+        <PageHeader title={ui.dashboard} subtitle="Рабочий стол менеджера" />
         <Alert variant="error">{message}</Alert>
       </div>
     );
@@ -32,7 +33,7 @@ export function DashboardPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Dashboard"
+        title={ui.dashboard}
         subtitle={
           pipeline
             ? `Рабочий стол менеджера · ${pipeline.name}`
@@ -72,17 +73,17 @@ export function DashboardPage() {
         <DashboardKpiCard
           label="Документы на подпись"
           value={String(metrics.pendingDocumentsCount)}
-          hint="Статус sent_for_signature или pending signature"
+          hint="Документы, ожидающие подписи"
         />
       </div>
 
       <div className="workspace-dashboard-links panel">
         <h3>Быстрые разделы</h3>
         <div className="workspace-quick-links">
-          <Link to="../crm">CRM / воронка</Link>
-          <Link to="../clients">Клиенты</Link>
-          <Link to="../documents">Документы</Link>
-          <Link to="../finance">Финансы</Link>
+          <Link to="../crm">{ui.crmPipeline}</Link>
+          <Link to="../clients">{ui.clients}</Link>
+          <Link to="../documents">{ui.documents}</Link>
+          <Link to="../finance">{ui.finance}</Link>
         </div>
       </div>
     </div>

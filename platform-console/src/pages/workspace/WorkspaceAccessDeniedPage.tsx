@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { Alert } from "../../components/ui/Alert";
 import { Button } from "../../components/ui/Button";
+import { ui } from "../../i18n/ruUi";
 
 export function WorkspaceAccessDeniedPage() {
   const { me, logout, isProviderOwner } = useAuth();
@@ -11,17 +12,17 @@ export function WorkspaceAccessDeniedPage() {
   return (
     <div className="center-page">
       <div className="center-card">
-        <h1>Нет доступа к workspace</h1>
+        <h1>Нет доступа к рабочему месту</h1>
         <Alert variant="error">
           {tenantSlug
-            ? `У вас нет доступа к tenant workspace «${tenantSlug}».`
-            : "У вас нет доступа к этому tenant workspace."}
+            ? `У вас нет доступа к рабочему месту организации «${tenantSlug}».`
+            : "У вас нет доступа к этому рабочему месту организации."}
           {me?.user.email ? ` Вы вошли как ${me.user.email}.` : ""}
         </Alert>
         <div className="actions-row">
           {isProviderOwner && (
             <Link to="/tenants">
-              <Button variant="secondary">Platform Console</Button>
+              <Button variant="secondary">{ui.platformConsole}</Button>
             </Link>
           )}
           <Button

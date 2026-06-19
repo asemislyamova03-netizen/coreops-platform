@@ -12,6 +12,7 @@ import { Alert } from "../../components/ui/Alert";
 import { Loading } from "../../components/ui/Loading";
 import { Table } from "../../components/ui/Table";
 import type { Invoice, Payment, Receivable } from "../../types/finance";
+import { formatInvoiceStatus, formatPaymentStatus, ui } from "../../i18n/ruUi";
 import { formatMoney } from "../../workspace/formatters";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 
@@ -67,7 +68,7 @@ export function FinancePage() {
       error instanceof ApiError ? error.message : "Не удалось загрузить финансовые данные.";
     return (
       <div className="page">
-        <PageHeader title="Finance" subtitle={`${invoiceLabel}, ${paymentLabel}`} />
+        <PageHeader title={ui.finance} subtitle={`${invoiceLabel}, ${paymentLabel}`} />
         <Alert variant="error">{message}</Alert>
       </div>
     );
@@ -82,8 +83,8 @@ export function FinancePage() {
   return (
     <div className="page">
       <PageHeader
-        title="Finance"
-        subtitle={`${invoiceLabel}, ${paymentLabel}, задолженность · read-only`}
+        title={ui.finance}
+        subtitle={`${invoiceLabel}, ${paymentLabel}, задолженность · ${ui.readOnly}`}
       />
 
       {summary && (
@@ -112,7 +113,7 @@ export function FinancePage() {
             data={invoices}
             columns={[
               { key: "number", header: "№", render: (r) => r.invoice_number },
-              { key: "status", header: "Статус", render: (r) => r.status },
+              { key: "status", header: "Статус", render: (r) => formatInvoiceStatus(r.status) },
               {
                 key: "party",
                 header: "Клиент",
@@ -147,7 +148,7 @@ export function FinancePage() {
             data={payments}
             columns={[
               { key: "number", header: "№", render: (r) => r.payment_number },
-              { key: "status", header: "Статус", render: (r) => r.status },
+              { key: "status", header: "Статус", render: (r) => formatPaymentStatus(r.status) },
               {
                 key: "party",
                 header: "Клиент",
@@ -171,7 +172,7 @@ export function FinancePage() {
         )}
       </FinanceSection>
 
-      <FinanceSection title="Дебиторка (receivables)">
+      <FinanceSection title="Дебиторка">
         {receivables.length === 0 ? (
           <p className="muted">Нет открытой дебиторки.</p>
         ) : (
@@ -180,7 +181,7 @@ export function FinancePage() {
             data={receivables}
             columns={[
               { key: "number", header: "№", render: (r) => r.invoice_number },
-              { key: "status", header: "Статус", render: (r) => r.status },
+              { key: "status", header: "Статус", render: (r) => formatInvoiceStatus(r.status) },
               {
                 key: "party",
                 header: "Клиент",

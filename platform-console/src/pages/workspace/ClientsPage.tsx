@@ -9,6 +9,7 @@ import { Loading } from "../../components/ui/Loading";
 import { Table } from "../../components/ui/Table";
 import type { Party } from "../../types/party";
 import { getPartyRole } from "../../types/party";
+import { formatCommonStatus, formatPartyType, ui } from "../../i18n/ruUi";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 
 const DEFAULT_CLIENT_PARTY_ROLE = "client";
@@ -43,7 +44,7 @@ export function ClientsPage() {
         : "Не удалось загрузить список клиентов.";
     return (
       <div className="page">
-        <PageHeader title="Clients" subtitle={clientsSectionTitle} />
+        <PageHeader title={ui.clients} subtitle={clientsSectionTitle} />
         <Alert variant="error">{message}</Alert>
       </div>
     );
@@ -54,7 +55,7 @@ export function ClientsPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Clients"
+        title={ui.clients}
         subtitle={`${clientsSectionTitle} · ${clientRoleLabel}`}
         action={
           <button type="button" className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
@@ -83,13 +84,15 @@ export function ClientsPage() {
               {
                 key: "type",
                 header: "Тип",
-                render: (row) => row.party_type,
+                render: (row) => formatPartyType(row.party_type),
               },
               {
                 key: "status",
                 header: "Статус",
                 render: (row) => (
-                  <span className={`badge badge-${row.status}`}>{row.status}</span>
+                  <span className={`badge badge-${row.status}`}>
+                    {formatCommonStatus(row.status)}
+                  </span>
                 ),
               },
               {

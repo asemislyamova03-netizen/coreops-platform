@@ -1,17 +1,18 @@
 # Flexity Landing (www.flexity.asia)
 
-Локальная копия публичного лендинга **www.flexity.asia** в репозитории Flexity.
+Публичный маркетинговый сайт Flexity — статический контент-воронка в репозитории.
 
-## Источник
+## Live
 
-| Поле | Значение |
-|------|----------|
-| Live URL | https://www.flexity.asia/ |
-| Дата копии | 2026-06-10 |
-| Способ | `curl -sL https://www.flexity.asia/` + скачивание `flexity-logo.svg` и `favicon.ico` |
-| Live deploy | **не выполнялся** в рамках Stage B |
+| URL | Назначение |
+|-----|------------|
+| https://www.flexity.asia/ | Landing (static) |
+| https://flexity.asia/ | 301 → www (корень) |
+| https://flexity.asia/console/login | Platform Console login |
 
-Структура:
+Deploy path на сервере: `/var/www/flexity-landing/`
+
+## Структура
 
 ```text
 landing/
@@ -21,7 +22,36 @@ landing/
     assets/
       flexity-logo.svg
       favicon.ico
+      site.css
+    solutions/
+      index.html
+      clinic.html
+      consulting.html
+      kindergarten.html
+      trailers.html
+    insights/
+      index.html
+    cases/
+      index.html
+    calculators/
+      index.html
+    demo/
+      index.html
 ```
+
+## Сообщение сайта
+
+Flexity — **единая** AI-ready CRM/ERP-платформа. Clinic, Consulting, Kindergarten и Trailers — **направления внедрения**, не отдельные продукты.
+
+Универсальный workflow: клиент → заявка/work item → документ → счёт/оплата → исполнение.
+
+## Ссылки входа
+
+| Элемент | URL |
+|---------|-----|
+| Кнопка «Войти в систему» | `https://flexity.asia/console/login` |
+
+Не использовать как primary CTA: `admin.flexity.asia`, `/auth/login`, прямые ссылки на legacy Flask apps.
 
 ## Локальный preview
 
@@ -32,45 +62,27 @@ python -m http.server 8080
 
 Откройте: http://localhost:8080/
 
-Bootstrap и Yandex.Metrika загружаются с внешних CDN (нужен интернет).
-
-## Ссылки входа
-
-| Элемент | URL |
-|---------|-----|
-| Кнопка «Войти в систему» (navbar) | https://flexity.asia/console/login |
-
-Legacy login (`admin.flexity.asia`, `flexity.asia/auth/login`) убраны из этой копии.
-
-Карточка «Консалтинг» ведёт на `#contacts` («Запросить доступ»), не на legacy Consult login.
-
-## Пути, работающие только на production www
-
-Следующие ссылки остаются как на live-сайте и **не работают** при локальном preview без отдельной выкладки:
-
-- `/demo/`
-- `/calculators/our-vs-snr.html`
-- `/calculators/trucking-trips.html`
-
-## Целевой deploy path (сервер)
-
-```text
-/var/www/flexity-landing/
-```
-
-Инструкция nginx: [deploy/console-and-landing.md](../deploy/console-and-landing.md).
-
-Deploy на сервер (rsync, nginx reload) — только с отдельным approval. В Stage B не выполнялся.
-
-## Обновление копии
+## Проверки перед deploy
 
 ```bash
-curl -sL "https://www.flexity.asia/" -o landing/www/index.html
-curl -sL "https://www.flexity.asia/flexity-logo.svg" -o landing/www/assets/flexity-logo.svg
-curl -sL "https://www.flexity.asia/favicon.ico" -o landing/www/assets/favicon.ico
+grep -R "admin.flexity\|auth/login\|clinic.flexity" landing/www || true
+grep -R "console/login" landing/www
 ```
 
-После обновления проверить:
+## Deploy
 
-- кнопка «Войти в систему» → `https://flexity.asia/console/login`
-- нет `admin.flexity.asia/auth/login` и `flexity.asia/auth/login`
+Только с approval — см. [deploy/console-and-landing.md](../deploy/console-and-landing.md).
+
+```bash
+tar -C landing/www -cf - . | ssh flexity 'rm -rf /var/www/flexity-landing && mkdir -p /var/www/flexity-landing && tar -xf - -C /var/www/flexity-landing'
+```
+
+## Статус разделов
+
+| Раздел | Статус |
+|--------|--------|
+| Решения | Каркас + 4 направления |
+| Insights | Индекс рубрик (скоро) |
+| Кейсы | Placeholder + формат |
+| Калькуляторы | Индекс, страницы «готовится» |
+| Демо | Статика, контакты; CRM lead capture — позже |

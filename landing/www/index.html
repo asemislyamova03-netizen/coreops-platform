@@ -2,78 +2,27 @@
 <html lang="ru">
 
 <head>
-    <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
-    <link rel="shortcut icon" href="assets/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
     <meta charset="UTF-8">
-    <title>Flexity — умный учёт и аналитика для бизнеса</title>
+    <title>Flexity — AI-ready CRM/ERP для сервисного и операционного бизнеса</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-    (function(m,e,t,r,i,k,a){
-        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=106756538', 'ym');
-
-    ym(106756538, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/106756538" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
-
-
-
-    <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
-    <link rel="shortcut icon" href="assets/favicon.ico" type="image/x-icon">
-    <meta charset="UTF-8">
-    <title>Flexity — умный учёт и аналитика для бизнеса</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- Bootstrap 5 из CDN -->
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript">
+        (function (m, e, t, r, i, k, a) {
+            m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments) };
+            m[i].l = 1 * new Date();
+            for (var j = 0; j < document.scripts.length; j++) { if (document.scripts[j].src === r) { return; } }
+            k = e.createElement(t), a = e.getElementsByTagName(t)[0], k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
+        })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js?id=106756538', 'ym');
+        ym(106756538, 'init', { ssr: true, webvisor: true, clickmap: true, ecommerce: "dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce: true, trackLinks: true });
+    </script>
+    <noscript>
+        <div><img src="https://mc.yandex.ru/watch/106756538" style="position:absolute; left:-9999px;" alt="" /></div>
+    </noscript>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-
+    <link rel="stylesheet" href="/assets/site.css">
     <style>
-        :root {
-            --flexity-blue: #2563eb;
-            --flexity-green: #22c55e;
-            --flexity-bg: #020617;
-            --flexity-text: #e5e7eb;
-            --flexity-muted: #9ca3af;
-        }
-
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background-color: var(--flexity-bg);
-            color: var(--flexity-text);
-        }
-
-        .navbar {
-            background: rgba(2, 6, 23, 0.96);
-            backdrop-filter: blur(10px);
-        }
-
-        .navbar-brand {
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        /* кнопки: синий → зелёный, как в логотипе */
-        .btn-primary {
-            background: linear-gradient(135deg, var(--flexity-blue), var(--flexity-green));
-            border: none;
-        }
-
-        .btn-primary:hover {
-            filter: brightness(1.05);
-        }
-
-        .btn-outline-light:hover {
-            background-color: #e5e7eb;
-            color: var(--flexity-bg);
-        }
-
         .hero {
             padding-top: 6rem;
             padding-bottom: 4rem;
@@ -86,61 +35,7 @@
         }
 
         .hero-sub {
-            max-width: 560px;
-            color: var(--flexity-muted);
-        }
-
-        /* бейдж с лёгким синим и зелёным оттенком */
-        .badge-soft {
-            background: radial-gradient(circle at left, rgba(37, 99, 235, 0.25), transparent),
-                radial-gradient(circle at right, rgba(34, 197, 94, 0.25), transparent);
-            color: #bfdbfe;
-            border-radius: 999px;
-            padding: 0.3rem 0.9rem;
-            font-size: 0.8rem;
-        }
-
-        section {
-            padding-top: 3rem;
-            padding-bottom: 3rem;
-        }
-
-        .section-title {
-            font-size: 1.6rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            color: #f9fafb;
-        }
-
-        .section-sub {
-            color: var(--flexity-muted);
             max-width: 640px;
-        }
-
-        /* карточки модулей – синий + зелёный */
-        .card-module {
-            background:
-                radial-gradient(circle at top left, rgba(37, 99, 235, 0.30), transparent),
-                radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.25), transparent),
-                #020617;
-            border-radius: 1.1rem;
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            height: 100%;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.6);
-        }
-
-        .card-module .icon {
-            font-size: 1.6rem;
-            margin-bottom: 0.6rem;
-        }
-
-        .card-module h3 {
-            font-size: 1.05rem;
-            color: var(--flexity-text);
-        }
-
-        .card-module p {
-            font-size: 0.9rem;
             color: var(--flexity-muted);
         }
 
@@ -151,9 +46,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at top left,
-                    rgba(37, 99, 235, 0.45),
-                    rgba(15, 23, 42, 0.9));
+            background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.45), rgba(15, 23, 42, 0.9));
             margin-bottom: 0.6rem;
         }
 
@@ -186,38 +79,15 @@
             font-weight: 600;
             font-size: 0.9rem;
         }
-
-        .contact-card {
-            background: #020617;
-            border-radius: 1.1rem;
-            border: 1px solid rgba(148, 163, 184, 0.25);
-            padding: 1.5rem;
-        }
-
-        footer {
-            border-top: 1px solid rgba(148, 163, 184, 0.25);
-            padding: 1.2rem 0;
-            font-size: 0.8rem;
-            color: #6b7280;
-        }
-
-        a {
-            color: #93c5fd;
-        }
-
-        a:hover {
-            color: #bfdbfe;
-        }
     </style>
-
 </head>
 
 <body>
 
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top border-bottom border-secondary-subtle">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center gap-2 text-light" href="#top">
-                <img src="assets/flexity-logo.svg" alt="Flexity" height="28">
+            <a class="navbar-brand d-flex align-items-center gap-2 text-light" href="/">
+                <img src="/assets/flexity-logo.svg" alt="Flexity" height="28">
                 <span>FLEXITY</span>
             </a>
             <button class="navbar-toggler text-light border-0" type="button" data-bs-toggle="collapse"
@@ -226,27 +96,14 @@
             </button>
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link text-light" href="#solutions">Решения</a></li>
-                    <li class="nav-item"><a class="nav-link text-light" href="#benefits">Преимущества</a></li>
-                    <li class="nav-item"><a class="nav-link text-light" href="#how">Как это работает</a></li>
-                    <li class="nav-item"><a class="nav-link text-light" href="#contacts">Контакты</a></li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-light" href="#"
-                            data-bs-toggle="dropdown">Калькуляторы</a>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li><a class="dropdown-item" href="/calculators/our-vs-snr.html" target="_blank"
-                                    rel="noopener">ОУР vs СНР</a></li>
-                           <li><a class="dropdown-item" href="/calculators/trucking-trips.html" target="_blank"
-                                    rel="noopener">Калькулятор рейсов</a></li>
-                            <!-- потом добавишь ещё -->
-                            <!-- <li><a class="dropdown-item" href="/calculators/bep.html">Точка безубыточности</a></li> -->
-                        </ul>
-                    </li>
-
+                    <li class="nav-item"><a class="nav-link text-light" href="/solutions/">Решения</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="/insights/">Insights</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="/cases/">Кейсы</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="/calculators/">Калькуляторы</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="/demo/">Демо</a></li>
                 </ul>
                 <div class="d-flex gap-2">
-                    <a class="btn btn-outline-light btn-sm" href="https://flexity.asia/console/login">Войти в
-                        систему</a>
+                    <a class="btn btn-outline-light btn-sm" href="https://flexity.asia/console/login">Войти в систему</a>
                     <a class="btn btn-primary btn-sm" href="/demo/">Запросить демо</a>
                 </div>
             </div>
@@ -255,214 +112,180 @@
 
     <main id="top">
 
-        <!-- HERO -->
         <section class="hero">
             <div class="container">
                 <div class="row align-items-center gy-4">
                     <div class="col-lg-7">
                         <div class="badge-soft mb-3">
-                            Платформа учёта и аналитики для малого и среднего бизнеса
+                            Единая AI-ready CRM/ERP-платформа
                         </div>
                         <h1 class="hero-title mb-3">
-                            Flexity: один центр управления клиникой, консалтингом и товарным бизнесом
+                            Flexity — один продукт для сервисного и операционного бизнеса
                         </h1>
                         <p class="hero-sub mb-4">
-                            Вместо десятка таблиц и разных программ — единая система учёта, отчётов и
-                            аналитики. Для владельцев, руководителей и тех, кто отвечает за деньги.
+                            Клиника, консалтинг, детский сад и производственно-торговые сценарии — это направления
+                            внедрения Flexity, а не отдельные программы. Общий путь: клиент → заявка → документ →
+                            оплата → исполнение услуги.
                         </p>
                         <div class="d-flex flex-wrap gap-3 mb-3">
                             <a href="/demo/" class="btn btn-primary btn-lg">Запросить демо</a>
-                            <a href="#solutions" class="btn btn-outline-light btn-lg">
-                                Посмотреть решения
-                            </a>
+                            <a href="/solutions/" class="btn btn-outline-light btn-lg">Посмотреть решения</a>
                         </div>
                         <p class="text-secondary small mb-0">
-                            Клиника, консалтинг, товарный бизнес, логистика, ритейл и beauty — на одной платформе.
+                            Platform Console на staging: manager workspace, CRM, клиенты — развивается поэтапно.
                         </p>
                     </div>
                     <div class="col-lg-5">
                         <div class="contact-card">
-                            <h6 class="text-uppercase text-secondary small mb-2">Для кого</h6>
-                            <p class="mb-2">• Медицинские центры и частные клиники</p>
-                            <p class="mb-2">• Консультанты и обучающие проекты</p>
-                            <p class="mb-2">• Компании, работающие с товарным запасом</p>
-                            <p class="mb-0 text-secondary small">
-                                Старт — с одного модуля. По мере роста бизнеса подключаете остальные.
-                            </p>
+                            <h6 class="text-uppercase text-secondary small mb-2">Универсальный workflow</h6>
+                            <ol class="workflow-steps small mb-0">
+                                <li>Клиент и роли в CRM</li>
+                                <li>Заявка / work item и этапы</li>
+                                <li>Документ (договор, акт, КП)</li>
+                                <li>Счёт и оплата</li>
+                                <li>Исполнение и сервис</li>
+                            </ol>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- РЕШЕНИЯ -->
         <section id="solutions">
             <div class="container">
-                <h2 class="section-title">Решения Flexity</h2>
+                <h2 class="section-title">Направления Flexity</h2>
                 <p class="section-sub mb-4">
-                    Готовые модули под разные типы бизнеса. Можно использовать по отдельности
-                    или собирать единую систему.
+                    Отраслевые пакеты и шаблоны поверх универсальных модулей. Начинаем с одного контура,
+                    расширяем без смены платформы.
                 </p>
 
                 <div class="row g-4">
-                    <div class="col-12 col-md-6 col-xl-4">
+                    <div class="col-12 col-md-6 col-xl-3">
                         <div class="card-module p-3 h-100">
                             <div class="icon">🏥</div>
-                            <h3 id="clinic">Клиника</h3>
-                            <p>
-                                Учёт пациентов, графики врачей, мотивация персонала, выручка и
-                                монитор директора в одном окне.
-                            </p>
-                            <a href="https://clinic.flexity.asia/" class="btn btn-sm btn-primary mt-2">
-                                Перейти в модуль
-                            </a>
+                            <h3>Клиника</h3>
+                            <p>Лиды, записи, услуги, оплаты. Reference для сервисного бизнеса.</p>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <a href="/solutions/clinic.html" class="btn btn-sm btn-primary">Посмотреть решение</a>
+                                <a href="/demo/" class="btn btn-sm btn-outline-light">Запросить демо</a>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="col-12 col-md-6 col-xl-4">
+                    <div class="col-12 col-md-6 col-xl-3">
                         <div class="card-module p-3 h-100">
                             <div class="icon">📊</div>
-                            <h3 id="consulting">Консалтинг</h3>
-                            <p>
-                                CRM для консультантов: лиды, сделки, проекты, задачи и финансовый
-                                результат по каждому клиенту.
-                            </p>
-                            <a href="#contacts" class="btn btn-sm btn-primary mt-2">
-                                Запросить доступ
-                            </a>
+                            <h3>Консалтинг</h3>
+                            <p>CRM, предложения, договоры, ретейнеры, задачи. Активная validation-ветка.</p>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <a href="/solutions/consulting.html" class="btn btn-sm btn-primary">Посмотреть решение</a>
+                                <a href="/demo/" class="btn btn-sm btn-outline-light">Разобрать процесс</a>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="col-12 col-md-6 col-xl-4">
+                    <div class="col-12 col-md-6 col-xl-3">
                         <div class="card-module p-3 h-100">
-                            <div class="icon">📦</div>
-                            <h3 id="goods">Товарный бизнес</h3>
-                            <p>
-                                Закупки, остатки, продажи, маржа и оборачиваемость. Аналитика по
-                                категориям, поставщикам и каналам сбыта.
-                            </p>
-                            <span class="badge bg-secondary-subtle text-light mt-2">В разработке</span>
+                            <div class="icon">🧒</div>
+                            <h3>Детский сад</h3>
+                            <p>Клиенты, договоры, регулярные платежи. Пакеты — в roadmap.</p>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <a href="/solutions/kindergarten.html" class="btn btn-sm btn-primary">Посмотреть решение</a>
+                                <a href="/demo/" class="btn btn-sm btn-outline-light">Запросить демо</a>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="col-12 col-md-6 col-xl-4">
+                    <div class="col-12 col-md-6 col-xl-3">
                         <div class="card-module p-3 h-100">
-                            <div class="icon">🚚</div>
-                            <h3 id="logistics">Логистика</h3>
-                            <p>
-                                Рейсы, себестоимость километра, загрузка машин и контроль ТО.
-                            </p>
-                            <span class="badge bg-secondary-subtle text-light mt-2">В разработке</span>
-                        </div>
-                    </div>
-
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <div class="card-module p-3 h-100">
-                            <div class="icon">🛍️</div>
-                            <h3 id="retail">Ритейл</h3>
-                            <p>
-                                Маржа по SKU, ABC/XYZ-анализ, скорость оборачиваемости и управление
-                                ассортиментом.
-                            </p>
-                            <span class="badge bg-secondary-subtle text-light mt-2">В разработке</span>
-                        </div>
-                    </div>
-
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <div class="card-module p-3 h-100">
-                            <div class="icon">💄</div>
-                            <h3 id="beauty">Beauty-сфера</h3>
-                            <p>
-                                Записи клиентов, загрузка мастеров, выручка и мотивация по
-                                каждому кабинету.
-                            </p>
-                            <span class="badge bg-secondary-subtle text-light mt-2">В разработке</span>
+                            <div class="icon">🚛</div>
+                            <h3>Trailers</h3>
+                            <p>CRM → заказ, исполнение, документы. Интеграции — поэтапно.</p>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <a href="/solutions/trailers.html" class="btn btn-sm btn-primary">Посмотреть решение</a>
+                                <a href="/demo/" class="btn btn-sm btn-outline-light">Разобрать процесс</a>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <p class="small text-secondary mt-4 mb-0">
+                    <a href="/solutions/">Все решения</a> ·
+                    <a href="/insights/">Insights</a> ·
+                    <a href="/cases/">Кейсы</a>
+                </p>
             </div>
         </section>
 
-        <!-- ПРЕИМУЩЕСТВА -->
         <section id="benefits">
             <div class="container">
                 <h2 class="section-title">Зачем бизнесу Flexity</h2>
                 <p class="section-sub mb-4">
-                    Мы делаем учёт и аналитику понятными владельцу. Без сложных отчётов —
-                    только цифры, которые помогают принять решение.
+                    Прозрачный операционный контур для владельца: меньше разрозненных таблиц,
+                    больше связности между CRM, документами и деньгами.
                 </p>
 
                 <div class="row g-4">
                     <div class="col-md-4">
                         <div class="feature-icon">📈</div>
-                        <h5>Прозрачные финансы</h5>
+                        <h5>Единый контур</h5>
                         <p class="small text-secondary">
-                            Видно выручку, расходы и прибыль по каждому филиалу, направлению и
-                            сотруднику.
+                            Клиент, сделка, документ и оплата в одной платформе, а не в пяти сервисах.
                         </p>
                     </div>
                     <div class="col-md-4">
-                        <div class="feature-icon">⏱</div>
-                        <h5>Экономия времени</h5>
+                        <div class="feature-icon">🤖</div>
+                        <h5>AI-ready foundation</h5>
                         <p class="small text-secondary">
-                            Отчёты собираются автоматически из операций. Больше не нужно
-                            сводить десяток таблиц вручную.
+                            Архитектура под будущих AI-сотрудников и автоматизацию рутины — без обещания «магии из коробки».
                         </p>
                     </div>
                     <div class="col-md-4">
                         <div class="feature-icon">🧩</div>
-                        <h5>Гибкая платформа</h5>
+                        <h5>Поэтапное внедрение</h5>
                         <p class="small text-secondary">
-                            Начинаете с одного модуля, потом подключаете новые — без
-                            переезда и потери данных.
+                            Старт с одного направления, подключение отраслевых модулей по мере зрелости процессов.
                         </p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- КАК ЭТО РАБОТАЕТ -->
         <section id="how">
             <div class="container">
-                <h2 class="section-title">Как это работает</h2>
+                <h2 class="section-title">Как начать</h2>
                 <div class="row g-4">
                     <div class="col-lg-7">
                         <ol class="steps-list">
                             <li>
-                                <strong>Выбираете модуль и оставляете заявку.</strong><br>
-                                Создаём тестовый доступ под вашу компанию или загружаем ваши
-                                реальные данные.
+                                <strong>Выбираете направление и оставляете заявку.</strong><br>
+                                <a href="/demo/">Демо</a> или контакт через мессенджер / email.
                             </li>
                             <li>
-                                <strong>Настраиваем под ваши процессы.</strong><br>
-                                Структура услуг, номенклатура, ставки сотрудников, отчёты для
-                                директора.
+                                <strong>Разбираем ваш процесс.</strong><br>
+                                Клиент → заявка → документ → оплата → исполнение под вашу отрасль.
                             </li>
                             <li>
-                                <strong>Запускаем и сопровождаем.</strong><br>
-                                Обучаем администратора, помогаем интерпретировать цифры и
-                                оптимизировать бизнес-модель.
+                                <strong>Пилот на Flexity staging.</strong><br>
+                                Показываем реальный scope Platform Console, без лишних обещаний.
                             </li>
                         </ol>
                     </div>
                     <div class="col-lg-5">
                         <div class="contact-card">
-                            <h6 class="text-uppercase text-secondary small mb-2">Готовы обсудить</h6>
+                            <h6 class="text-uppercase text-secondary small mb-2">Контент и инструменты</h6>
                             <p class="small text-secondary mb-2">
-                                Оставьте заявку на демо — покажем, как Flexity может работать
-                                именно в вашей компании.
+                                <a href="/insights/">Insights</a> — рубрики в разработке.<br>
+                                <a href="/calculators/">Калькуляторы</a> — индекс, отдельные страницы готовятся.<br>
+                                <a href="/cases/">Кейсы</a> — шаблон публикации.
                             </p>
-                            <a href="/demo/" class="btn btn-primary w-100 mb-2">Запросить демо</a>
-                            <p class="small text-secondary mb-0">
-                                Или свяжитесь удобным способом из блока «Контакты» ниже.
-                            </p>
+                            <a href="/demo/" class="btn btn-primary w-100">Запросить демо</a>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- КОНТАКТЫ -->
         <section id="contacts">
             <div class="container">
                 <h2 class="section-title">Контакты</h2>
@@ -472,7 +295,7 @@
                     </p>
                     <p class="mb-2">
                         WhatsApp / Telegram:
-                        <a href="https://wa.me/77053249805" target="_blank">+7 705 324 9805</a>
+                        <a href="https://wa.me/77053249805" target="_blank" rel="noopener">+7 705 324 9805</a>
                     </p>
                     <p class="mb-0 text-secondary small">
                         Казахстан, онлайн-сопровождение проектов в разных городах и странах.
@@ -486,7 +309,7 @@
     <footer>
         <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center">
             <span>© <span id="year"></span> Flexity. Все права защищены.</span>
-            <span class="mt-2 mt-md-0 small">Платформа учёта и аналитики для бизнеса.</span>
+            <span class="mt-2 mt-md-0 small">Единая AI-ready CRM/ERP для сервисного и операционного бизнеса.</span>
         </div>
     </footer>
 

@@ -8,6 +8,7 @@ import { disableModule, enableModule, listTenantModules } from "../api/modules";
 import { assignPlan, getSubscription, listPlans } from "../api/subscriptions";
 import {
   addTenantMembership,
+  createTenantUser,
   getTenant,
   listTenantMemberships,
   patchTenant,
@@ -19,7 +20,7 @@ import { Loading } from "../components/ui/Loading";
 import { Select } from "../components/ui/Select";
 import { Table } from "../components/ui/Table";
 import type { TenantModule } from "../types/module";
-import type { TenantMembership, TenantMembershipRole, TenantStatus } from "../types/tenant";
+import type { TenantMembership, TenantMembershipRole, TenantStatus, TenantUserCreateRole } from "../types/tenant";
 import type { ApplyTemplateResponse } from "../types/template";
 import {
   formatApiErrorMessage,
@@ -60,6 +61,11 @@ const MEMBERSHIP_ROLE_OPTIONS: Array<{ value: TenantMembershipRole; label: strin
   { value: "member", label: formatMembershipRole("member") },
 ];
 
+const CREATE_USER_ROLE_OPTIONS: Array<{ value: TenantUserCreateRole; label: string }> = [
+  { value: "tenant_admin", label: formatMembershipRole("tenant_admin") },
+  { value: "member", label: formatMembershipRole("member") },
+];
+
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -75,6 +81,16 @@ export function TenantDetailPage() {
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberRole, setNewMemberRole] = useState<TenantMembershipRole>("member");
   const [applyResult, setApplyResult] = useState<ApplyTemplateResponse | null>(null);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [createUserEmail, setCreateUserEmail] = useState("");
+  const [createUserFullName, setCreateUserFullName] = useState("");
+  const [createUserTempPassword, setCreateUserTempPassword] = useState("");
+  const [createUserRole, setCreateUserRole] = useState<TenantUserCreateRole>("member");
+  const [createUserFormError, setCreateUserFormError] = useState<string | null>(null);
+  const [createUserSuccess, setCreateUserSuccess] = useState<{
+    email: string;
+    temporaryPassword: string;
+  } | null>(null);
 
   const tenantQuery = useQuery({
     queryKey: ["tenant", tenantId],
@@ -192,6 +208,44 @@ export function TenantDetailPage() {
     onError: (err: unknown) => {
       setActionSuccess(null);
       setActionError(err instanceof ApiError ? formatApiErrorMessage(err.message) : "Ошибка добавления пользователя");
+    },
+  });
+
+  const resetCreateUserModal = () => {
+    setShowCreateUserModal(false);
+    setCreateUserEmail("");
+    setCreateUserFullName("");
+    setCreateUserTempPassword("");
+    setCreateUserRole("member");
+    setCreateUserFormError(null);
+    setCreateUserSuccess(null);
+  };
+
+  const createUserMutation = useMutation({
+    mutationFn: () =>
+      createTenantUser(tenantId, {
+        email: createUserEmail.trim(),
+        full_name: createUserFullName.trim(),
+        temporary_password: createUserTempPassword,
+        role: createUserRole,
+      }),
+    onSuccess: () => {
+      setCreateUserSuccess({
+        email: createUserEmail.trim(),
+        temporaryPassword: createUserTempPassword,
+      });
+      setCreateUserTempPassword("");
+      setCreateUserFormError(null);
+      setActionError(null);
+      void queryClient.invalidateQueries({ queryKey: ["tenant-memberships", tenantId] });
+    },
+    onError: (err: unknown) => {
+      setCreateUserSuccess(null);
+      setCreateUserFormError(
+        err instanceof ApiError
+          ? formatApiErrorMessage(err.message)
+          : "Не удалось создать пользователя",
+      );
     },
   });
 
@@ -339,6 +393,11 @@ export function TenantDetailPage() {
 
       {activeTab === "users" && (
         <div className="panel">
+          <div className="form-inline tenant-users-actions">
+            <Button variant="secondary" onClick={() => setShowCreateUserModal(true)}>
+              Создать пользователя
+            </Button>
+          </div>
           <div className="form-inline">
             <Input
               label="Email пользователя"
@@ -404,6 +463,114 @@ export function TenantDetailPage() {
               ]}
             />
           )}
+        </div>
+      )}
+
+      {showCreateUserModal && (
+        <div
+          className="workspace-modal-overlay"
+          role="presentation"
+          onClick={resetCreateUserModal}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") resetCreateUserModal();
+          }}
+        >
+          <div
+            className="workspace-modal panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-tenant-user-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="workspace-modal-header">
+              <h2 id="create-tenant-user-title">Создать пользователя</h2>
+              <button type="button" className="btn btn-secondary" onClick={resetCreateUserModal}>
+                Закрыть
+              </button>
+            </header>
+            <div className="workspace-modal-body">
+              {createUserSuccess ? (
+                <Alert variant="success">
+                  <p>
+                    Пользователь создан и добавлен в организацию. Передайте клиенту email и
+                    временный пароль вручную.
+                  </p>
+                  <dl className="detail-list tenant-user-credentials">
+                    <dt>Email</dt>
+                    <dd>{createUserSuccess.email}</dd>
+                    <dt>Временный пароль</dt>
+                    <dd>
+                      <code>{createUserSuccess.temporaryPassword}</code>
+                    </dd>
+                  </dl>
+                  <div className="actions-row">
+                    <Button onClick={resetCreateUserModal}>Готово</Button>
+                  </div>
+                </Alert>
+              ) : (
+                <form
+                  className="workspace-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (
+                      !createUserEmail.trim() ||
+                      !createUserFullName.trim() ||
+                      createUserTempPassword.length < 8
+                    ) {
+                      setCreateUserFormError(
+                        "Заполните email, имя и временный пароль (минимум 8 символов).",
+                      );
+                      return;
+                    }
+                    setCreateUserFormError(null);
+                    createUserMutation.mutate();
+                  }}
+                >
+                  <Input
+                    label="Email"
+                    name="create_user_email"
+                    type="email"
+                    required
+                    value={createUserEmail}
+                    onChange={(e) => setCreateUserEmail(e.target.value)}
+                  />
+                  <Input
+                    label="Имя"
+                    name="create_user_full_name"
+                    required
+                    value={createUserFullName}
+                    onChange={(e) => setCreateUserFullName(e.target.value)}
+                  />
+                  <Input
+                    label="Временный пароль"
+                    name="create_user_temp_password"
+                    type="password"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={createUserTempPassword}
+                    onChange={(e) => setCreateUserTempPassword(e.target.value)}
+                  />
+                  <Select
+                    label="Роль в организации"
+                    name="create_user_role"
+                    value={createUserRole}
+                    options={CREATE_USER_ROLE_OPTIONS}
+                    onChange={(e) => setCreateUserRole(e.target.value as TenantUserCreateRole)}
+                  />
+                  {createUserFormError && <Alert variant="error">{createUserFormError}</Alert>}
+                  <div className="actions-row workspace-form-actions">
+                    <Button type="button" variant="secondary" onClick={resetCreateUserModal}>
+                      Отмена
+                    </Button>
+                    <Button type="submit" disabled={createUserMutation.isPending}>
+                      {createUserMutation.isPending ? "Создание..." : "Создать"}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

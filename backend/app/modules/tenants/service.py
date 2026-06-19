@@ -13,10 +13,14 @@ from app.modules.industry_templates.service import IndustryTemplateService
 from app.modules.module_registry.service import ModuleRegistryService
 from app.modules.subscriptions.service import SubscriptionService
 from app.modules.tenants.repository import TenantRepository
+from app.core.security import hash_password
 from app.modules.tenants.schemas import (
     TenantCreate,
     TenantMembershipResponse,
     TenantUpdate,
+    TenantUserCreate,
+    TenantUserCreateResponse,
+    TenantUserResponse,
 )
 
 
@@ -151,6 +155,53 @@ class TenantService:
             )
             for membership in memberships
         ]
+
+    def create_tenant_user(
+        self,
+        user: User,
+        tenant_id: uuid.UUID,
+        payload: TenantUserCreate,
+    ) -> TenantUserCreateResponse:
+        staff = get_provider_staff(user)
+        if not staff or staff.role != ProviderRole.PROVIDER_OWNER:
+            raise PermissionDeniedError("Only provider owner can create tenant users")
+
+        tenant = self.get_accessible(user, tenant_id)
+        if staff.provider_company_id != tenant.provider_company_id:
+            raise PermissionDeniedError("Tenant does not belong to provider")
+
+        if self.users.get_by_email(payload.email):
+            raise ConflictError("User with this email already exists")
+
+        tenant_role = TenantRole(payload.role.value)
+
+        try:
+            new_user = self.users.create(
+                email=payload.email,
+                hashed_password=hash_password(payload.temporary_password),
+                full_name=payload.full_name,
+            )
+            membership = self._assign_membership(tenant_id, new_user.id, tenant_role)
+            self.db.commit()
+            self.db.refresh(new_user)
+            self.db.refresh(membership)
+        except Exception:
+            self.db.rollback()
+            raise
+
+        return TenantUserCreateResponse(
+            user=TenantUserResponse.model_validate(new_user),
+            membership=TenantMembershipResponse(
+                membership_id=membership.id,
+                user_id=membership.user_id,
+                email=new_user.email,
+                full_name=new_user.full_name,
+                user_is_active=new_user.is_active,
+                role=membership.role,
+                membership_is_active=membership.is_active,
+                created_at=membership.created_at,
+            ),
+        )
 
     def _assign_membership(
         self,

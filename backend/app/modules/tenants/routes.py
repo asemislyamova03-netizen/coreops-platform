@@ -11,6 +11,8 @@ from app.modules.tenants.schemas import (
     TenantMembershipResponse,
     TenantResponse,
     TenantUpdate,
+    TenantUserCreate,
+    TenantUserCreateResponse,
 )
 from app.modules.tenants.service import TenantService
 
@@ -64,6 +66,16 @@ def list_tenant_memberships(
     db: Session = Depends(get_db),
 ) -> list[TenantMembershipResponse]:
     return TenantService(db).list_memberships(current_user, tenant_id)
+
+
+@router.post("/{tenant_id}/users", response_model=TenantUserCreateResponse, status_code=201)
+def create_tenant_user(
+    tenant_id: uuid.UUID,
+    payload: TenantUserCreate,
+    current_user: User = Depends(require_provider_owner),
+    db: Session = Depends(get_db),
+) -> TenantUserCreateResponse:
+    return TenantService(db).create_tenant_user(current_user, tenant_id, payload)
 
 
 @router.post("/{tenant_id}/memberships", status_code=201)

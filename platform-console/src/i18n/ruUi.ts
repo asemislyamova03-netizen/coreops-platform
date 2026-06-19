@@ -117,6 +117,7 @@ const contactMethodRu: Record<string, string> = {
 
 const knownApiErrorsRu: Record<string, string> = {
   "User not found": "Пользователь не найден",
+  "User with this email already exists": "Пользователь с таким email уже существует",
   "Request failed": "Запрос не выполнен",
 };
 

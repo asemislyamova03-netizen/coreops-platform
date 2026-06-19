@@ -10,6 +10,11 @@ import { formatDocumentStatus, ui } from "../../i18n/ruUi";
 import { getDocumentSignatureHint } from "../../workspace/documentHelpers";
 import { formatDate } from "../../workspace/formatters";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
+import {
+  firstBlockingError,
+  isModuleDisabled,
+  moduleDisabledMessage,
+} from "../../workspace/moduleErrors";
 
 export function DocumentsPage() {
   const { tenantSlug = "" } = useParams();
@@ -24,6 +29,21 @@ export function DocumentsPage() {
 
   if (labelsLoading || documentsQuery.isLoading) {
     return <Loading text="Загрузка документов..." />;
+  }
+
+  const documentsDisabled = isModuleDisabled("documents", documentsQuery.error);
+  const error = firstBlockingError(documentsQuery.error);
+
+  if (documentsDisabled && !error) {
+    return (
+      <div className="page">
+        <PageHeader
+          title={ui.documents}
+          subtitle={`${documentLabel}, договоры и заявления · ${ui.readOnly}`}
+        />
+        <Alert variant="info">{moduleDisabledMessage("documents")}</Alert>
+      </div>
+    );
   }
 
   if (documentsQuery.error) {

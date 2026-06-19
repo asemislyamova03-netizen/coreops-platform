@@ -6,11 +6,13 @@ import { Loading } from "../../components/ui/Loading";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 import { formatMoney } from "../../workspace/formatters";
 import { useDashboardData } from "../../workspace/useDashboardData";
+import { moduleDisabledMessage } from "../../workspace/moduleErrors";
 import { ui } from "../../i18n/ruUi";
 
 export function DashboardPage() {
   const { isLoading: labelsLoading } = useWorkspaceLabels();
-  const { metrics, isLoading, error } = useDashboardData(!labelsLoading);
+  const { metrics, isLoading, error, financeDisabled, documentsDisabled } =
+    useDashboardData(!labelsLoading);
 
   if (labelsLoading || isLoading) {
     return <Loading text="Загрузка рабочего стола..." />;
@@ -52,29 +54,49 @@ export function DashboardPage() {
           value={String(metrics.activeDealsCount)}
           hint="Открытые заявки в нетерминальных стадиях"
         />
-        <DashboardKpiCard
-          label="Открытые счета"
-          value={String(financeSummary?.open_invoices_count ?? 0)}
-          hint={
-            financeSummary
-              ? formatMoney(financeSummary.total_outstanding, currency)
-              : "—"
-          }
-        />
-        <DashboardKpiCard
-          label="Просроченная дебиторка"
-          value={String(metrics.overdueReceivablesCount)}
-          hint={
-            financeSummary
-              ? formatMoney(financeSummary.overdue_amount, currency)
-              : "—"
-          }
-        />
-        <DashboardKpiCard
-          label="Документы на подпись"
-          value={String(metrics.pendingDocumentsCount)}
-          hint="Документы, ожидающие подписи"
-        />
+        {financeDisabled ? (
+          <div className="panel workspace-kpi-card workspace-kpi-disabled">
+            <p className="workspace-kpi-label">Финансы</p>
+            <p className="muted workspace-kpi-disabled-text">
+              {moduleDisabledMessage("finance")}
+            </p>
+          </div>
+        ) : (
+          <>
+            <DashboardKpiCard
+              label="Открытые счета"
+              value={String(financeSummary?.open_invoices_count ?? 0)}
+              hint={
+                financeSummary
+                  ? formatMoney(financeSummary.total_outstanding, currency)
+                  : "—"
+              }
+            />
+            <DashboardKpiCard
+              label="Просроченная дебиторка"
+              value={String(metrics.overdueReceivablesCount)}
+              hint={
+                financeSummary
+                  ? formatMoney(financeSummary.overdue_amount, currency)
+                  : "—"
+              }
+            />
+          </>
+        )}
+        {documentsDisabled ? (
+          <div className="panel workspace-kpi-card workspace-kpi-disabled">
+            <p className="workspace-kpi-label">Документы</p>
+            <p className="muted workspace-kpi-disabled-text">
+              {moduleDisabledMessage("documents")}
+            </p>
+          </div>
+        ) : (
+          <DashboardKpiCard
+            label="Документы на подпись"
+            value={String(metrics.pendingDocumentsCount)}
+            hint="Документы, ожидающие подписи"
+          />
+        )}
       </div>
 
       <div className="workspace-dashboard-links panel">

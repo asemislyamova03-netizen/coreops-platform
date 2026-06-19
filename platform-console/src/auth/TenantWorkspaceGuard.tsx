@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, Outlet, useParams } from "react-router-dom";
+import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { listTenants } from "../api/tenants";
 import { Loading } from "../components/ui/Loading";
 import { useAuth } from "./AuthContext";
@@ -11,6 +11,7 @@ import { hasTokens } from "./tokenStorage";
 
 export function TenantWorkspaceGuard() {
   const { tenantSlug = "" } = useParams();
+  const location = useLocation();
   const { me, isLoading, isProviderOwner } = useAuth();
   const [tenant, setTenant] = useState<WorkspaceTenantInfo | null>(null);
   const [resolveState, setResolveState] = useState<"loading" | "ready" | "denied">(
@@ -76,7 +77,7 @@ export function TenantWorkspaceGuard() {
   }
 
   if (!hasTokens()) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (!me || resolveState === "denied" || !tenant) {

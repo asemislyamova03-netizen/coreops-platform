@@ -1,17 +1,11 @@
 import type { PipelineStage, WorkItem } from "../../types/workflows";
+import { WorkItemStageSelect } from "./WorkItemStageSelect";
+import { formatDate } from "../../workspace/formatters";
 
 interface CrmPipelineBoardProps {
   stages: PipelineStage[];
   workItems: WorkItem[];
   workItemLabel: string;
-}
-
-function formatDate(value: string): string {
-  try {
-    return new Date(value).toLocaleDateString("ru-RU");
-  } catch {
-    return value;
-  }
 }
 
 export function CrmPipelineBoard({ stages, workItems, workItemLabel }: CrmPipelineBoardProps) {
@@ -52,6 +46,11 @@ export function CrmPipelineBoard({ stages, workItems, workItemLabel }: CrmPipeli
                     <div className="crm-pipeline-card-date muted">
                       Обновлено: {formatDate(item.updated_at)}
                     </div>
+                    <WorkItemStageSelect
+                      workItem={item}
+                      stages={stages}
+                      compact
+                    />
                   </article>
                 ))
               )}

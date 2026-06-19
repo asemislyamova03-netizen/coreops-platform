@@ -103,6 +103,20 @@ def test_work_item_lifecycle(client):
     assert by_stage.status_code == 200
     assert len(by_stage.json()) >= 1
 
+    by_party = client.get(
+        f"/api/v1/work-items?primary_party_id={party_id}",
+        headers=headers,
+    )
+    assert by_party.status_code == 200
+    assert len(by_party.json()) == 1
+    assert by_party.json()[0]["id"] == item["id"]
+
+    detail = client.get(f"/api/v1/work-items/{item['id']}", headers=headers)
+    assert detail.status_code == 200
+    detail_body = detail.json()
+    assert len(detail_body["activities"]) >= 1
+    assert len(detail_body["tasks"]) >= 1
+
 
 def test_crm_module_disabled_blocks_work_items(client):
     headers, tenant_id = _crm_tenant(client)

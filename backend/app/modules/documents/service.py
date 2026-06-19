@@ -118,12 +118,14 @@ class DocumentService:
         self,
         *,
         status: DocumentStatus | None = None,
+        party_id: uuid.UUID | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> list[DocumentResponse]:
         docs = self.repo.list_documents(
             self.tenant_id,
             status=status,
+            party_id=party_id,
             skip=skip,
             limit=limit,
         )

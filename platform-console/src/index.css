@@ -591,3 +591,204 @@ code {
   background: #f3f4f6;
   color: #4b5563;
 }
+
+.workspace-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.workspace-kpi-card {
+  padding: 16px;
+}
+
+.workspace-kpi-label {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #667085;
+}
+
+.workspace-kpi-value {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.workspace-kpi-hint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+}
+
+.workspace-dashboard-links h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.workspace-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.workspace-back-link {
+  display: inline-block;
+  margin-bottom: 8px;
+  text-decoration: none;
+}
+
+.workspace-detail-tabs {
+  margin-top: 8px;
+}
+
+.workspace-detail-section {
+  margin-top: 16px;
+}
+
+.workspace-detail-section h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.workspace-finance-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f9fafb;
+}
+
+.workspace-page-header-with-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.workspace-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.workspace-modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.workspace-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.workspace-modal-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.workspace-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.workspace-form-actions {
+  margin-top: 4px;
+}
+
+.workspace-form-hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.workspace-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.workspace-stage-select {
+  margin-top: 10px;
+}
+
+.workspace-stage-select.compact .form-field {
+  margin: 0;
+}
+
+.workspace-deals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.workspace-deal-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.workspace-deal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-deal-meta {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+
+.workspace-activity-block {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.workspace-activity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-activity-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-activity-item {
+  padding: 10px 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.workspace-activity-title {
+  font-size: 0.95rem;
+}
+
+.workspace-activity-meta {
+  margin-top: 4px;
+  font-size: 0.8rem;
+}

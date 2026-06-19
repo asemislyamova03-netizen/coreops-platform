@@ -84,6 +84,44 @@ def test_create_party_with_custom_fields(client):
     assert len(listed.json()) == 1
 
 
+def test_list_parties_by_party_role(client):
+    headers, _ = _setup_tenant_with_parties_module(client)
+
+    guardian = client.post(
+        "/api/v1/parties",
+        headers=headers,
+        json={
+            "party_type": "person",
+            "display_name": "Родитель Сидоров",
+            "party_role": "guardian",
+        },
+    )
+    assert guardian.status_code == 201
+
+    enrollee = client.post(
+        "/api/v1/parties",
+        headers=headers,
+        json={
+            "party_type": "person",
+            "display_name": "Ребёнок Сидоров",
+            "party_role": "enrollee",
+            "custom_fields": {
+                "birth_date": "2020-05-15",
+                "allergies": "нет",
+                "group_name": "Солнышко",
+            },
+        },
+    )
+    assert enrollee.status_code == 201
+
+    guardians = client.get("/api/v1/parties?party_role=guardian", headers=headers)
+    assert guardians.status_code == 200
+    names = {item["display_name"] for item in guardians.json()}
+    assert "Родитель Сидоров" in names
+    assert "Ребёнок Сидоров" not in names
+    assert "Иван Петров" not in names
+
+
 def test_custom_field_definitions_list(client):
     headers, _ = _setup_tenant_with_parties_module(client)
     response = client.get("/api/v1/parties/custom-field-definitions", headers=headers)

@@ -29,6 +29,7 @@ def _service(ctx: TenantContext, db: Session) -> PartyService:
 def list_parties(
     party_type: PartyType | None = None,
     status: PartyStatus | None = None,
+    party_role: str | None = Query(default=None, max_length=64),
     search: str | None = Query(default=None, max_length=255),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
@@ -38,6 +39,7 @@ def list_parties(
     return _service(ctx, db).list_parties(
         party_type=party_type,
         status=status,
+        party_role=party_role,
         search=search,
         skip=skip,
         limit=limit,

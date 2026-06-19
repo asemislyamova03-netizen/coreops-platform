@@ -27,6 +27,7 @@ Before editing files, output a short Task Classification block:
    - Flexity
    - Trailers
    - Consulting Flask
+   - Clinic App Flask
    - Other
 
 2. Category:
@@ -99,7 +100,9 @@ Definitions:
 
 ## Live project guardrails
 
-Trailers and Consulting Flask are live/reference projects.
+Trailers, Consulting Flask and Clinic App Flask are live/reference projects.
+
+Clinic App Flask, Consulting Flask, Trailers Flask and Kindergarten are reference systems / validation directions. Flexity is the single main product. Common logic goes to universal modules, industry behavior to templates/packages, tenant-specific behavior to tenant customization only after approval.
 
 Never:
 

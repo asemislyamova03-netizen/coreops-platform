@@ -261,3 +261,131 @@ def test_add_tenant_membership_duplicate_returns_409(client, db_session):
         headers=headers,
     )
     assert second.status_code == 409
+
+
+def test_create_tenant_user_success(client, db_session):
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Onboard Tenant", "slug": "onboard-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    temp_password = "securepass123"
+    response = client.post(
+        f"/api/v1/tenants/{tenant_id}/users",
+        json={
+            "email": "client@example.com",
+            "full_name": "Client User",
+            "temporary_password": temp_password,
+            "role": "tenant_admin",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["user"]["email"] == "client@example.com"
+    assert data["user"]["full_name"] == "Client User"
+    assert data["user"]["is_active"] is True
+    assert "hashed_password" not in data["user"]
+    assert "temporary_password" not in data
+    assert data["membership"]["role"] == "tenant_admin"
+    assert data["membership"]["membership_is_active"] is True
+
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "client@example.com", "password": temp_password},
+    )
+    assert login.status_code == 200
+    assert "access_token" in login.json()
+
+
+def test_create_tenant_user_duplicate_email_returns_409(client):
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Dup User Tenant", "slug": "dup-user-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    payload = {
+        "email": "dupcreate@example.com",
+        "full_name": "First User",
+        "temporary_password": "securepass123",
+        "role": "member",
+    }
+    first = client.post(f"/api/v1/tenants/{tenant_id}/users", json=payload, headers=headers)
+    assert first.status_code == 201
+
+    second = client.post(f"/api/v1/tenants/{tenant_id}/users", json=payload, headers=headers)
+    assert second.status_code == 409
+
+
+def test_create_tenant_user_requires_provider_owner(client, db_session):
+    from app.core.security import hash_password
+    from app.modules.auth.models import User
+
+    owner_headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Owner Only Tenant", "slug": "owner-only-tenant"},
+        headers=owner_headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    outsider_password = "outsiderpass123"
+    outsider = User(
+        email="tenantonly@example.com",
+        full_name="Tenant Only User",
+        hashed_password=hash_password(outsider_password),
+        is_active=True,
+    )
+    db_session.add(outsider)
+    db_session.commit()
+
+    outsider_headers = _login_header(
+        client,
+        email="tenantonly@example.com",
+        password=outsider_password,
+    )
+
+    forbidden = client.post(
+        f"/api/v1/tenants/{tenant_id}/users",
+        json={
+            "email": "newuser@example.com",
+            "full_name": "New User",
+            "temporary_password": "securepass123",
+            "role": "member",
+        },
+        headers=outsider_headers,
+    )
+    assert forbidden.status_code == 403
+
+
+def test_create_tenant_user_rejects_disallowed_roles(client):
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Role Guard Tenant", "slug": "role-guard-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    for role in ("tenant_owner", "provider_owner"):
+        response = client.post(
+            f"/api/v1/tenants/{tenant_id}/users",
+            json={
+                "email": f"{role}@example.com",
+                "full_name": "Blocked Role",
+                "temporary_password": "securepass123",
+                "role": role,
+            },
+            headers=headers,
+        )
+        assert response.status_code == 422

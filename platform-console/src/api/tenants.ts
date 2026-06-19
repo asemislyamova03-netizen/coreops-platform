@@ -4,6 +4,8 @@ import type {
   TenantMembershipCreatePayload,
   TenantMembership,
   TenantUpdate,
+  TenantUserCreatePayload,
+  TenantUserCreateResponse,
 } from "../types/tenant";
 import { apiFetch } from "./client";
 
@@ -44,4 +46,14 @@ export function addTenantMembership(
       body: JSON.stringify(payload),
     },
   );
+}
+
+export function createTenantUser(
+  tenantId: string,
+  payload: TenantUserCreatePayload,
+): Promise<TenantUserCreateResponse> {
+  return apiFetch<TenantUserCreateResponse>(`/tenants/${tenantId}/users`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }

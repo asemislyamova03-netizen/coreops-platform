@@ -15,6 +15,11 @@ import type { Invoice, Payment, Receivable } from "../../types/finance";
 import { formatInvoiceStatus, formatPaymentStatus, ui } from "../../i18n/ruUi";
 import { formatMoney } from "../../workspace/formatters";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
+import {
+  firstBlockingError,
+  isModuleDisabled,
+  moduleDisabledMessage,
+} from "../../workspace/moduleErrors";
 
 export function FinancePage() {
   const { tenantSlug = "" } = useParams();
@@ -57,11 +62,32 @@ export function FinancePage() {
     return <Loading text="Загрузка финансов..." />;
   }
 
-  const error =
-    summaryQuery.error ??
-    invoicesQuery.error ??
-    paymentsQuery.error ??
-    receivablesQuery.error;
+  const financeDisabled = isModuleDisabled(
+    "finance",
+    summaryQuery.error,
+    invoicesQuery.error,
+    paymentsQuery.error,
+    receivablesQuery.error,
+  );
+
+  const error = firstBlockingError(
+    summaryQuery.error,
+    invoicesQuery.error,
+    paymentsQuery.error,
+    receivablesQuery.error,
+  );
+
+  if (financeDisabled && !error) {
+    return (
+      <div className="page">
+        <PageHeader
+          title={ui.finance}
+          subtitle={`${invoiceLabel}, ${paymentLabel}, задолженность · ${ui.readOnly}`}
+        />
+        <Alert variant="info">{moduleDisabledMessage("finance")}</Alert>
+      </div>
+    );
+  }
 
   if (error) {
     const message =

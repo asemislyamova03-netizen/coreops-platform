@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
@@ -67,3 +68,30 @@ class TenantMembershipResponse(BaseModel):
     role: TenantRole
     membership_is_active: bool
     created_at: datetime
+
+
+class TenantUserCreateRole(str, Enum):
+    TENANT_ADMIN = "tenant_admin"
+    MEMBER = "member"
+
+
+class TenantUserCreate(BaseModel):
+    email: EmailStr
+    full_name: str = Field(min_length=1, max_length=255)
+    temporary_password: str = Field(min_length=8, max_length=128)
+    role: TenantUserCreateRole
+
+
+class TenantUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: EmailStr
+    full_name: str
+    is_active: bool
+    created_at: datetime
+
+
+class TenantUserCreateResponse(BaseModel):
+    user: TenantUserResponse
+    membership: TenantMembershipResponse

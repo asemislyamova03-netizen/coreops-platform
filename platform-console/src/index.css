@@ -774,6 +774,12 @@ code {
   font-size: 0.8rem;
 }
 
+.workspace-kpi-disabled-text {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 .workspace-dashboard-links h3 {
   margin: 0 0 12px;
   font-size: 1rem;

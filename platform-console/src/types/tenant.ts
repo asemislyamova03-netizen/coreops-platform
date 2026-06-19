@@ -37,8 +37,30 @@ export interface TenantMembership {
 
 export type TenantMembershipRole = "tenant_owner" | "tenant_admin" | "member";
 
+export type TenantUserCreateRole = "tenant_admin" | "member";
+
 export interface TenantMembershipCreatePayload {
   user_id?: string;
   user_email?: string;
   role: TenantMembershipRole;
+}
+
+export interface TenantUserCreatePayload {
+  email: string;
+  full_name: string;
+  temporary_password: string;
+  role: TenantUserCreateRole;
+}
+
+export interface TenantUser {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface TenantUserCreateResponse {
+  user: TenantUser;
+  membership: TenantMembership;
 }

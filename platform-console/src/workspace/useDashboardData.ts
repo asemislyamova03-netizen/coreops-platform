@@ -6,6 +6,7 @@ import type { Document } from "../types/document";
 import type { FinanceSummary, Receivable } from "../types/finance";
 import type { Pipeline, WorkItem } from "../types/workflows";
 import { pickDefaultPipeline } from "./formatters";
+import { firstBlockingError, isModuleDisabled } from "./moduleErrors";
 
 const EARLY_LEAD_STAGE_CODES = new Set(["new_lead", "first_contact"]);
 const ACTIVE_STATUSES = new Set(["open", "in_progress"]);
@@ -80,6 +81,10 @@ export function useDashboardData(enabled: boolean) {
   });
 
   const pipelinesQuery = results[0];
+  const financeSummaryQuery = results[1];
+  const receivablesQuery = results[2];
+  const documentsQuery = results[3];
+
   const pipeline = pipelinesQuery.data ? pickDefaultPipeline(pipelinesQuery.data) : null;
 
   const workItemsQuery = useQueries({
@@ -92,10 +97,17 @@ export function useDashboardData(enabled: boolean) {
     ],
   })[0];
 
+  const financeDisabled = isModuleDisabled(
+    "finance",
+    financeSummaryQuery.error,
+    receivablesQuery.error,
+  );
+  const documentsDisabled = isModuleDisabled("documents", documentsQuery.error);
+
   const workItems = workItemsQuery.data ?? [];
-  const documents = results[3].data ?? [];
-  const receivables = results[2].data ?? [];
-  const financeSummary = results[1].data ?? null;
+  const documents = documentsDisabled ? [] : (documentsQuery.data ?? []);
+  const receivables = financeDisabled ? [] : (receivablesQuery.data ?? []);
+  const financeSummary = financeDisabled ? null : (financeSummaryQuery.data ?? null);
 
   const metrics: DashboardMetrics = {
     pipeline,
@@ -111,17 +123,18 @@ export function useDashboardData(enabled: boolean) {
 
   const isLoading =
     pipelinesQuery.isLoading ||
-    results[1].isLoading ||
-    results[2].isLoading ||
-    results[3].isLoading ||
+    financeSummaryQuery.isLoading ||
+    receivablesQuery.isLoading ||
+    documentsQuery.isLoading ||
     workItemsQuery.isLoading;
 
-  const error =
-    pipelinesQuery.error ??
-    results[1].error ??
-    results[2].error ??
-    results[3].error ??
-    workItemsQuery.error;
+  const error = firstBlockingError(
+    pipelinesQuery.error,
+    financeSummaryQuery.error,
+    receivablesQuery.error,
+    documentsQuery.error,
+    workItemsQuery.error,
+  );
 
-  return { metrics, isLoading, error };
+  return { metrics, isLoading, error, financeDisabled, documentsDisabled };
 }

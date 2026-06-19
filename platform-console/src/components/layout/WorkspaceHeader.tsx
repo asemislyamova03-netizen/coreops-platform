@@ -6,6 +6,7 @@ import {
 } from "../../auth/TenantWorkspaceContext";
 import { Button } from "../ui/Button";
 import { Select } from "../ui/Select";
+import { ui } from "../../i18n/ruUi";
 
 export function WorkspaceHeader() {
   const { me, logout, isProviderOwner } = useAuth();
@@ -26,16 +27,16 @@ export function WorkspaceHeader() {
     <header className="header workspace-header">
       <div className="workspace-header-main">
         <div>
-          <h2 className="workspace-tenant-title">{tenant?.tenantName ?? "Tenant"}</h2>
+          <h2 className="workspace-tenant-title">{tenant?.tenantName ?? ui.organization}</h2>
           <p className="muted workspace-tenant-meta">
             <code>{tenant?.tenantSlug}</code>
             {" · "}
-            role: {membershipRoleLabel(membership?.role ?? tenant?.role ?? null)}
+            роль: {membershipRoleLabel(membership?.role ?? tenant?.role ?? null)}
           </p>
         </div>
         {tenantOptions.length > 1 && tenant && (
           <Select
-            label="Tenant"
+            label={ui.organization}
             name="workspace_tenant_switch"
             value={tenant.tenantSlug}
             onChange={(event) => {
@@ -50,7 +51,7 @@ export function WorkspaceHeader() {
       <div className="workspace-header-actions">
         {isProviderOwner && (
           <Link to="/tenants">
-            <Button variant="secondary">Platform Console</Button>
+            <Button variant="secondary">{ui.platformConsole}</Button>
           </Link>
         )}
         <div className="header-user">

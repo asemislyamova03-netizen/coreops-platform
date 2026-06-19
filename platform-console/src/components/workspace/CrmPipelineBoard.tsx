@@ -1,4 +1,5 @@
 import type { PipelineStage, WorkItem } from "../../types/workflows";
+import { formatCommonStatus, formatWorkItemType } from "../../i18n/ruUi";
 import { WorkItemStageSelect } from "./WorkItemStageSelect";
 import { formatDate } from "../../workspace/formatters";
 
@@ -40,8 +41,10 @@ export function CrmPipelineBoard({ stages, workItems, workItemLabel }: CrmPipeli
                   <article key={item.id} className="crm-pipeline-card">
                     <div className="crm-pipeline-card-title">{item.title}</div>
                     <div className="crm-pipeline-card-meta">
-                      <span className={`badge badge-${item.status}`}>{item.status}</span>
-                      <span className="muted">{item.work_item_type}</span>
+                      <span className={`badge badge-${item.status}`}>
+                        {formatCommonStatus(item.status)}
+                      </span>
+                      <span className="muted">{formatWorkItemType(item.work_item_type)}</span>
                     </div>
                     <div className="crm-pipeline-card-date muted">
                       Обновлено: {formatDate(item.updated_at)}

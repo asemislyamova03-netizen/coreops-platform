@@ -15,6 +15,17 @@ import type { Document } from "../../types/document";
 import type { Invoice, Payment } from "../../types/finance";
 import type { PipelineStage, WorkItem } from "../../types/workflows";
 import { formatDate, formatMoney } from "../../workspace/formatters";
+import {
+  formatCommonStatus,
+  formatContactMethodType,
+  formatDocumentStatus,
+  formatInvoiceStatus,
+  formatPartyRole,
+  formatPartyType,
+  formatPaymentStatus,
+  formatWorkItemType,
+  ui,
+} from "../../i18n/ruUi";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 import { getPartyRole } from "../../types/party";
 
@@ -81,7 +92,7 @@ export function ClientDetailPage() {
 
   const party = partyQuery.data;
   const role = getPartyRole(party);
-  const roleLabel = role ? partyRoleLabel(role, role) : "—";
+  const roleLabel = role ? partyRoleLabel(role, formatPartyRole(role)) : "—";
   const workItemLabel = entityLabel("work_item", "Заявка");
 
   const relatedDeals = workItemsQuery.data ?? [];
@@ -92,11 +103,14 @@ export function ClientDetailPage() {
       <div className="page-header">
         <div>
           <Link to={`/workspace/${tenantSlug}/clients`} className="muted workspace-back-link">
-            ← Clients
+            ← {ui.clients}
           </Link>
           <h1>{party.display_name}</h1>
           <p className="muted">
-            {roleLabel} · <span className={`badge badge-${party.status}`}>{party.status}</span>
+            {roleLabel} ·{" "}
+            <span className={`badge badge-${party.status}`}>
+              {formatCommonStatus(party.status)}
+            </span>
           </p>
         </div>
       </div>
@@ -104,10 +118,10 @@ export function ClientDetailPage() {
       <div className="tabs workspace-detail-tabs">
         {(
           [
-            ["overview", "Overview"],
+            ["overview", ui.overview],
             ["deals", workItemLabel],
-            ["documents", "Documents"],
-            ["finance", "Finance"],
+            ["documents", ui.documents],
+            ["finance", ui.finance],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -125,7 +139,7 @@ export function ClientDetailPage() {
         <div className="panel">
           <dl className="detail-list">
             <dt>Тип</dt>
-            <dd>{party.party_type}</dd>
+            <dd>{formatPartyType(party.party_type)}</dd>
             <dt>Роль</dt>
             <dd>{roleLabel}</dd>
             <dt>Контакты</dt>
@@ -134,8 +148,8 @@ export function ClientDetailPage() {
                 ? "—"
                 : party.contact_methods.map((c) => (
                     <div key={c.id}>
-                      {c.method_type}: {c.value}
-                      {c.is_primary ? " (primary)" : ""}
+                      {formatContactMethodType(c.method_type)}: {c.value}
+                      {c.is_primary ? " (основной)" : ""}
                     </div>
                   ))}
             </dd>
@@ -237,9 +251,11 @@ function DealsTab({
           <div key={deal.id} className="panel workspace-deal-panel">
             <div className="workspace-deal-header">
               <h3>{deal.title}</h3>
-              <span className={`badge badge-${deal.status}`}>{deal.status}</span>
+              <span className={`badge badge-${deal.status}`}>
+                {formatCommonStatus(deal.status)}
+              </span>
             </div>
-            <p className="muted workspace-deal-meta">{deal.work_item_type}</p>
+            <p className="muted workspace-deal-meta">{formatWorkItemType(deal.work_item_type)}</p>
             <WorkItemStageSelect workItem={deal} stages={stages} />
             <WorkItemActivityComposer workItemId={deal.id} />
           </div>
@@ -278,10 +294,10 @@ function DocumentsTab({
         data={documents}
         columns={[
           { key: "title", header: "Название", render: (r) => r.title },
-          { key: "status", header: "Статус", render: (r) => r.status },
+          { key: "status", header: "Статус", render: (r) => formatDocumentStatus(r.status) },
           {
             key: "work_item",
-            header: "Work item",
+            header: ui.workItem,
             render: (r) => (r.work_item_id ? <code>{r.work_item_id}</code> : "—"),
           },
         ]}
@@ -323,7 +339,7 @@ function FinanceTab({
             data={invoices}
             columns={[
               { key: "number", header: "№", render: (r) => r.invoice_number },
-              { key: "status", header: "Статус", render: (r) => r.status },
+              { key: "status", header: "Статус", render: (r) => formatInvoiceStatus(r.status) },
               {
                 key: "total",
                 header: "Сумма",
@@ -354,7 +370,7 @@ function FinanceTab({
             data={payments}
             columns={[
               { key: "number", header: "№", render: (r) => r.payment_number },
-              { key: "status", header: "Статус", render: (r) => r.status },
+              { key: "status", header: "Статус", render: (r) => formatPaymentStatus(r.status) },
               {
                 key: "amount",
                 header: "Сумма",

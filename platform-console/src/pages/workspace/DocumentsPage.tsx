@@ -6,6 +6,7 @@ import { Alert } from "../../components/ui/Alert";
 import { Loading } from "../../components/ui/Loading";
 import { Table } from "../../components/ui/Table";
 import type { Document } from "../../types/document";
+import { formatDocumentStatus, ui } from "../../i18n/ruUi";
 import { getDocumentSignatureHint } from "../../workspace/documentHelpers";
 import { formatDate } from "../../workspace/formatters";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
@@ -32,7 +33,7 @@ export function DocumentsPage() {
         : "Не удалось загрузить документы.";
     return (
       <div className="page">
-        <PageHeader title="Documents" subtitle={documentLabel} />
+        <PageHeader title={ui.documents} subtitle={documentLabel} />
         <Alert variant="error">{message}</Alert>
       </div>
     );
@@ -43,12 +44,12 @@ export function DocumentsPage() {
   return (
     <div className="page">
       <PageHeader
-        title="Documents"
-        subtitle={`${documentLabel}, договоры и заявления · read-only`}
+        title={ui.documents}
+        subtitle={`${documentLabel}, договоры и заявления · ${ui.readOnly}`}
       />
 
       {documents.length === 0 ? (
-        <Alert variant="info">Пока нет документов в tenant.</Alert>
+        <Alert variant="info">Пока нет документов в организации.</Alert>
       ) : (
         <div className="panel">
           <Table<Document>
@@ -65,7 +66,9 @@ export function DocumentsPage() {
                 key: "status",
                 header: "Статус",
                 render: (row) => (
-                  <span className={`badge badge-${row.status}`}>{row.status}</span>
+                  <span className={`badge badge-${row.status}`}>
+                    {formatDocumentStatus(row.status)}
+                  </span>
                 ),
               },
               {
@@ -87,7 +90,7 @@ export function DocumentsPage() {
               },
               {
                 key: "work_item",
-                header: "Work item",
+                header: ui.workItem,
                 render: (row) =>
                   row.work_item_id ? <code>{row.work_item_id.slice(0, 8)}…</code> : "—",
               },

@@ -4,6 +4,7 @@ import { createWorkItemActivity, getWorkItem } from "../../api/workflows";
 import { ApiError } from "../../api/client";
 import { Alert } from "../ui/Alert";
 import { Loading } from "../ui/Loading";
+import { formatActivityType } from "../../i18n/ruUi";
 import { formatDate } from "../../workspace/formatters";
 
 interface WorkItemActivityComposerProps {
@@ -91,7 +92,7 @@ export function WorkItemActivityComposer({ workItemId }: WorkItemActivityCompose
             <li key={activity.id} className="workspace-activity-item">
               <div className="workspace-activity-title">{activity.title}</div>
               <div className="muted workspace-activity-meta">
-                {activity.activity_type} · {formatDate(activity.occurred_at)}
+                {formatActivityType(activity.activity_type)} · {formatDate(activity.occurred_at)}
               </div>
             </li>
           ))}

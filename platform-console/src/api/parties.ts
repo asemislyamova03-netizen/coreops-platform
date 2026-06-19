@@ -1,4 +1,4 @@
-import type { ListPartiesParams, Party } from "../types/party";
+import type { ListPartiesParams, Party, PartyCreate, PartyUpdate } from "../types/party";
 import { buildQuery } from "./query";
 import { workspaceApiFetch } from "./workspace";
 
@@ -17,4 +17,18 @@ export function listParties(params: ListPartiesParams = {}): Promise<Party[]> {
 
 export function getParty(partyId: string): Promise<Party> {
   return workspaceApiFetch<Party>(`/parties/${partyId}`);
+}
+
+export function createParty(payload: PartyCreate): Promise<Party> {
+  return workspaceApiFetch<Party>("/parties", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateParty(partyId: string, payload: PartyUpdate): Promise<Party> {
+  return workspaceApiFetch<Party>(`/parties/${partyId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }

@@ -1,5 +1,12 @@
 export type PartyType = "person" | "organization" | "sole_proprietor";
 export type PartyStatus = "active" | "inactive" | "archived";
+export type ContactMethodType =
+  | "email"
+  | "phone"
+  | "mobile"
+  | "telegram"
+  | "whatsapp"
+  | "other";
 
 export interface ContactMethod {
   id: string;
@@ -48,4 +55,29 @@ export interface ListPartiesParams {
 export function getPartyRole(party: Party): string | null {
   const role = party.metadata_json?.party_role;
   return typeof role === "string" ? role : null;
+}
+
+export interface ContactMethodCreate {
+  method_type: ContactMethodType;
+  value: string;
+  label?: string | null;
+  is_primary?: boolean;
+}
+
+export interface PartyCreate {
+  party_type: PartyType;
+  display_name: string;
+  status?: PartyStatus;
+  party_role?: string | null;
+  contact_methods?: ContactMethodCreate[];
+  custom_fields?: Record<string, unknown>;
+}
+
+export interface PartyUpdate {
+  party_type?: PartyType;
+  display_name?: string;
+  status?: PartyStatus;
+  party_role?: string | null;
+  contact_methods?: ContactMethodCreate[];
+  custom_fields?: Record<string, unknown>;
 }

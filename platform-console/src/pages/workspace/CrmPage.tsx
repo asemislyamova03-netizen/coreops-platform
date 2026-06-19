@@ -1,20 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
 import { listPipelines, listWorkItems } from "../../api/workflows";
 import { ApiError } from "../../api/client";
+import { CreateWorkItemModal } from "../../components/workspace/CreateWorkItemModal";
 import { CrmPipelineBoard } from "../../components/workspace/CrmPipelineBoard";
 import { Alert } from "../../components/ui/Alert";
 import { Loading } from "../../components/ui/Loading";
+import { pickDefaultPipeline } from "../../workspace/formatters";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
-
-function pickPipeline(pipelines: Awaited<ReturnType<typeof listPipelines>>) {
-  if (pipelines.length === 0) return null;
-  return pipelines.find((p) => p.is_default) ?? pipelines[0];
-}
 
 export function CrmPage() {
   const { crmSectionTitle, entityLabel, isLoading: labelsLoading } = useWorkspaceLabels();
   const workItemLabel = entityLabel("work_item", "Заявка");
-  const pipelineLabel = entityLabel("pipeline", "Воронка");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const pipelinesQuery = useQuery({
     queryKey: ["workspace-pipelines"],
@@ -22,7 +20,7 @@ export function CrmPage() {
     enabled: !labelsLoading,
   });
 
-  const pipeline = pipelinesQuery.data ? pickPipeline(pipelinesQuery.data) : null;
+  const pipeline = pipelinesQuery.data ? pickDefaultPipeline(pipelinesQuery.data) : null;
 
   const workItemsQuery = useQuery({
     queryKey: ["workspace-work-items", pipeline?.id],
@@ -52,7 +50,7 @@ export function CrmPage() {
       <div className="page">
         <PageHeader title="CRM" subtitle={crmSectionTitle} />
         <Alert variant="info">
-          {pipelineLabel} не настроена. Примените industry template для tenant.
+          Воронка не настроена. Примените industry template для tenant.
         </Alert>
       </div>
     );
@@ -63,6 +61,11 @@ export function CrmPage() {
       <PageHeader
         title="CRM"
         subtitle={`${crmSectionTitle} · ${pipeline.name}`}
+        action={
+          <button type="button" className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            Создать заявку
+          </button>
+        }
       />
 
       {workItemsQuery.isLoading && <Loading text={`Загрузка ${workItemLabel.toLowerCase()}...`} />}
@@ -79,8 +82,7 @@ export function CrmPage() {
         <>
           {workItemsQuery.data.length === 0 && (
             <Alert variant="info">
-              Пока нет {workItemLabel.toLowerCase()} в воронке «{pipeline.name}». Создание заявок —
-              в W3.
+              Пока нет {workItemLabel.toLowerCase()} в воронке «{pipeline.name}».
             </Alert>
           )}
           <CrmPipelineBoard
@@ -90,17 +92,33 @@ export function CrmPage() {
           />
         </>
       )}
+
+      {showCreateModal && (
+        <CreateWorkItemModal
+          defaultPipeline={pipeline}
+          onClose={() => setShowCreateModal(false)}
+        />
+      )}
     </div>
   );
 }
 
-function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
+function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="page-header">
+    <div className="page-header workspace-page-header-with-action">
       <div>
         <h1>{title}</h1>
         <p className="muted">{subtitle}</p>
       </div>
+      {action}
     </div>
   );
 }

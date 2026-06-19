@@ -1,22 +1,34 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { listParties } from "../../api/parties";
 import { ApiError } from "../../api/client";
+import { CreateClientModal } from "../../components/workspace/CreateClientModal";
 import { Alert } from "../../components/ui/Alert";
 import { Loading } from "../../components/ui/Loading";
 import { Table } from "../../components/ui/Table";
 import type { Party } from "../../types/party";
+import { getPartyRole } from "../../types/party";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
+
+const DEFAULT_CLIENT_PARTY_ROLE = "client";
+
+/** W3.1 creates `client`; legacy seeded `guardian` rows stay visible in the list. */
+function isVisibleClientParty(party: Party): boolean {
+  const role = getPartyRole(party);
+  return role === null || role === DEFAULT_CLIENT_PARTY_ROLE || role === "guardian";
+}
 
 export function ClientsPage() {
   const { tenantSlug = "" } = useParams();
   const navigate = useNavigate();
   const { clientsSectionTitle, partyRoleLabel, isLoading: labelsLoading } = useWorkspaceLabels();
-  const guardianLabel = partyRoleLabel("guardian", "Родитель");
+  const clientRoleLabel = partyRoleLabel(DEFAULT_CLIENT_PARTY_ROLE, "Клиент");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const partiesQuery = useQuery({
-    queryKey: ["workspace-parties", "guardian"],
-    queryFn: () => listParties({ party_role: "guardian", limit: 200 }),
+    queryKey: ["workspace-parties", "clients"],
+    queryFn: () => listParties({ limit: 200 }),
     enabled: !labelsLoading,
   });
 
@@ -37,22 +49,29 @@ export function ClientsPage() {
     );
   }
 
-  const guardians = partiesQuery.data ?? [];
+  const clients = (partiesQuery.data ?? []).filter(isVisibleClientParty);
 
   return (
     <div className="page">
-      <PageHeader title="Clients" subtitle={`${clientsSectionTitle} · ${guardianLabel}`} />
+      <PageHeader
+        title="Clients"
+        subtitle={`${clientsSectionTitle} · ${clientRoleLabel}`}
+        action={
+          <button type="button" className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            Создать клиента
+          </button>
+        }
+      />
 
-      {guardians.length === 0 ? (
+      {clients.length === 0 ? (
         <Alert variant="info">
-          Пока нет клиентов с ролью «{guardianLabel}». Данные появятся после добавления
-          контрагентов в tenant.
+          Пока нет клиентов. Нажмите «Создать клиента», чтобы добавить первого.
         </Alert>
       ) : (
         <div className="panel">
           <Table<Party>
             rowKey={(row) => row.id}
-            data={guardians}
+            data={clients}
             emptyText="Нет клиентов"
             onRowClick={(row) => navigate(`/workspace/${tenantSlug}/clients/${row.id}`)}
             columns={[
@@ -95,17 +114,30 @@ export function ClientsPage() {
           />
         </div>
       )}
+
+      {showCreateModal && (
+        <CreateClientModal onClose={() => setShowCreateModal(false)} />
+      )}
     </div>
   );
 }
 
-function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
+function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="page-header">
+    <div className="page-header workspace-page-header-with-action">
       <div>
         <h1>{title}</h1>
         <p className="muted">{subtitle}</p>
       </div>
+      {action}
     </div>
   );
 }

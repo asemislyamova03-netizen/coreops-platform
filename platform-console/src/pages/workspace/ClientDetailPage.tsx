@@ -4,14 +4,16 @@ import { Link, useParams } from "react-router-dom";
 import { listDocuments } from "../../api/documents";
 import { listInvoices, listPayments } from "../../api/finance";
 import { getParty } from "../../api/parties";
-import { listWorkItems } from "../../api/workflows";
+import { listPipelines, listWorkItems } from "../../api/workflows";
 import { ApiError } from "../../api/client";
+import { WorkItemActivityComposer } from "../../components/workspace/WorkItemActivityComposer";
+import { WorkItemStageSelect } from "../../components/workspace/WorkItemStageSelect";
 import { Alert } from "../../components/ui/Alert";
 import { Loading } from "../../components/ui/Loading";
 import { Table } from "../../components/ui/Table";
 import type { Document } from "../../types/document";
 import type { Invoice, Payment } from "../../types/finance";
-import type { WorkItem } from "../../types/workflows";
+import type { PipelineStage, WorkItem } from "../../types/workflows";
 import { formatDate, formatMoney } from "../../workspace/formatters";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 import { getPartyRole } from "../../types/party";
@@ -54,6 +56,12 @@ export function ClientDetailPage() {
   const documentsQuery = useQuery({
     queryKey: ["workspace-party-documents", partyId],
     queryFn: () => listDocuments({ party_id: partyId, limit: 200 }),
+    enabled: Boolean(partyId) && !labelsLoading,
+  });
+
+  const pipelinesQuery = useQuery({
+    queryKey: ["workspace-pipelines"],
+    queryFn: listPipelines,
     enabled: Boolean(partyId) && !labelsLoading,
   });
 
@@ -151,6 +159,9 @@ export function ClientDetailPage() {
           workItemLabel={workItemLabel}
           isLoading={workItemsQuery.isLoading}
           error={workItemsQuery.error}
+          pipelines={pipelinesQuery.data ?? []}
+          pipelinesLoading={pipelinesQuery.isLoading}
+          pipelinesError={pipelinesQuery.error}
         />
       )}
 
@@ -181,13 +192,19 @@ function DealsTab({
   workItemLabel,
   isLoading,
   error,
+  pipelines,
+  pipelinesLoading,
+  pipelinesError,
 }: {
   deals: WorkItem[];
   workItemLabel: string;
   isLoading: boolean;
   error: unknown;
+  pipelines: Array<{ id: string; stages: PipelineStage[] }>;
+  pipelinesLoading: boolean;
+  pipelinesError: unknown;
 }) {
-  if (isLoading) {
+  if (isLoading || pipelinesLoading) {
     return <Loading text="Загрузка заявок..." />;
   }
   if (error) {
@@ -197,20 +214,37 @@ function DealsTab({
       </Alert>
     );
   }
+  if (pipelinesError) {
+    return (
+      <Alert variant="error">
+        {queryErrorMessage(pipelinesError, "Не удалось загрузить воронки.")}
+      </Alert>
+    );
+  }
   if (deals.length === 0) {
     return <Alert variant="info">Нет связанных {workItemLabel.toLowerCase()}.</Alert>;
   }
+
+  const stagesByPipeline = new Map(
+    pipelines.map((pipeline) => [pipeline.id, pipeline.stages] as const),
+  );
+
   return (
-    <div className="panel">
-      <Table<WorkItem>
-        rowKey={(row) => row.id}
-        data={deals}
-        columns={[
-          { key: "title", header: "Название", render: (r) => r.title },
-          { key: "status", header: "Статус", render: (r) => r.status },
-          { key: "type", header: "Тип", render: (r) => r.work_item_type },
-        ]}
-      />
+    <div className="workspace-deals-list">
+      {deals.map((deal) => {
+        const stages = stagesByPipeline.get(deal.pipeline_id) ?? [];
+        return (
+          <div key={deal.id} className="panel workspace-deal-panel">
+            <div className="workspace-deal-header">
+              <h3>{deal.title}</h3>
+              <span className={`badge badge-${deal.status}`}>{deal.status}</span>
+            </div>
+            <p className="muted workspace-deal-meta">{deal.work_item_type}</p>
+            <WorkItemStageSelect workItem={deal} stages={stages} />
+            <WorkItemActivityComposer workItemId={deal.id} />
+          </div>
+        );
+      })}
     </div>
   );
 }

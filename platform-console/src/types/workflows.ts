@@ -31,6 +31,64 @@ export interface WorkItemParticipant {
   role: string;
 }
 
+export type ActivityType =
+  | "call"
+  | "email"
+  | "meeting"
+  | "note"
+  | "status_change"
+  | "other";
+
+export interface Activity {
+  id: string;
+  activity_type: ActivityType;
+  title: string;
+  description: string | null;
+  occurred_at: string;
+  created_by_user_id: string | null;
+  created_at: string;
+}
+
+export interface WorkItemParticipantCreate {
+  party_id: string;
+  role?: "client" | "assignee" | "observer" | "other";
+}
+
+export interface WorkItemCreate {
+  pipeline_id: string;
+  stage_id?: string | null;
+  work_item_type: string;
+  title: string;
+  description?: string | null;
+  primary_party_id?: string | null;
+  source?: string | null;
+  participants?: WorkItemParticipantCreate[];
+  custom_fields?: Record<string, unknown>;
+}
+
+export interface WorkItemUpdate {
+  title?: string;
+  description?: string | null;
+  primary_party_id?: string | null;
+  source?: string | null;
+  stage_id?: string | null;
+}
+
+export interface MoveStageRequest {
+  stage_id: string;
+}
+
+export interface ActivityCreate {
+  activity_type?: ActivityType;
+  title: string;
+  description?: string | null;
+}
+
+export interface TaskCreate {
+  title: string;
+  description?: string | null;
+}
+
 export interface WorkItem {
   id: string;
   tenant_id: string;
@@ -46,6 +104,7 @@ export interface WorkItem {
   source: string | null;
   custom_fields: Record<string, unknown>;
   participants: WorkItemParticipant[];
+  activities?: Activity[];
   created_at: string;
   updated_at: string;
   created_by_user_id: string | null;

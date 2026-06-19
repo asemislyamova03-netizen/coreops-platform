@@ -665,3 +665,130 @@ code {
 .clickable-row:hover {
   background: #f9fafb;
 }
+
+.workspace-page-header-with-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.workspace-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.workspace-modal {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.workspace-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.workspace-modal-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.workspace-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.workspace-form-actions {
+  margin-top: 4px;
+}
+
+.workspace-form-hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.workspace-textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.workspace-stage-select {
+  margin-top: 10px;
+}
+
+.workspace-stage-select.compact .form-field {
+  margin: 0;
+}
+
+.workspace-deals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.workspace-deal-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.workspace-deal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-deal-meta {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+}
+
+.workspace-activity-block {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.workspace-activity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-activity-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-activity-item {
+  padding: 10px 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.workspace-activity-title {
+  font-size: 0.95rem;
+}
+
+.workspace-activity-meta {
+  margin-top: 4px;
+  font-size: 0.8rem;
+}

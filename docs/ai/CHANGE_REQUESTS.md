@@ -182,3 +182,54 @@ Tenant-specific behavior belongs to **tenant customization**.
 - docs/ai/ORCHESTRATION.md — Single product direction, W3 focus
 - docs/ai/PRODUCT_ARCHITECTURE.md — Reference directions and development order
 - .cursor/rules/20-legacy-projects.mdc — Reference systems rule
+
+---
+
+## CR-2026-06-19-001: Public Site, Content Funnel, Multilingual and Marketing Operations
+
+### Status
+
+Proposed.
+
+### Type
+
+Product / Marketing / Content architecture.
+
+### Summary
+
+Flexity needs a public marketing and content funnel connected to the single-product direction: public site, solution pages, insights, cases, calculators, demo/contact flow, multilingual RU/EN/KZ planning, content agent workflow, target/social readiness, and later CRM lead capture.
+
+### Product Rules
+
+- Flexity remains the single main product.
+- Clinic, Consulting, Kindergarten and Trailers are reference / validation directions, not separate products.
+- Public content must not promise unfinished backend/product features as ready.
+- Content agent drafts require human approval before publishing.
+- Social publishing and ad pixels require separate credentials/privacy approval.
+- CRM lead capture requires separate backend implementation approval.
+
+### Phases
+
+1. Close current branch/PR.
+2. Public site funnel.
+3. Multilingual foundation RU/EN/KZ.
+4. Content/insights layer.
+5. Daily content agent draft workflow.
+6. Target/social readiness.
+7. CRM lead capture.
+8. Return to S2.2/S2.3/W3.2+ product features.
+
+### Out of Scope For Initial Slice
+
+- backend changes;
+- deploy/nginx/systemd;
+- social API publishing;
+- content agent implementation;
+- full i18n implementation;
+- CRM lead form implementation;
+- legacy Flask changes.
+
+### Related docs
+
+- [2026-06-19-site-marketing-content-plan.md](plans/2026-06-19-site-marketing-content-plan.md)
+- [landing/README.md](../../landing/README.md)

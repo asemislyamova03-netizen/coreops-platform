@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { hasTokens } from "../auth/tokenStorage";
@@ -10,10 +10,12 @@ import { Loading } from "../components/ui/Loading";
 import { ui } from "../i18n/ruUi";
 import { LOGIN_NEWS_CARDS, LOGIN_RESOURCE_LINKS } from "../content/loginNews";
 import { resolveHomePath } from "../routes/resolveHomePath";
+import { resolvePostLoginRedirect } from "../routes/postLoginRedirect";
 
 export function LoginPage() {
   const { login, isLoading, isProviderOwner, me } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,13 @@ export function LoginPage() {
 
   if (hasTokens() && me) {
     const tenantSlugs = me.tenants.map((item) => item.tenant_slug);
-    return <Navigate to={resolveHomePath(isProviderOwner, tenantSlugs)} replace />;
+    const fallbackPath = resolveHomePath(isProviderOwner, tenantSlugs);
+    const target = resolvePostLoginRedirect(location.state?.from, {
+      isProvider: isProviderOwner,
+      tenantSlugs,
+      fallbackPath,
+    });
+    return <Navigate to={target} replace />;
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -36,7 +44,13 @@ export function LoginPage() {
       const session = await login({ email, password });
       const tenantSlugs = session.tenants.map((item) => item.tenant_slug);
       const isProvider = session.provider?.role === "provider_owner";
-      navigate(resolveHomePath(isProvider, tenantSlugs));
+      const fallbackPath = resolveHomePath(isProvider, tenantSlugs);
+      const target = resolvePostLoginRedirect(location.state?.from, {
+        isProvider,
+        tenantSlugs,
+        fallbackPath,
+      });
+      navigate(target);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

@@ -1,0 +1,12 @@
+date: "2026-06-22"
+topic: "Тест Telegram-автопубликации Flexity"
+slug: "telegram-autopublish-test"
+status: "approved"
+
+publish:
+  telegram:
+    enabled: true
+    status: "approved"
+    publish_at: "2026-06-22T00:00:00+05:00"
+    published_at: null
+    external_id: null

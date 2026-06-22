@@ -1,0 +1,12 @@
+date: "2026-06-22"
+topic: "AI без процесса усиливает хаос"
+slug: "ai-tools-need-process"
+status: "approved"
+
+publish:
+  telegram:
+    enabled: false
+    status: "draft"
+    publish_at: "2026-06-22T10:00:00+05:00"
+    published_at: null
+    external_id: null

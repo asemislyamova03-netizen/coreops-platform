@@ -1,14 +1,14 @@
 date: "2026-06-23"
 topic: "AI agents vs SaaS process"
 slug: "ai-agents-saas-process"
-status: "draft"
+status: "approved"
 source: "daily news selection 2026-06-23"
 cta: "process audit / разбор процесса"
 
 publish:
   telegram:
     enabled: true
-    status: "draft"
-    publish_at: "2026-06-23T10:00:00+05:00"
+    status: "approved"
+    publish_at: "2026-06-23T00:30:00+05:00"
     published_at: null
     external_id: null

@@ -1,0 +1,302 @@
+name: Publish approved Instagram content
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_live:
+        description: "Type PUBLISH to confirm live Instagram publishing"
+        required: true
+        type: string
+      expected_count:
+        description: "Expected number of eligible Instagram packs"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: instagram-approved-content-publisher
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install publisher dependencies
+        run: python -m pip install pyyaml requests
+
+      - name: Run Instagram dry-run
+        id: dry_run
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_file="${RUNNER_TEMP}/instagram-dry-run.txt"
+
+          set +e
+          python scripts/content/publish_instagram_live.py 2>&1 | tee "$output_file"
+          publisher_status=${PIPESTATUS[0]}
+          set -e
+
+          mapfile -t summaries < <(
+            grep -E '^Done\. Would publish: [0-9]+\. Errors: [0-9]+$' "$output_file" || true
+          )
+          if [ "${#summaries[@]}" -ne 1 ]; then
+            echo "ERROR: dry-run summary is missing or ambiguous"
+            exit 1
+          fi
+
+          summary="${summaries[0]}"
+          if [[ ! "$summary" =~ ^Done\.\ Would\ publish:\ ([0-9]+)\.\ Errors:\ ([0-9]+)$ ]]; then
+            echo "ERROR: cannot parse dry-run summary"
+            exit 1
+          fi
+
+          would_publish="${BASH_REMATCH[1]}"
+          errors="${BASH_REMATCH[2]}"
+          if [ "$publisher_status" -ne 0 ] || [ "$errors" -ne 0 ]; then
+            echo "ERROR: dry-run failed validation"
+            exit 1
+          fi
+
+          echo "would_publish=$would_publish" >> "$GITHUB_OUTPUT"
+          if [ "$would_publish" -eq 0 ]; then
+            echo "should_live=false" >> "$GITHUB_OUTPUT"
+            echo "No eligible Instagram packs; live publishing is skipped"
+          else
+            echo "should_live=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate manual approval inputs
+        id: approval
+        if: steps.dry_run.outputs.should_live == 'true'
+        shell: bash
+        env:
+          CONFIRM_LIVE: ${{ inputs.confirm_live }}
+          EXPECTED_COUNT: ${{ inputs.expected_count }}
+          WOULD_PUBLISH: ${{ steps.dry_run.outputs.would_publish }}
+        run: |
+          set -euo pipefail
+          if [ "$CONFIRM_LIVE" != "PUBLISH" ]; then
+            echo "ERROR: confirm_live must equal PUBLISH"
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_COUNT" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: expected_count must be a non-negative integer"
+            exit 1
+          fi
+
+          normalized_count="$(printf '%s' "$EXPECTED_COUNT" | sed 's/^0*//')"
+          if [ -z "$normalized_count" ]; then
+            normalized_count="0"
+          fi
+          if [ "$normalized_count" != "$WOULD_PUBLISH" ]; then
+            echo "ERROR: expected_count does not match the dry-run eligible count"
+            exit 1
+          fi
+
+          echo "expected_count=$normalized_count" >> "$GITHUB_OUTPUT"
+          echo "Manual Instagram publish approval inputs are valid"
+
+      - name: Verify Instagram secrets are configured
+        id: secrets
+        if: steps.dry_run.outputs.should_live == 'true'
+        shell: bash
+        env:
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$INSTAGRAM_USER_ID" ]; then
+            echo "ERROR: INSTAGRAM_USER_ID secret is empty"
+            exit 1
+          fi
+          if [ -z "$INSTAGRAM_ACCESS_TOKEN" ]; then
+            echo "ERROR: INSTAGRAM_ACCESS_TOKEN secret is empty"
+            exit 1
+          fi
+          echo "Required Instagram secrets are present"
+
+      - name: Verify main has not advanced
+        id: remote_head
+        if: steps.dry_run.outputs.should_live == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "ERROR: origin/main advanced after checkout; dispatch a new run"
+            exit 1
+          fi
+
+      - name: Publish eligible Instagram packs
+        id: live_publish
+        if: steps.dry_run.outputs.should_live == 'true'
+        shell: bash
+        env:
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          output_file="${RUNNER_TEMP}/instagram-live.txt"
+
+          set +e
+          python scripts/content/publish_instagram_live.py --live 2>&1 | tee "$output_file"
+          publisher_status=${PIPESTATUS[0]}
+          set -e
+
+          parse_ok=false
+          published="0"
+          errors="-1"
+          mapfile -t summaries < <(
+            grep -E '^Done\. Published: [0-9]+\. Errors: [0-9]+$' "$output_file" || true
+          )
+          if [ "${#summaries[@]}" -eq 1 ]; then
+            summary="${summaries[0]}"
+            if [[ "$summary" =~ ^Done\.\ Published:\ ([0-9]+)\.\ Errors:\ ([0-9]+)$ ]]; then
+              parse_ok=true
+              published="${BASH_REMATCH[1]}"
+              errors="${BASH_REMATCH[2]}"
+            fi
+          fi
+
+          echo "process_exit=$publisher_status" >> "$GITHUB_OUTPUT"
+          echo "parse_ok=$parse_ok" >> "$GITHUB_OUTPUT"
+          echo "published=$published" >> "$GITHUB_OUTPUT"
+          echo "errors=$errors" >> "$GITHUB_OUTPUT"
+
+      - name: Verify changed metadata files
+        id: metadata
+        if: always() && steps.dry_run.outputs.should_live == 'true'
+        shell: bash
+        env:
+          LIVE_PARSE_OK: ${{ steps.live_publish.outputs.parse_ok }}
+          LIVE_PUBLISHED: ${{ steps.live_publish.outputs.published }}
+        run: |
+          set -euo pipefail
+          files_list="${RUNNER_TEMP}/instagram-metadata-files.txt"
+          reported_packs="${RUNNER_TEMP}/instagram-reported-packs.txt"
+          : > "$files_list"
+          if [ -f "${RUNNER_TEMP}/instagram-live.txt" ]; then
+            sed -nE 's/^(PUBLISHED|ERROR) ([^: ]+):.*$/\2/p' \
+              "${RUNNER_TEMP}/instagram-live.txt" | sort -u > "$reported_packs"
+          else
+            : > "$reported_packs"
+          fi
+
+          mapfile -t changes < <(git status --porcelain=v1 --untracked-files=all)
+          for entry in "${changes[@]}"; do
+            status="${entry:0:2}"
+            path="${entry:3}"
+
+            if [[ "$status" == *D* || "$status" == *R* || "$status" == *C* ]]; then
+              echo "ERROR: deleted, renamed or copied files are not allowed: $path"
+              exit 1
+            fi
+            if [[ ! "$path" =~ ^landing/content/content-packs/([^/]+)/(instagram\.yml|publish_log\.yml)$ ]]; then
+              echo "ERROR: unexpected changed file: $path"
+              exit 1
+            fi
+            pack_name="${BASH_REMATCH[1]}"
+            if ! grep -Fxq "$pack_name" "$reported_packs"; then
+              echo "ERROR: metadata changed for a pack not reported by this live run: $pack_name"
+              exit 1
+            fi
+            printf '%s\n' "$path" >> "$files_list"
+          done
+
+          sort -u -o "$files_list" "$files_list"
+          changed_count="$(grep -c . "$files_list" || true)"
+          if [ "$LIVE_PARSE_OK" = "true" ] && [ "$LIVE_PUBLISHED" -gt 0 ] && [ "$changed_count" -eq 0 ]; then
+            echo "ERROR: live publisher reported publications but changed no metadata files"
+            exit 1
+          fi
+
+          echo "changed_count=$changed_count" >> "$GITHUB_OUTPUT"
+          echo "Changed Instagram metadata files: $changed_count"
+
+      - name: Commit and push Instagram metadata
+        id: metadata_commit
+        if: >-
+          always() &&
+          steps.dry_run.outputs.should_live == 'true' &&
+          steps.metadata.outcome == 'success' &&
+          steps.metadata.outputs.changed_count != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          files_list="${RUNNER_TEMP}/instagram-metadata-files.txt"
+          mapfile -t files < "$files_list"
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "ERROR: metadata file list is empty"
+            exit 1
+          fi
+
+          git add -- "${files[@]}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Publish approved Instagram content"
+          git push origin HEAD:main
+
+      - name: Verify live publication result
+        if: always() && steps.dry_run.outputs.should_live == 'true'
+        shell: bash
+        env:
+          EXPECTED_COUNT: ${{ steps.approval.outputs.expected_count }}
+          LIVE_EXIT: ${{ steps.live_publish.outputs.process_exit }}
+          LIVE_PARSE_OK: ${{ steps.live_publish.outputs.parse_ok }}
+          LIVE_PUBLISHED: ${{ steps.live_publish.outputs.published }}
+          LIVE_ERRORS: ${{ steps.live_publish.outputs.errors }}
+          APPROVAL_OUTCOME: ${{ steps.approval.outcome }}
+          SECRETS_OUTCOME: ${{ steps.secrets.outcome }}
+          REMOTE_HEAD_OUTCOME: ${{ steps.remote_head.outcome }}
+          LIVE_OUTCOME: ${{ steps.live_publish.outcome }}
+          METADATA_OUTCOME: ${{ steps.metadata.outcome }}
+          METADATA_COMMIT_OUTCOME: ${{ steps.metadata_commit.outcome }}
+          CHANGED_COUNT: ${{ steps.metadata.outputs.changed_count }}
+        run: |
+          set -euo pipefail
+          if [ "$APPROVAL_OUTCOME" != "success" ] || [ "$SECRETS_OUTCOME" != "success" ]; then
+            echo "ERROR: approval or secret gate failed"
+            exit 1
+          fi
+          if [ "$REMOTE_HEAD_OUTCOME" != "success" ] || [ "$LIVE_OUTCOME" != "success" ]; then
+            echo "ERROR: preflight or live execution step failed"
+            exit 1
+          fi
+          if [ "$METADATA_OUTCOME" != "success" ]; then
+            echo "ERROR: metadata allowlist validation failed"
+            exit 1
+          fi
+          if [ "$LIVE_PARSE_OK" != "true" ]; then
+            echo "ERROR: live summary is missing or cannot be parsed"
+            exit 1
+          fi
+          if [ "$LIVE_EXIT" -ne 0 ] || [ "$LIVE_ERRORS" -ne 0 ]; then
+            echo "ERROR: live publisher reported an error; do not retry without analysis"
+            exit 1
+          fi
+          if [ "$LIVE_PUBLISHED" != "$EXPECTED_COUNT" ]; then
+            echo "ERROR: published count does not match expected_count"
+            exit 1
+          fi
+          if [ "$LIVE_PUBLISHED" -gt 0 ] && [ "$CHANGED_COUNT" -eq 0 ]; then
+            echo "ERROR: publication completed without metadata changes"
+            exit 1
+          fi
+          if [ "$CHANGED_COUNT" -gt 0 ] && [ "$METADATA_COMMIT_OUTCOME" != "success" ]; then
+            echo "ERROR: metadata commit or push failed; do not retry live publishing"
+            exit 1
+          fi
+          echo "Instagram publication and metadata commit completed successfully"

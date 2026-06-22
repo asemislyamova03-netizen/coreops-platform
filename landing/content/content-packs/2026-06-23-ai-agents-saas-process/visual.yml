@@ -1,0 +1,10 @@
+instagram_feed:
+  width: 1080
+  height: 1080
+  title: "AI не заменит процесс"
+  subtitle: "Он только быстрее показывает хаос"
+  brand: "Flexity"
+  tone: "clean, business, minimal"
+  source: "manual_asset"
+  footer: "Flexity"
+  output: "landing/www/assets/social/2026-06-23-ai-agents-saas-process/instagram-feed.png"

@@ -3,3 +3,9 @@ events:
   channel: telegram
   status: published
   message_id: 5
+- at: '2026-06-22T20:19:12+00:00'
+  channel: instagram
+  status: error
+  error: 'Instagram API error during media container creation (HTTP 400): Error validating
+    access token: Session has expired on Monday, 22-Jun-26 13:00:00 PDT. The current
+    time is Monday, 22-Jun-26 13:19:12 PDT. (code 190)'

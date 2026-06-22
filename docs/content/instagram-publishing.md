@@ -1,8 +1,11 @@
 # Instagram Publishing
 
-Instagram publishing in Flexity currently supports validation and preview in dry-run mode only. Live publishing and Meta API calls are not implemented.
+Flexity supports two Instagram publisher scripts for content packs:
 
-## Run dry-run
+- `scripts/content/publish_instagram.py` — schema validator and preview for `feed_image`, `carousel`, and `reels`;
+- `scripts/content/publish_instagram_live.py` — live-oriented publisher MVP for approved `feed_image` posts only.
+
+## Schema dry-run
 
 ```bash
 python scripts/content/publish_instagram.py --dry-run
@@ -14,7 +17,7 @@ The command scans:
 landing/content/content-packs/*/instagram.yml
 ```
 
-It reads the caption file referenced by `caption_source`, normally `instagram.md`, and does not modify either file.
+It reads the caption file referenced by `caption_source`, normally `instagram.md`, and does not modify any file.
 
 Running the script without `--dry-run` always fails with:
 
@@ -22,19 +25,87 @@ Running the script without `--dry-run` always fails with:
 Instagram live publishing is not implemented yet. Use --dry-run.
 ```
 
-## Eligibility
+## Live publisher dry-run (default)
 
-A pack is previewed only when:
+```bash
+python scripts/content/publish_instagram_live.py
+```
 
-- `status` is `approved`;
-- `published_at` is null;
-- `publish_at` is timezone-aware and not later than the current time;
-- `caption_source` exists inside the same pack and contains text;
-- media requirements for the selected type are satisfied.
+Default mode is dry-run. It scans the same content packs, but also reads each pack's top-level `pack.yml` and applies live MVP gates.
 
-Draft, already-published, and future packs are skipped. An approved due pack with malformed metadata or missing media fails closed and makes the command return a non-zero exit code.
+Dry-run does not:
 
-## instagram.yml fields
+- require Instagram secrets;
+- call Meta API;
+- write `instagram.yml`, `publish_log.yml`, or any other file.
+
+For every valid eligible pack, dry-run prints:
+
+- pack name;
+- `type=feed_image`;
+- caption length;
+- `image_url` (HTTPS only);
+- scheduled `publish_at`;
+- `would_publish=true`.
+
+## Live publisher (`--live`)
+
+```bash
+python scripts/content/publish_instagram_live.py --live
+```
+
+Live mode is enabled only with the explicit `--live` flag.
+
+Required environment variables:
+
+- `INSTAGRAM_USER_ID`
+- `INSTAGRAM_ACCESS_TOKEN`
+
+Secrets are read only from the environment. The script never prints the token and never writes credentials to files or logs. If either secret is missing, the command fails closed before any API call.
+
+Live mode may write only:
+
+- the current pack `instagram.yml`;
+- the current pack `publish_log.yml`.
+
+It does not modify `pack.yml`, `instagram.md`, Telegram files, or workflow artifacts.
+
+### Meta API flow (feed image MVP)
+
+1. Create media container: `POST /{INSTAGRAM_USER_ID}/media` with `image_url` and caption.
+2. Publish media container: `POST /{INSTAGRAM_USER_ID}/media_publish` with `creation_id`.
+3. After confirmed API success, write:
+   - `instagram.yml`: `published_at`, `external_id`, `status: published`;
+   - `publish_log.yml`: append `channel: instagram`, `status: published`, `external_id`.
+
+On API failure, the script appends an error event to `publish_log.yml` and does not set `published_at`, `external_id`, or `status: published`.
+
+Before the first real `--live` run, verify exact Meta permissions, App Review status, and Graph API version in the Meta App Dashboard. The script currently uses Graph API version `v21.0` as a placeholder constant and that value must be confirmed against the dashboard before production use.
+
+## Eligibility gates
+
+A pack is considered for live publisher dry-run or `--live` only when all gates pass.
+
+### Skip (exit 0, no API)
+
+- top-level `pack.yml status` is not `approved`;
+- `instagram.yml status` is not `approved`;
+- `published_at` is already set;
+- `external_id` is already set;
+- `publish_at` is in the future.
+
+### Fail closed (non-zero exit, no API)
+
+- `publish_at` is missing or has no timezone;
+- `type` is not `feed_image` (Reels and carousel are future scope);
+- `media.image_url` is missing or does not start with `https://`;
+- `caption_source` is missing, escapes the pack directory, points to a missing file, or is not `instagram.md`;
+- caption file is empty;
+- in `--live` mode: `INSTAGRAM_USER_ID` or `INSTAGRAM_ACCESS_TOKEN` is missing.
+
+Republish protection: if `published_at` or `external_id` is already set, the pack is skipped and API is never called.
+
+## instagram.yml fields (live MVP)
 
 ```yaml
 status: "approved"
@@ -47,34 +118,32 @@ media:
 caption_source: "instagram.md"
 ```
 
-Supported types and required media:
+Live publisher MVP supports only:
 
-- `feed_image`: public HTTP(S) `media.image_url`;
-- `reels`: public HTTP(S) `media.video_url`;
-- `carousel`: non-empty `media.items`, where every item contains an HTTP(S) `image_url` or `video_url`.
+- `type: feed_image`;
+- `media.image_url` as HTTPS public URL;
+- `caption_source: instagram.md`.
 
-Without a public image URL, Meta cannot fetch a feed image from the content pack. A local path from a laptop is not a public media URL and is rejected by validation.
+The schema dry-run script still validates `reels` and `carousel` for future work, but the live publisher rejects them.
 
-## Dry-run output
+Without a public HTTPS image URL, Meta cannot fetch a feed image from the content pack.
 
-For every valid eligible pack, the script prints:
+## First live publish gate
 
-- pack name;
-- content type;
-- caption length;
-- media URL or carousel URL list;
-- scheduled `publish_at`;
-- `would_publish=true`.
+Implementation of the live publisher does **not** approve the first real Instagram publication.
 
-Dry-run does not:
+Before the first `--live` run with real credentials:
 
-- read Instagram tokens, user IDs, or secrets;
-- make HTTP requests or Meta API calls;
-- create media containers;
-- write `published_at` or `external_id`;
-- modify content-pack files;
-- interact with the Telegram publisher or workflow.
+1. Run both dry-run commands and confirm the expected eligible pack list.
+2. Review caption, image URL, and target Instagram account manually.
+3. Verify Meta permissions, token scope/expiry, and Graph API version in the Meta App Dashboard.
+4. Obtain **separate explicit approval** for the first Meta API publish.
+5. After publish, verify the public post, `external_id`, and `publish_log.yml`.
 
-## Live publishing
+## GitHub Actions
 
-Live publishing is a separate future stage. It requires current Meta API research, credential storage design, a dedicated implementation plan, test-account verification, and explicit approval before any API call is enabled.
+No Instagram workflow is included yet. A manually triggered workflow with protected secrets will be added only after local/manual verification of the live publisher.
+
+## Relationship to Telegram
+
+The Instagram live publisher does not read Telegram metadata and does not modify the Telegram publisher or workflow.

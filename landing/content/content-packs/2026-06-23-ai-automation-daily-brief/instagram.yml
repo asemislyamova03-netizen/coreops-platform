@@ -1,8 +1,8 @@
-status: "approved"
-type: "feed_image"
-publish_at: "2026-06-23T00:30:00+05:00"
-published_at: null
-external_id: null
+status: published
+type: feed_image
+publish_at: '2026-06-23T00:30:00+05:00'
+published_at: '2026-06-23T06:28:09+00:00'
+external_id: '17921400735161931'
 media:
-  image_url: "https://www.flexity.asia/assets/social/2026-06-23-ai-automation-daily-brief/instagram-feed.png"
-caption_source: "instagram.md"
+  image_url: https://www.flexity.asia/assets/social/2026-06-23-ai-automation-daily-brief/instagram-feed.png
+caption_source: instagram.md

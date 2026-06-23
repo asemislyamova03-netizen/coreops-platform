@@ -2,6 +2,8 @@
 
 Flexity publishes public insights as static HTML under `landing/www/insights/`.
 
+Channel overview (Telegram, Instagram, Insights operational; TikTok planned): [Content Factory](content-factory.md).
+
 The source format is markdown with frontmatter:
 
 ```text

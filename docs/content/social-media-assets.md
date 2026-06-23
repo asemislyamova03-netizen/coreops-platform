@@ -1,6 +1,8 @@
 # Social Media Assets Contract
 
-Этот документ определяет структуру media assets для будущей Instagram automation Flexity. Реальная генерация изображений и видео, deploy assets и Instagram API publishing в этот scope не входят.
+Этот документ определяет структуру media assets для Instagram automation Flexity и описывает planned future assets для TikTok. Реальная генерация видео для TikTok, TikTok API publishing и live TikTok workflow в этот scope не входят.
+
+Обзор всех channels: [Content Factory](content-factory.md).
 
 ## Public URL requirement
 
@@ -120,3 +122,28 @@ media:
 - [ ] `instagram.yml` ссылается на правильный public URL.
 - [ ] Instagram dry-run проходит fail-closed validation.
 - [ ] Live publish отдельно утверждён.
+
+## Planned future: TikTok video assets
+
+TikTok account ещё не создан. Channel описан только в planning docs.
+
+TikTok — **script/video-first** channel, не image-post channel. Предлагаемый deployable asset:
+
+```text
+landing/www/assets/social/YYYY-MM-DD-slug/tiktok.mp4
+```
+
+Metadata contract (documentation only): `tiktok.yml`, `tiktok_script.md`, `tiktok.md` — см. [TikTok content-pack template](templates/tiktok-content-pack-template.md).
+
+Сейчас **не делаем**:
+
+- TikTok API integration;
+- TikTok workflow или secrets;
+- live publishing;
+- commit реальных `.mp4` без отдельного approval.
+
+Как и для Instagram Reels, будущий `media.video_url` должен указывать на публичный HTTPS URL после deploy, например:
+
+[https://www.flexity.asia/assets/social/YYYY-MM-DD-slug/tiktok.mp4](https://www.flexity.asia/assets/social/YYYY-MM-DD-slug/tiktok.mp4)
+
+Telegram publisher, Instagram publishers и Insights generator не читают `tiktok.yml`.

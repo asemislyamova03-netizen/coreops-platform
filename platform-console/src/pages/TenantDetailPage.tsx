@@ -62,6 +62,7 @@ const MEMBERSHIP_ROLE_OPTIONS: Array<{ value: TenantMembershipRole; label: strin
 ];
 
 const CREATE_USER_ROLE_OPTIONS: Array<{ value: TenantUserCreateRole; label: string }> = [
+  { value: "tenant_owner", label: formatMembershipRole("tenant_owner") },
   { value: "tenant_admin", label: formatMembershipRole("tenant_admin") },
   { value: "member", label: formatMembershipRole("member") },
 ];

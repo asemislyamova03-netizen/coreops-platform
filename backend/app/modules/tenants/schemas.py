@@ -71,6 +71,7 @@ class TenantMembershipResponse(BaseModel):
 
 
 class TenantUserCreateRole(str, Enum):
+    TENANT_OWNER = "tenant_owner"
     TENANT_ADMIN = "tenant_admin"
     MEMBER = "member"
 

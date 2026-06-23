@@ -25,6 +25,7 @@ export function TenantCreatePage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
+  const [ownerEmail, setOwnerEmail] = useState("");
   const [planCode, setPlanCode] = useState("");
   const [templateCode, setTemplateCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +64,7 @@ export function TenantCreatePage() {
     mutation.mutate({
       name,
       slug,
+      ...(ownerEmail.trim() ? { owner_email: ownerEmail.trim() } : {}),
       ...(planCode ? { plan_code: planCode } : {}),
       ...(templateCode ? { industry_template_code: templateCode } : {}),
     });
@@ -101,6 +103,19 @@ export function TenantCreatePage() {
             setSlug(e.target.value);
           }}
         />
+        <Input
+          label="Email владельца организации"
+          name="owner_email"
+          type="email"
+          value={ownerEmail}
+          onChange={(e) => setOwnerEmail(e.target.value)}
+          placeholder="owner@client.example.com"
+        />
+        <p className="muted form-hint">
+          Необязательно. Если пользователь с этим email уже есть в системе, он получит
+          роль владельца организации. Иначе создайте владельца на вкладке «Пользователи»
+          после создания организации.
+        </p>
         <Select
           label="Тарифный план"
           name="plan_code"

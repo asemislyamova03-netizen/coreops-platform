@@ -263,6 +263,40 @@ def test_add_tenant_membership_duplicate_returns_409(client, db_session):
     assert second.status_code == 409
 
 
+def test_create_tenant_with_owner_email_assigns_existing_user(client, db_session):
+    from app.core.security import hash_password
+    from app.modules.auth.models import User
+
+    headers = _auth_header(client)
+    owner = User(
+        email="tenant.owner@example.com",
+        full_name="Tenant Owner",
+        hashed_password=hash_password("ownerpass123"),
+        is_active=True,
+    )
+    db_session.add(owner)
+    db_session.commit()
+
+    created = client.post(
+        "/api/v1/tenants",
+        json={
+            "name": "Owner Email Tenant",
+            "slug": "owner-email-tenant",
+            "owner_email": "tenant.owner@example.com",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    memberships = client.get(f"/api/v1/tenants/{tenant_id}/memberships", headers=headers)
+    assert memberships.status_code == 200
+    data = memberships.json()
+    assert len(data) == 1
+    assert data[0]["email"] == "tenant.owner@example.com"
+    assert data[0]["role"] == "tenant_owner"
+
+
 def test_create_tenant_user_success(client, db_session):
     headers = _auth_header(client)
     created = client.post(
@@ -367,6 +401,44 @@ def test_create_tenant_user_requires_provider_owner(client, db_session):
     assert forbidden.status_code == 403
 
 
+def test_create_tenant_user_with_tenant_owner_role(client):
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Owner Role Tenant", "slug": "owner-role-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant_id = created.json()["id"]
+
+    temp_password = "securepass123"
+    response = client.post(
+        f"/api/v1/tenants/{tenant_id}/users",
+        json={
+            "email": "tenantowner@example.com",
+            "full_name": "Tenant Owner User",
+            "temporary_password": temp_password,
+            "role": "tenant_owner",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["membership"]["role"] == "tenant_owner"
+
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "tenantowner@example.com", "password": temp_password},
+    )
+    assert login.status_code == 200
+    me = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+    assert me.status_code == 200
+    assert any(t["tenant_slug"] == "owner-role-tenant" for t in me.json()["tenants"])
+
+
 def test_create_tenant_user_rejects_disallowed_roles(client):
     headers = _auth_header(client)
     created = client.post(
@@ -377,15 +449,14 @@ def test_create_tenant_user_rejects_disallowed_roles(client):
     assert created.status_code == 201
     tenant_id = created.json()["id"]
 
-    for role in ("tenant_owner", "provider_owner"):
-        response = client.post(
-            f"/api/v1/tenants/{tenant_id}/users",
-            json={
-                "email": f"{role}@example.com",
-                "full_name": "Blocked Role",
-                "temporary_password": "securepass123",
-                "role": role,
-            },
-            headers=headers,
-        )
-        assert response.status_code == 422
+    response = client.post(
+        f"/api/v1/tenants/{tenant_id}/users",
+        json={
+            "email": "provider_owner@example.com",
+            "full_name": "Blocked Role",
+            "temporary_password": "securepass123",
+            "role": "provider_owner",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 422

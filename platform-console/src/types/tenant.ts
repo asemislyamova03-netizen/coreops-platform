@@ -15,6 +15,7 @@ export interface TenantCreate {
   name: string;
   slug: string;
   status?: TenantStatus;
+  owner_email?: string;
   plan_code?: string;
   industry_template_code?: string;
 }
@@ -37,7 +38,7 @@ export interface TenantMembership {
 
 export type TenantMembershipRole = "tenant_owner" | "tenant_admin" | "member";
 
-export type TenantUserCreateRole = "tenant_admin" | "member";
+export type TenantUserCreateRole = "tenant_owner" | "tenant_admin" | "member";
 
 export interface TenantMembershipCreatePayload {
   user_id?: string;

@@ -275,6 +275,49 @@ def test_public_leads_invalid_configured_stage_fails_closed(
     assert response.json()["detail"] == "Public lead target stage is invalid"
 
 
+def test_public_leads_invalid_configured_created_by_user_fails_closed(
+    client,
+    db_session: Session,
+    public_leads_settings,
+    runtime_targets,
+):
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    public_leads_settings.public_leads_created_by_user_id = str(uuid.uuid4())
+
+    party_count_before = db_session.query(Party).count()
+    work_item_count_before = db_session.query(WorkItem).count()
+
+    response = client.post(ENDPOINT, json=_payload(), headers={"Origin": ALLOWED_ORIGIN})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Public lead created-by user is invalid"
+    assert db_session.query(Party).count() == party_count_before
+    assert db_session.query(WorkItem).count() == work_item_count_before
+
+
+def test_public_leads_inactive_created_by_user_fails_closed(
+    client,
+    db_session: Session,
+    public_leads_settings,
+    runtime_targets,
+):
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    user = db_session.get(User, runtime_targets["user_id"])
+    assert user is not None
+    user.is_active = False
+    db_session.commit()
+
+    party_count_before = db_session.query(Party).count()
+    work_item_count_before = db_session.query(WorkItem).count()
+
+    response = client.post(ENDPOINT, json=_payload(), headers={"Origin": ALLOWED_ORIGIN})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Public lead created-by user is invalid"
+    assert db_session.query(Party).count() == party_count_before
+    assert db_session.query(WorkItem).count() == work_item_count_before
+
+
 def test_public_leads_notification_failure_does_not_rollback(
     client,
     db_session: Session,

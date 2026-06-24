@@ -25,6 +25,23 @@ class Settings(BaseSettings):
     storage_path: str = "./storage"
     seed_on_startup: bool = True
 
+    public_leads_enabled: bool = False
+    public_leads_target_tenant_id: str | None = None
+    public_leads_pipeline_id: str | None = None
+    public_leads_stage_id: str | None = None
+    public_leads_created_by_user_id: str | None = None
+    public_leads_allowed_origins: str = ""
+    public_leads_telegram_bot_token: str | None = None
+    public_leads_telegram_chat_id: str | None = None
+
+    @property
+    def public_leads_allowed_origin_list(self) -> list[str]:
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.public_leads_allowed_origins.split(",")
+            if origin.strip()
+        ]
+
 
 @lru_cache
 def get_settings() -> Settings:

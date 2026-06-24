@@ -1,0 +1,18 @@
+status: draft
+type: carousel
+publish_at: "2026-06-24T00:00:00+05:00"
+published_at: null
+external_id: null
+media:
+  items:
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-01.png
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-02.png
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-03.png
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-04.png
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-05.png
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-06.png
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-07.png
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-08.png
+    - image_url: https://www.flexity.asia/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-09.png
+caption_source: instagram.md
+notes: "Draft only: current approved Instagram live publisher supports feed_image only, not carousel."

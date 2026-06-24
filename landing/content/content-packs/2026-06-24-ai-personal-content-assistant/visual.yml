@@ -1,0 +1,15 @@
+instagram_carousel:
+  title: "ИИ как личный ассистент"
+  format: "carousel"
+  slides:
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-01.png"
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-02.png"
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-03.png"
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-04.png"
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-05.png"
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-06.png"
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-07.png"
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-08.png"
+    - "landing/www/assets/social/2026-06-24-ai-personal-content-assistant/carousel-slide-09.png"
+  slide_7_expected_title: "Что это дало?"
+  status: approved_assets_present

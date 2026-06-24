@@ -1,0 +1,13 @@
+date: "2026-06-24"
+topic: "Как я использую ИИ как личного ассистента и строю ContentOps-систему"
+slug: "ai-personal-content-assistant"
+status: "approved"
+source: "approved personal founder story 2026-06-24"
+cta: "personal ContentOps story"
+publish:
+  telegram:
+    enabled: true
+    status: "approved"
+    publish_at: "2026-06-24T00:00:00+05:00"
+    published_at: null
+    external_id: null

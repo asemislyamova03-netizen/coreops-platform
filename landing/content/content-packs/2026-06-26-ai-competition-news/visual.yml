@@ -1,0 +1,7 @@
+instagram_feed:
+  title: "Кто начнет раньше, тот получит преимущество"
+  format: "feed_image"
+  source_image: "user-provided approved image; raw source is not committed"
+  output: "landing/www/assets/social/2026-06-26-ai-competition-news/instagram-feed.png"
+  dimensions: "1080x1080"
+  status: "approved_derivative_created"

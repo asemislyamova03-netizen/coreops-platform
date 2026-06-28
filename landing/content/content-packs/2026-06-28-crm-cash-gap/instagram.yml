@@ -1,8 +1,8 @@
-status: approved
+status: published
 type: feed_image
 publish_at: '2026-06-28T10:00:00+05:00'
-published_at: null
-external_id: null
+published_at: '2026-06-28T11:40:52+00:00'
+external_id: '17920214082388874'
 media:
   image_url: https://www.flexity.asia/assets/social/2026-06-28-crm-cash-gap/instagram-feed.png
 caption_source: instagram.md

@@ -1,0 +1,14 @@
+date: '2026-06-28'
+topic: 'Клиент просит CRM, а реальная проблема — кассовый разрыв'
+slug: crm-cash-gap
+status: approved
+source: approved practical business scenario 2026-06-28
+cta: engagement_question_real_problem
+utm_campaign: crm_cash_gap_2026_06_28
+publish:
+  telegram:
+    enabled: true
+    status: approved
+    publish_at: '2026-06-28T10:00:00+05:00'
+    published_at: null
+    external_id: null

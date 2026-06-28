@@ -1,0 +1,12 @@
+status: approved
+type: feed_image
+publish_at: '2026-06-28T10:00:00+05:00'
+published_at: null
+external_id: null
+media:
+  image_url: https://www.flexity.asia/assets/social/2026-06-28-crm-cash-gap/instagram-feed.png
+caption_source: instagram.md
+utm:
+  campaign: crm_cash_gap_2026_06_28
+  content: feed_post
+  link: https://flexity.asia/?utm_source=instagram&utm_medium=social&utm_campaign=crm_cash_gap_2026_06_28&utm_content=feed_post

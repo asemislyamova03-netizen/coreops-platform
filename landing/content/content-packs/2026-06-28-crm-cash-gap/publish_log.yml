@@ -9,3 +9,9 @@ events:
   error: 'Instagram API error during media container creation (HTTP 400): Error validating
     access token: Session has expired on Friday, 26-Jun-26 23:00:00 PDT. The current
     time is Sunday, 28-Jun-26 04:27:36 PDT. (code 190)'
+- at: '2026-06-28T11:33:56+00:00'
+  channel: instagram
+  status: error
+  error: 'Instagram API error during media container creation (HTTP 400): Error validating
+    access token: Session has expired on Friday, 26-Jun-26 23:00:00 PDT. The current
+    time is Sunday, 28-Jun-26 04:33:56 PDT. (code 190)'

@@ -1,5 +1,5 @@
 date: '2026-06-28'
-topic: 'Клиент просит CRM, а реальная проблема — кассовый разрыв'
+topic: Клиент просит CRM, а реальная проблема — кассовый разрыв
 slug: crm-cash-gap
 status: approved
 source: approved practical business scenario 2026-06-28
@@ -10,5 +10,5 @@ publish:
     enabled: true
     status: approved
     publish_at: '2026-06-28T10:00:00+05:00'
-    published_at: null
-    external_id: null
+    published_at: '2026-06-28T11:25:55+00:00'
+    external_id: 10

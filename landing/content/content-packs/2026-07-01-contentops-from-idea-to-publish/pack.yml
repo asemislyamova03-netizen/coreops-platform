@@ -1,0 +1,13 @@
+date: '2026-07-01'
+topic: 'Как мы собираем ContentOps-контур Flexity: от идеи до публикации'
+slug: contentops-from-idea-to-publish
+status: approved
+content_bank:
+  topic_id: CB-2026-07-01-001
+publish:
+  telegram:
+    enabled: true
+    status: approved
+    publish_at: '2026-07-01T10:00:00+05:00'
+    published_at: null
+    external_id: null

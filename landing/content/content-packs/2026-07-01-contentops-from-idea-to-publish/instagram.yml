@@ -1,8 +1,8 @@
-status: pending_approval
+status: approved
 type: feed_image
 publish_at: '2026-07-01T12:00:00+05:00'
 published_at: null
 external_id: null
 media:
-  image_url: null
+  image_url: https://www.flexity.asia/assets/social/2026-07-01-contentops-from-idea-to-publish/instagram-feed.png
 caption_source: instagram.md

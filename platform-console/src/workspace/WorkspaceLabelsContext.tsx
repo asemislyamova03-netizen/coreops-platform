@@ -7,7 +7,13 @@ import {
 } from "react";
 import { getTenantLabels } from "../api/labels";
 import { DEFAULT_WORKSPACE_LABELS, type TenantLabelsConfig } from "../types/labels";
-import { entityLabel, normalizeTenantLabels, partyRoleLabel } from "./labelHelpers";
+import {
+  entityLabel,
+  normalizeTenantLabels,
+  partyRoleLabel,
+  pickClientsSectionPartyRoleKey,
+  pickDefaultPartyRole,
+} from "./labelHelpers";
 
 interface WorkspaceLabelsContextValue {
   labels: TenantLabelsConfig;
@@ -15,6 +21,7 @@ interface WorkspaceLabelsContextValue {
   isError: boolean;
   entityLabel: (key: string, fallback: string) => string;
   partyRoleLabel: (key: string, fallback: string) => string;
+  defaultPartyRole: string;
   crmSectionTitle: string;
   clientsSectionTitle: string;
 }
@@ -47,7 +54,9 @@ export function WorkspaceLabelsProvider({
     const workItem = entity("work_item", "Заявка");
     const pipeline = entity("pipeline", "Воронка");
     const party = entity("party", "Контрагент");
-    const guardian = role("guardian", "Родитель");
+    const defaultPartyRole = pickDefaultPartyRole(labels);
+    const sectionRoleKey = pickClientsSectionPartyRoleKey(labels);
+    const sectionRole = role(sectionRoleKey, sectionRoleKey);
 
     return {
       labels,
@@ -55,8 +64,9 @@ export function WorkspaceLabelsProvider({
       isError: query.isError,
       entityLabel: entity,
       partyRoleLabel: role,
+      defaultPartyRole,
       crmSectionTitle: `${workItem} / ${pipeline}`,
-      clientsSectionTitle: `${guardian} / ${party}`,
+      clientsSectionTitle: `${sectionRole} / ${party}`,
     };
   }, [labels, query.isLoading, query.isError]);
 
@@ -77,8 +87,9 @@ export function useWorkspaceLabels(): WorkspaceLabelsContextValue {
       entityLabel: (key, fallback) => entityLabel(DEFAULT_WORKSPACE_LABELS, key, fallback),
       partyRoleLabel: (key, fallback) =>
         partyRoleLabel(DEFAULT_WORKSPACE_LABELS, key, fallback),
+      defaultPartyRole: pickDefaultPartyRole(DEFAULT_WORKSPACE_LABELS),
       crmSectionTitle: "Заявки / Воронка",
-      clientsSectionTitle: "Родители / Клиенты",
+      clientsSectionTitle: "Родители / Контрагенты",
     };
   }
   return ctx;

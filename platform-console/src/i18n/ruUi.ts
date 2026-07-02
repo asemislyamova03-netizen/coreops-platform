@@ -21,6 +21,8 @@ const partyTypeRu: Record<string, string> = {
 
 const partyRoleRu: Record<string, string> = {
   client: "Клиент",
+  lead: "Лид",
+  contact: "Контакт",
   guardian: "Клиент / родитель",
   supplier: "Поставщик",
   partner: "Партнёр",

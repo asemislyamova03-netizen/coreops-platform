@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { listParties } from "../../api/parties";
 import { ApiError } from "../../api/client";
@@ -10,21 +10,24 @@ import { Table } from "../../components/ui/Table";
 import type { Party } from "../../types/party";
 import { getPartyRole } from "../../types/party";
 import { formatCommonStatus, formatPartyType, ui } from "../../i18n/ruUi";
+import { isPartyVisibleInClientsList } from "../../workspace/labelHelpers";
 import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
-
-const DEFAULT_CLIENT_PARTY_ROLE = "client";
-
-/** W3.1 creates `client`; legacy seeded `guardian` rows stay visible in the list. */
-function isVisibleClientParty(party: Party): boolean {
-  const role = getPartyRole(party);
-  return role === null || role === DEFAULT_CLIENT_PARTY_ROLE || role === "guardian";
-}
 
 export function ClientsPage() {
   const { tenantSlug = "" } = useParams();
   const navigate = useNavigate();
-  const { clientsSectionTitle, partyRoleLabel, isLoading: labelsLoading } = useWorkspaceLabels();
-  const clientRoleLabel = partyRoleLabel(DEFAULT_CLIENT_PARTY_ROLE, "Клиент");
+  const {
+    clientsSectionTitle,
+    defaultPartyRole,
+    entityLabel,
+    labels,
+    partyRoleLabel,
+    isLoading: labelsLoading,
+  } = useWorkspaceLabels();
+  const partyLabel = entityLabel("party", "Контрагент");
+  const partyLabelLower = partyLabel.toLowerCase();
+  const defaultRoleLabel = partyRoleLabel(defaultPartyRole, defaultPartyRole);
+  const createButtonLabel = `Создать ${partyLabelLower}`;
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const partiesQuery = useQuery({
@@ -33,15 +36,21 @@ export function ClientsPage() {
     enabled: !labelsLoading,
   });
 
+  const clients = useMemo(() => {
+    return (partiesQuery.data ?? []).filter((party) =>
+      isPartyVisibleInClientsList(getPartyRole(party), labels),
+    );
+  }, [labels, partiesQuery.data]);
+
   if (labelsLoading || partiesQuery.isLoading) {
-    return <Loading text="Загрузка клиентов..." />;
+    return <Loading text={`Загрузка ${partyLabelLower}...`} />;
   }
 
   if (partiesQuery.error) {
     const message =
       partiesQuery.error instanceof ApiError
         ? partiesQuery.error.message
-        : "Не удалось загрузить список клиентов.";
+        : `Не удалось загрузить список ${partyLabelLower}.`;
     return (
       <div className="page">
         <PageHeader title={ui.clients} subtitle={clientsSectionTitle} />
@@ -50,30 +59,28 @@ export function ClientsPage() {
     );
   }
 
-  const clients = (partiesQuery.data ?? []).filter(isVisibleClientParty);
-
   return (
     <div className="page">
       <PageHeader
         title={ui.clients}
-        subtitle={`${clientsSectionTitle} · ${clientRoleLabel}`}
+        subtitle={`${clientsSectionTitle} · ${defaultRoleLabel}`}
         action={
           <button type="button" className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-            Создать клиента
+            {createButtonLabel}
           </button>
         }
       />
 
       {clients.length === 0 ? (
         <Alert variant="info">
-          Пока нет клиентов. Нажмите «Создать клиента», чтобы добавить первого.
+          Пока нет записей. Нажмите «{createButtonLabel}», чтобы добавить первую.
         </Alert>
       ) : (
         <div className="panel">
           <Table<Party>
             rowKey={(row) => row.id}
             data={clients}
-            emptyText="Нет клиентов"
+            emptyText={`Нет ${partyLabelLower}`}
             onRowClick={(row) => navigate(`/workspace/${tenantSlug}/clients/${row.id}`)}
             columns={[
               {

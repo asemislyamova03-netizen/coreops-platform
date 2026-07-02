@@ -64,7 +64,7 @@ export function CrmPage() {
         subtitle={`${crmSectionTitle} · ${pipeline.name}`}
         action={
           <button type="button" className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-            Создать заявку
+            Создать {workItemLabel.toLowerCase()}
           </button>
         }
       />

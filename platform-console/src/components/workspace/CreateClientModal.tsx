@@ -1,12 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createParty } from "../../api/parties";
 import { ApiError } from "../../api/client";
 import { Alert } from "../ui/Alert";
 import type { ContactMethodType } from "../../types/party";
+import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 import { WorkspaceModal } from "./WorkspaceModal";
-
-const PARTY_ROLE_CLIENT = "client";
 
 interface CreateClientModalProps {
   onClose: () => void;
@@ -19,21 +18,28 @@ function detectContactType(value: string): ContactMethodType {
 
 export function CreateClientModal({ onClose, onCreated }: CreateClientModalProps) {
   const queryClient = useQueryClient();
+  const { defaultPartyRole, entityLabel, partyRoleLabel } = useWorkspaceLabels();
+  const partyLabel = entityLabel("party", "Контрагент");
+  const partyLabelLower = partyLabel.toLowerCase();
+  const roleLabel = partyRoleLabel(defaultPartyRole, defaultPartyRole);
+
   const [displayName, setDisplayName] = useState("");
   const [contact, setContact] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+
+  const createTitle = useMemo(() => `Создать ${partyLabelLower}`, [partyLabelLower]);
 
   const mutation = useMutation({
     mutationFn: () => {
       const trimmedName = displayName.trim();
       if (!trimmedName) {
-        throw new Error("Укажите имя клиента.");
+        throw new Error(`Укажите имя ${partyLabelLower}.`);
       }
       const trimmedContact = contact.trim();
       return createParty({
         party_type: "person",
         display_name: trimmedName,
-        party_role: PARTY_ROLE_CLIENT,
+        party_role: defaultPartyRole,
         contact_methods: trimmedContact
           ? [
               {
@@ -56,13 +62,13 @@ export function CreateClientModal({ onClose, onCreated }: CreateClientModalProps
           ? error.message
           : error instanceof Error
             ? error.message
-            : "Не удалось создать клиента.",
+            : `Не удалось создать ${partyLabelLower}.`,
       );
     },
   });
 
   return (
-    <WorkspaceModal title="Создать клиента" onClose={onClose}>
+    <WorkspaceModal title={createTitle} onClose={onClose}>
       <form
         className="workspace-form"
         onSubmit={(event) => {
@@ -74,7 +80,7 @@ export function CreateClientModal({ onClose, onCreated }: CreateClientModalProps
         {formError && <Alert variant="error">{formError}</Alert>}
 
         <label className="form-field">
-          <span className="form-label">Имя клиента</span>
+          <span className="form-label">Имя {partyLabelLower}</span>
           <input
             className="form-input"
             value={displayName}
@@ -96,7 +102,7 @@ export function CreateClientModal({ onClose, onCreated }: CreateClientModalProps
         </label>
 
         <p className="muted workspace-form-hint">
-          Контрагент · роль: <code>{PARTY_ROLE_CLIENT}</code>
+          {partyLabel} · роль: <code>{roleLabel}</code> ({defaultPartyRole})
         </p>
 
         <div className="actions-row workspace-form-actions">

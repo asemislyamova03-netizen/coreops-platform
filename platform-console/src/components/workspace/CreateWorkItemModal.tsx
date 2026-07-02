@@ -6,7 +6,13 @@ import { ApiError } from "../../api/client";
 import { Alert } from "../ui/Alert";
 import { Loading } from "../ui/Loading";
 import type { Pipeline } from "../../types/workflows";
+import { getPartyRole } from "../../types/party";
 import { pickDefaultPipeline } from "../../workspace/formatters";
+import {
+  isPartyVisibleInClientsList,
+  pickWorkItemParticipantRole,
+} from "../../workspace/labelHelpers";
+import { useWorkspaceLabels } from "../../workspace/WorkspaceLabelsContext";
 import { WorkspaceModal } from "./WorkspaceModal";
 
 interface CreateWorkItemModalProps {
@@ -21,6 +27,13 @@ function firstStageId(pipeline: Pipeline): string | null {
 
 export function CreateWorkItemModal({ onClose, defaultPipeline }: CreateWorkItemModalProps) {
   const queryClient = useQueryClient();
+  const { defaultPartyRole, entityLabel, labels } = useWorkspaceLabels();
+  const workItemLabel = entityLabel("work_item", "Заявка");
+  const partyLabel = entityLabel("party", "Контрагент");
+  const partyLabelLower = partyLabel.toLowerCase();
+  const workItemLabelLower = workItemLabel.toLowerCase();
+  const participantRole = pickWorkItemParticipantRole(defaultPartyRole);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [source, setSource] = useState("");
@@ -44,13 +57,21 @@ export function CreateWorkItemModal({ onClose, defaultPipeline }: CreateWorkItem
     defaultPipeline ??
     pickDefaultPipeline(pipelines);
 
-  const partyOptions = useMemo(() => partiesQuery.data ?? [], [partiesQuery.data]);
+  const partyOptions = useMemo(
+    () =>
+      (partiesQuery.data ?? []).filter((party) =>
+        isPartyVisibleInClientsList(getPartyRole(party), labels),
+      ),
+    [labels, partiesQuery.data],
+  );
+
+  const createTitle = `Создать ${workItemLabelLower}`;
 
   const mutation = useMutation({
     mutationFn: () => {
       const trimmedTitle = title.trim();
       if (!trimmedTitle) {
-        throw new Error("Укажите название заявки.");
+        throw new Error(`Укажите название ${workItemLabelLower}.`);
       }
       if (!selectedPipeline) {
         throw new Error("Воронка не выбрана.");
@@ -60,7 +81,7 @@ export function CreateWorkItemModal({ onClose, defaultPipeline }: CreateWorkItem
         throw new Error("У воронки нет стадий.");
       }
       if (!partyId) {
-        throw new Error("Выберите клиента.");
+        throw new Error(`Выберите ${partyLabelLower}.`);
       }
 
       return createWorkItem({
@@ -71,7 +92,7 @@ export function CreateWorkItemModal({ onClose, defaultPipeline }: CreateWorkItem
         description: description.trim() || null,
         source: source.trim() || null,
         primary_party_id: partyId,
-        participants: [{ party_id: partyId, role: "client" }],
+        participants: [{ party_id: partyId, role: participantRole }],
       });
     },
     onSuccess: () => {
@@ -85,14 +106,14 @@ export function CreateWorkItemModal({ onClose, defaultPipeline }: CreateWorkItem
           ? error.message
           : error instanceof Error
             ? error.message
-            : "Не удалось создать заявку.",
+            : `Не удалось создать ${workItemLabelLower}.`,
       );
     },
   });
 
   if (pipelinesQuery.isLoading || partiesQuery.isLoading) {
     return (
-      <WorkspaceModal title="Создать заявку" onClose={onClose}>
+      <WorkspaceModal title={createTitle} onClose={onClose}>
         <Loading text="Загрузка формы..." />
       </WorkspaceModal>
     );
@@ -104,14 +125,14 @@ export function CreateWorkItemModal({ onClose, defaultPipeline }: CreateWorkItem
       (partiesQuery.error instanceof ApiError && partiesQuery.error.message) ||
       "Не удалось загрузить данные для формы.";
     return (
-      <WorkspaceModal title="Создать заявку" onClose={onClose}>
+      <WorkspaceModal title={createTitle} onClose={onClose}>
         <Alert variant="error">{message}</Alert>
       </WorkspaceModal>
     );
   }
 
   return (
-    <WorkspaceModal title="Создать заявку" onClose={onClose}>
+    <WorkspaceModal title={createTitle} onClose={onClose}>
       <form
         className="workspace-form"
         onSubmit={(event) => {
@@ -151,14 +172,14 @@ export function CreateWorkItemModal({ onClose, defaultPipeline }: CreateWorkItem
         </label>
 
         <label className="form-field">
-          <span className="form-label">Клиент</span>
+          <span className="form-label">{partyLabel}</span>
           <select
             className="form-select"
             value={partyId}
             onChange={(event) => setPartyId(event.target.value)}
             required
           >
-            <option value="">Выберите клиента</option>
+            <option value="">Выберите {partyLabelLower}</option>
             {partyOptions.map((party) => (
               <option key={party.id} value={party.id}>
                 {party.display_name}

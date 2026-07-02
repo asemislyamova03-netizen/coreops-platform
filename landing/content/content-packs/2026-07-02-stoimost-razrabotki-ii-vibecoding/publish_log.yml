@@ -8,3 +8,7 @@ events:
   content_bank:
     topic_id: CB-2026-06-28-012
   instagram_status: approved
+- at: '2026-07-02T13:13:42+00:00'
+  channel: instagram
+  status: published
+  external_id: '18076898768311807'

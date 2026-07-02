@@ -1,5 +1,23 @@
 import uuid
 
+from app.modules.industry_templates.seed import (
+    FLEXITY_SALES_BASIC,
+    INDUSTRY_TEMPLATES,
+    KINDERGARTEN_BASIC,
+)
+
+FLEXITY_SALES_STAGE_CODES = [
+    "new_lead",
+    "contacted",
+    "diagnosis",
+    "proposal_prepared",
+    "proposal_sent",
+    "negotiation",
+    "accepted",
+    "rejected",
+    "converted_to_tenant",
+]
+
 REGISTER_PAYLOAD = {
     "email": "owner@example.com",
     "password": "securepass123",
@@ -24,6 +42,64 @@ def test_list_industry_templates_includes_kindergarten(client):
     assert response.status_code == 200
     codes = {t["code"] for t in response.json()}
     assert "kindergarten_basic" in codes
+
+
+def test_list_industry_templates_includes_flexity_sales(client):
+    headers = _auth(client)
+    response = client.get("/api/v1/industry-templates", headers=headers)
+    assert response.status_code == 200
+    codes = {t["code"] for t in response.json()}
+    assert "flexity_sales_basic" in codes
+
+
+def test_flexity_sales_basic_seed_structure():
+    assert FLEXITY_SALES_BASIC["code"] == "flexity_sales_basic"
+    assert KINDERGARTEN_BASIC["code"] == "kindergarten_basic"
+    assert {t["code"] for t in INDUSTRY_TEMPLATES} == {
+        "kindergarten_basic",
+        "flexity_sales_basic",
+    }
+
+    pipeline = FLEXITY_SALES_BASIC["default_pipelines"][0]
+    assert pipeline["code"] == "flexity_sales"
+    assert pipeline["is_default"] is True
+
+    stage_codes = [stage["code"] for stage in pipeline["stages"]]
+    assert stage_codes == FLEXITY_SALES_STAGE_CODES
+    assert len(stage_codes) == len(set(stage_codes))
+
+    terminal_codes = {
+        stage["code"]
+        for stage in pipeline["stages"]
+        if stage.get("is_terminal")
+    }
+    assert terminal_codes == {"rejected", "converted_to_tenant"}
+
+
+def test_pipelines_after_flexity_sales_template_apply(client):
+    headers = _auth(client)
+    tenant_id = client.post(
+        "/api/v1/tenants",
+        json={
+            "name": "Flexity Sales",
+            "slug": "flexity-sales-test",
+            "industry_template_code": "flexity_sales_basic",
+        },
+        headers=headers,
+    ).json()["id"]
+
+    tenant_headers = {**headers, "X-Tenant-ID": tenant_id}
+    pipelines = client.get("/api/v1/pipelines", headers=tenant_headers)
+    assert pipelines.status_code == 200
+    data = pipelines.json()
+    assert len(data) == 1
+    assert data[0]["code"] == "flexity_sales"
+    assert data[0]["is_default"] is True
+    assert [stage["code"] for stage in data[0]["stages"]] == FLEXITY_SALES_STAGE_CODES
+
+    labels = client.get(f"/api/v1/tenants/{tenant_id}/labels", headers=headers)
+    assert labels.status_code == 200
+    assert labels.json()["entities"]["work_item"] == "Лид"
 
 
 def test_apply_template_to_tenant(client):

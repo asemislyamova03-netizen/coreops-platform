@@ -229,4 +229,72 @@ KINDERGARTEN_BASIC = {
     "is_active": True,
 }
 
-INDUSTRY_TEMPLATES = [KINDERGARTEN_BASIC]
+FLEXITY_SALES_BASIC = {
+    "code": "flexity_sales_basic",
+    "name": "Flexity Sales (внутренний)",
+    "description": "Внутренняя воронка продаж Flexity: лиды, диагностика, КП, конвертация в client tenant",
+    "default_modules": [
+        "parties",
+        "crm",
+        "documents",
+        "finance",
+    ],
+    "default_roles": [
+        {"code": "tenant_owner", "name": "Администратор продаж"},
+        {"code": "tenant_admin", "name": "Менеджер продаж"},
+        {"code": "member", "name": "Участник команды"},
+    ],
+    "default_pipelines": [
+        {
+            "code": "flexity_sales",
+            "name": "Воронка продаж Flexity",
+            "entity_type": "work_item",
+            "is_default": True,
+            "stages": [
+                {"code": "new_lead", "name": "Новый лид", "sort_order": 10},
+                {"code": "contacted", "name": "Первичный контакт", "sort_order": 20},
+                {"code": "diagnosis", "name": "Диагностика", "sort_order": 30},
+                {"code": "proposal_prepared", "name": "КП подготовлено", "sort_order": 40},
+                {"code": "proposal_sent", "name": "КП отправлено", "sort_order": 50},
+                {"code": "negotiation", "name": "Переговоры", "sort_order": 60},
+                {"code": "accepted", "name": "Согласовано", "sort_order": 70},
+                {"code": "rejected", "name": "Отказ", "sort_order": 80, "is_terminal": True},
+                {
+                    "code": "converted_to_tenant",
+                    "name": "Клиент создан",
+                    "sort_order": 90,
+                    "is_terminal": True,
+                },
+            ],
+        }
+    ],
+    "default_statuses": {
+        "work_item": ["open", "in_progress", "won", "lost"],
+    },
+    "default_custom_fields": [],
+    "default_document_templates": [],
+    "default_catalog_items": [],
+    "default_dashboards": [],
+    "default_ai_agents": [],
+    "labels_config": {
+        "entities": {
+            "work_item": "Лид",
+            "party": "Контакт",
+            "invoice": "Счёт",
+            "payment": "Оплата",
+            "pipeline": "Воронка продаж",
+        },
+        "party_roles": {
+            "lead": "Лид",
+            "client": "Клиент",
+            "contact": "Контакт",
+        },
+    },
+    "settings_schema": {
+        "type": "object",
+        "properties": {},
+    },
+    "is_active": True,
+}
+
+INDUSTRY_TEMPLATES = [KINDERGARTEN_BASIC, FLEXITY_SALES_BASIC]

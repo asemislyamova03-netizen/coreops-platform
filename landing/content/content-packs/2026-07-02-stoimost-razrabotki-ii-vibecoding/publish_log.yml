@@ -1,0 +1,10 @@
+events:
+- at: '2026-07-02T11:53:55+00:00'
+  action: approved
+  by: asem
+  source: margosya_contentops_button
+  channel: content_pack
+  pack: 2026-07-02-stoimost-razrabotki-ii-vibecoding
+  content_bank:
+    topic_id: CB-2026-06-28-012
+  instagram_status: approved

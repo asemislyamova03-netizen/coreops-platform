@@ -1,0 +1,21 @@
+instagram_feed:
+  title: Разработка с ИИ стоит денег
+  subtitle: вайбкодинг ≠ бесплатная система
+  footer: Flexity
+  output: landing/www/assets/social/2026-07-02-stoimost-razrabotki-ii-vibecoding/instagram-feed.png
+  notes: 'visual_type: cover
+
+    format: square
+
+    text_on_visual: ИИ ускоряет код. Систему строит человек.
+
+    visual_prompt: Clean modern square cover for a business automation post. Show
+    artificial intelligence generating code on one side and a human architect organizing
+    business processes on the other side: clients, contracts, payments, tasks, reports,
+    server, tokens, support. Minimal professional digital style, neutral background,
+    structured layers, no clutter.
+
+    alt_text: Обложка с мыслью, что ИИ может писать код, но рабочую бизнес-систему
+    проектирует и отвечает за неё человек.
+
+    '

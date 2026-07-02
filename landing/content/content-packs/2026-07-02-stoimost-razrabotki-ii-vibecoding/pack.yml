@@ -1,0 +1,13 @@
+date: '2026-07-02'
+topic: Стоимость разработки
+slug: stoimost-razrabotki-ii-vibecoding
+status: approved
+content_bank:
+  topic_id: CB-2026-06-28-012
+publish:
+  telegram:
+    enabled: true
+    status: approved
+    publish_at: '2026-07-02T10:00:00+05:00'
+    published_at: null
+    external_id: null

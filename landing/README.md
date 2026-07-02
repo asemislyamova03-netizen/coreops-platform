@@ -26,12 +26,14 @@
 
 ```text
 /                          → homepage (RU)
+/services/                 → услуги (обзор)
+/diagnostics/free.html     → бесплатная диагностика
 /solutions/                → index направлений
 /solutions/clinic.html
 /solutions/consulting.html
 /solutions/kindergarten.html
 /solutions/trailers.html
-/insights/                 → индекс рубрик (каркас)
+/insights/                 → индекс статей
 /cases/                    → placeholder кейсов
 /calculators/              → индекс калькуляторов
 /demo/                     → демо и контакты (статика)
@@ -66,6 +68,10 @@ landing/
       index.html
     demo/
       index.html
+    services/
+      index.html
+    diagnostics/
+      free.html
 ```
 
 ---
@@ -90,24 +96,28 @@ Flexity — **единая** AI-ready CRM/ERP-платформа. Clinic, Consul
 
 ---
 
-## Текущий статус (2026-06-19)
+## Текущий статус (2026-07-02)
 
 | Область | Статус |
 |---------|--------|
-| Homepage | ✅ Live |
+| Homepage | ✅ Live (+ funnel CTA slice, local) |
+| Services (`/services/`) | 🟡 Каркас, local, not deployed |
+| Free diagnostics (`/diagnostics/free.html`) | 🟡 Каркас, local, not deployed |
 | Solutions (4 направления) | ✅ Каркас + контент |
-| Insights | 🟡 Индекс рубрик, статей нет |
+| Insights | ✅ Индекс + 3 статьи |
 | Cases | 🟡 Placeholder + формат |
 | Calculators | 🟡 Индекс, страницы «готовится» |
 | Demo / contacts | ✅ Статика |
 | CTA → Console login | ✅ |
-| Yandex.Metrika | 🟡 Частично |
+| Yandex.Metrika | 🟡 Частично (homepage) |
 | SEO (sitemap, robots, meta matrix) | ❌ Не сделано |
 | RSS | ❌ |
 | Multilingual `/en/`, `/kk/` | ❌ Запланировано (Phase 2) |
 | CRM lead form | ❌ Phase 6, отдельный backend approve |
 | Content agent | ❌ Phase 4, drafts only |
 | Social auto-publish | ❌ |
+
+**Content slice 2026-07-02:** `services/`, `diagnostics/free.html`, homepage CTA — в репозитории, **deploy не выполнялся**.
 
 **Platform Console (отдельный deploy):** W3.1 manager workspace, branded login, Russian UI polish (S2.1b) — live на `flexity.asia/console/`.
 

@@ -264,6 +264,8 @@ def render_nav(active_insights: bool = True) -> str:
             <div class="collapse navbar-collapse" id="mainNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link text-light" href="/solutions/">Решения</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="/services/">Услуги</a></li>
+                    <li class="nav-item"><a class="nav-link text-light" href="/diagnostics/free.html">Диагностика</a></li>
                     <li class="nav-item"><a class="nav-link text-light{active}" href="/insights/">Insights</a></li>
                     <li class="nav-item"><a class="nav-link text-light" href="/cases/">Кейсы</a></li>
                     <li class="nav-item"><a class="nav-link text-light" href="/calculators/">Калькуляторы</a></li>
@@ -271,11 +273,22 @@ def render_nav(active_insights: bool = True) -> str:
                 </ul>
                 <div class="d-flex gap-2">
                     <a class="btn btn-outline-light btn-sm" href="https://flexity.asia/console/login">Войти в систему</a>
-                    <a class="btn btn-primary btn-sm" href="/demo/">Запросить демо</a>
+                    <a class="btn btn-primary btn-sm" href="/diagnostics/free.html">Бесплатная диагностика</a>
                 </div>
             </div>
         </div>
     </nav>"""
+
+
+def render_insights_cta() -> str:
+    return """            <div class="contact-card mt-4">
+                <h2 class="section-title h4">Не знаете, с чего начать?</h2>
+                <p class="mb-3">Не знаете, с чего начать автоматизацию? Начните с бесплатной диагностики — короткий разбор процесса без обязательств.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="/diagnostics/free.html">Бесплатная диагностика</a>
+                    <a class="btn btn-outline-light" href="/demo/">Запросить демо</a>
+                </div>
+            </div>"""
 
 
 def render_footer() -> str:
@@ -343,6 +356,8 @@ def render_index(articles: list[Article]) -> str:
             <div class="row g-4">
 {article_grid}
             </div>
+
+{render_insights_cta()}
         </div>
     </main>
 
@@ -385,9 +400,12 @@ def render_article(article: Article) -> str:
 {body_html}
             </div>
             <div class="contact-card">
-                <h2 class="section-title h4">Что дальше</h2>
-                <p class="mb-3">{html.escape(article.cta)}</p>
-                <a class="btn btn-primary" href="/demo/">Запросить демо</a>
+                <h2 class="section-title h4">Не знаете, с чего начать?</h2>
+                <p class="mb-3">Не знаете, с чего начать автоматизацию? Начните с бесплатной диагностики — короткий разбор процесса без обязательств.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="/diagnostics/free.html">Бесплатная диагностика</a>
+                    <a class="btn btn-outline-light" href="/demo/">Запросить демо</a>
+                </div>
             </div>
         </article>
     </main>

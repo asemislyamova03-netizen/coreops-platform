@@ -1,0 +1,13 @@
+date: '2026-07-03'
+topic: AI vs код
+slug: ai-vs-kod
+status: approved
+content_bank:
+  topic_id: CB-2026-06-28-013
+publish:
+  telegram:
+    enabled: true
+    status: approved
+    publish_at: '2026-07-03T10:00:00+05:00'
+    published_at: null
+    external_id: null

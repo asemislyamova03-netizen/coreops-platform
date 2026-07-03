@@ -1,0 +1,10 @@
+events:
+- at: '2026-07-03T14:08:40+00:00'
+  action: approved
+  by: asem
+  source: margosya_contentops_button
+  channel: content_pack
+  pack: 2026-07-03-ai-vs-kod
+  content_bank:
+    topic_id: CB-2026-06-28-013
+  instagram_status: approved

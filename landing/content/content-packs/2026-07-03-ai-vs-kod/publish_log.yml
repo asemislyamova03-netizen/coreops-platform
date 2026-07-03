@@ -12,3 +12,7 @@ events:
   channel: telegram
   status: published
   message_id: 13
+- at: '2026-07-03T14:19:41+00:00'
+  channel: instagram
+  status: published
+  external_id: '18366028468232600'

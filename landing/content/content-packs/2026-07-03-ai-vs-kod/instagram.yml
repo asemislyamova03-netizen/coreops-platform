@@ -1,8 +1,8 @@
-status: approved
+status: published
 type: feed_image
 publish_at: '2026-07-03T12:00:00+05:00'
-published_at: null
-external_id: null
+published_at: '2026-07-03T14:19:41+00:00'
+external_id: '18366028468232600'
 media:
   image_url: https://www.flexity.asia/assets/social/2026-07-03-ai-vs-kod/instagram-feed.png
 caption_source: instagram.md

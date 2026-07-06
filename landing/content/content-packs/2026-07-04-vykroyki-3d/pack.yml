@@ -1,0 +1,13 @@
+date: '2026-07-04'
+topic: Выкройки / 3D
+slug: vykroyki-3d
+status: approved
+content_bank:
+  topic_id: CB-2026-06-28-007
+publish:
+  telegram:
+    enabled: true
+    status: approved
+    publish_at: '2026-07-04T10:00:00+05:00'
+    published_at: null
+    external_id: null

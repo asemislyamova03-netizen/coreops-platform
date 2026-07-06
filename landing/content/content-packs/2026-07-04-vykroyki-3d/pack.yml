@@ -9,5 +9,5 @@ publish:
     enabled: true
     status: approved
     publish_at: '2026-07-04T10:00:00+05:00'
-    published_at: null
-    external_id: null
+    published_at: '2026-07-06T05:57:04+00:00'
+    external_id: 14

@@ -12,3 +12,9 @@ events:
   channel: telegram
   status: published
   message_id: 14
+- at: '2026-07-06T05:57:17+00:00'
+  channel: instagram
+  status: published
+  external_id: '18104362129929283'
+  note: metadata repaired after GHA live publish succeeded but metadata push failed
+    (run 28770993114)

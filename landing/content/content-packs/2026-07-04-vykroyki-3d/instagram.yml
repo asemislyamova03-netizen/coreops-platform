@@ -1,8 +1,8 @@
-status: approved
+status: published
 type: feed_image
 publish_at: '2026-07-04T12:00:00+05:00'
-published_at: null
-external_id: null
+published_at: '2026-07-06T05:57:17+00:00'
+external_id: '18104362129929283'
 media:
   image_url: https://www.flexity.asia/assets/social/2026-07-04-vykroyki-3d/instagram-feed.png
 caption_source: instagram.md

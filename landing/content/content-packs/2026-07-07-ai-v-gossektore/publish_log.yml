@@ -1,0 +1,10 @@
+events:
+- at: '2026-07-08T12:50:17+00:00'
+  action: approved
+  by: asem
+  source: cursor_chat_gate1_approval
+  channel: content_pack
+  pack: 2026-07-07-ai-v-gossektore
+  content_bank:
+    topic_id: CB-2026-06-28-015
+  instagram_status: approved

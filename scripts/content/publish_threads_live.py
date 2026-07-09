@@ -67,15 +67,21 @@ def split_text_chunks(text: str, *, max_len: int = THREADS_TEXT_MAX_LEN) -> list
         raise ValueError("threads text is empty")
     chunks: list[str] = []
     remaining = normalized
+    separators: tuple[tuple[str, int], ...] = (
+        ("\n\n", 0),
+        (". ", 1),
+        (" ", 0),
+    )
     while remaining:
         if len(remaining) <= max_len:
             chunks.append(remaining)
             break
-        cut = remaining.rfind("\n\n", 0, max_len + 1)
-        if cut < max_len // 3:
-            cut = remaining.rfind(". ", 0, max_len + 1)
-        if cut < max_len // 3:
-            cut = remaining.rfind(" ", 0, max_len + 1)
+        cut = -1
+        for separator, keep_len in separators:
+            pos = remaining.rfind(separator, 0, max_len + 1)
+            if pos >= max_len // 3:
+                cut = pos + len(separator) - keep_len
+                break
         if cut < 1:
             cut = max_len
         piece = remaining[:cut].strip()

@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CONTENT_PACKS_DIR = ROOT / "landing" / "content" / "content-packs"
 THREADS_API_BASE = "https://graph.threads.net/v1.0"
 TOKEN_REDACT_PATTERN = re.compile(r"access_token=[^&\\s]+", re.IGNORECASE)
+THREADS_TEXT_MAX_LEN = 500
 
 
 def now_iso() -> str:
@@ -58,6 +59,32 @@ def append_log(pack_dir: Path, event: dict[str, Any]) -> None:
 
 def sanitize_error(message: str) -> str:
     return TOKEN_REDACT_PATTERN.sub("access_token=[REDACTED]", message)
+
+
+def split_text_chunks(text: str, *, max_len: int = THREADS_TEXT_MAX_LEN) -> list[str]:
+    normalized = text.strip()
+    if not normalized:
+        raise ValueError("threads text is empty")
+    chunks: list[str] = []
+    remaining = normalized
+    while remaining:
+        if len(remaining) <= max_len:
+            chunks.append(remaining)
+            break
+        cut = remaining.rfind("\n\n", 0, max_len + 1)
+        if cut < max_len // 3:
+            cut = remaining.rfind(". ", 0, max_len + 1)
+        if cut < max_len // 3:
+            cut = remaining.rfind(" ", 0, max_len + 1)
+        if cut < 1:
+            cut = max_len
+        piece = remaining[:cut].strip()
+        if not piece:
+            piece = remaining[:max_len].strip()
+            cut = max_len
+        chunks.append(piece)
+        remaining = remaining[cut:].strip()
+    return chunks
 
 
 def should_publish(pack: dict[str, Any], config: dict[str, Any], now: datetime) -> tuple[bool, str, datetime | None]:
@@ -151,21 +178,45 @@ def publish_container(user_id: str, token: str, creation_id: str) -> str:
 def publish_one(pack_dir: Path, config: dict[str, Any], user_id: str, token: str) -> str:
     post_type, content = validate_threads(pack_dir, config)
     payload: dict[str, str]
+    reply_ids: list[str] = []
     if post_type == "image":
         caption = read_caption(pack_dir, config)
-        payload = {"media_type": "IMAGE", "image_url": content, "text": caption}
+        caption_chunks = split_text_chunks(caption)
+        payload = {"media_type": "IMAGE", "image_url": content, "text": caption_chunks[0]}
     else:
-        payload = {"media_type": "TEXT", "text": content}
+        text_chunks = split_text_chunks(content)
+        payload = {"media_type": "TEXT", "text": text_chunks[0]}
     creation_id = create_container(user_id, token, payload)
     external_id = publish_container(user_id, token, creation_id)
+    if post_type == "image":
+        extra_chunks = caption_chunks[1:]
+    else:
+        extra_chunks = text_chunks[1:]
+    parent_id = external_id
+    for chunk in extra_chunks:
+        reply_creation = create_container(
+            user_id,
+            token,
+            {"media_type": "TEXT", "text": chunk, "reply_to_id": parent_id},
+        )
+        parent_id = publish_container(user_id, token, reply_creation)
+        reply_ids.append(parent_id)
     published_at = now_iso()
     config["published_at"] = published_at
     config["external_id"] = external_id
     config["status"] = "published"
+    if reply_ids:
+        config["thread_reply_ids"] = reply_ids
     save_yaml(pack_dir / "threads.yml", config)
     append_log(
         pack_dir,
-        {"at": published_at, "channel": "threads", "status": "published", "external_id": external_id},
+        {
+            "at": published_at,
+            "channel": "threads",
+            "status": "published",
+            "external_id": external_id,
+            "reply_count": len(reply_ids),
+        },
     )
     return external_id
 

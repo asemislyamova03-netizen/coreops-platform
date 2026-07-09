@@ -98,6 +98,34 @@ class ThreadsLivePublisherTests(unittest.TestCase):
         code = publish_threads_live.main(["--live"], self.content_dir, self.now, {"THREADS_USER_ID": "1"})
         self.assertEqual(code, 1)
 
+    def test_live_publish_long_text_creates_reply_chain(self) -> None:
+        pack_dir = self.create_pack(post_type="text")
+        long_text = (
+            "A" * 260
+            + "\n\n"
+            + "B" * 260
+            + "\n\n"
+            + "C" * 260
+        )
+        (pack_dir / "threads.md").write_text(long_text, encoding="utf-8")
+        responses = []
+        for idx in range(3):
+            create = Mock(status_code=200)
+            create.json.return_value = {"id": f"creation-{idx}"}
+            publish = Mock(status_code=200)
+            publish.json.return_value = {"id": f"thread-{idx}"}
+            responses.extend([create, publish])
+        with patch.object(publish_threads_live.requests, "post", side_effect=responses) as post:
+            code, out, err = self.run_main(["--live"])
+        self.assertEqual(code, 0)
+        self.assertEqual(err, "")
+        self.assertIn("PUBLISHED test-pack: external_id=thread-0", out)
+        self.assertEqual(post.call_count, 6)
+        reply_create_call = post.call_args_list[2]
+        self.assertIn("reply_to_id", reply_create_call.kwargs["data"])
+        saved = publish_threads_live.load_yaml(pack_dir / "threads.yml")
+        self.assertEqual(saved["thread_reply_ids"], ["thread-1", "thread-2"])
+
 
 if __name__ == "__main__":
     unittest.main()

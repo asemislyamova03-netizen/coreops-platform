@@ -1,0 +1,7 @@
+date: '2026-07-09'
+topic: Threads smoke test (ContentOps)
+slug: threads-smoke-test
+status: approved
+content_bank:
+  topic_id: internal-threads-smoke-test
+notes: Minimal pack for Threads live publish verification only. Not for Telegram/Instagram.

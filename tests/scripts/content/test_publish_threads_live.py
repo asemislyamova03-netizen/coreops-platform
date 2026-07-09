@@ -98,6 +98,14 @@ class ThreadsLivePublisherTests(unittest.TestCase):
         code = publish_threads_live.main(["--live"], self.content_dir, self.now, {"THREADS_USER_ID": "1"})
         self.assertEqual(code, 1)
 
+    def test_split_text_chunks_keep_sentence_punctuation(self) -> None:
+        text = ("Первое предложение. " * 20).strip()
+        chunks = publish_threads_live.split_text_chunks(text, max_len=120)
+        self.assertGreater(len(chunks), 1)
+        for chunk in chunks:
+            self.assertFalse(chunk.startswith("."))
+        self.assertTrue(chunks[0].endswith("."))
+
     def test_live_publish_long_text_creates_reply_chain(self) -> None:
         pack_dir = self.create_pack(post_type="text")
         long_text = (

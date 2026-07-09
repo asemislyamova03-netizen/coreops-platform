@@ -1,0 +1,28 @@
+events:
+- at: '2026-07-09T06:00:50+00:00'
+  action: approved
+  by: asem
+  source: margosya_contentops_button
+  channel: content_pack
+  pack: 2026-07-09-1s-erp-novogo-pokoleniya
+  content_bank:
+    topic_id: CB-2026-06-28-005
+  instagram_status: approved
+- at: '2026-07-09T07:14:56+00:00'
+  action: approved
+  by: asem
+  source: margosya_contentops_button
+  channel: content_pack
+  pack: 2026-07-09-1s-erp-novogo-pokoleniya
+  content_bank:
+    topic_id: CB-2026-06-28-005
+  instagram_status: approved
+- at: '2026-07-09T07:39:17+00:00'
+  action: insights_site_published
+  by: asem
+  source: margosya_contentops
+  channel: insights_site
+  pack: 2026-07-09-1s-erp-novogo-pokoleniya
+  url: https://www.flexity.asia/insights/1s-erp-novogo-pokoleniya.html
+  content_bank:
+    topic_id: CB-2026-06-28-005

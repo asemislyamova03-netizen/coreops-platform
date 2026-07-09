@@ -26,3 +26,7 @@ events:
   url: https://www.flexity.asia/insights/1s-erp-novogo-pokoleniya.html
   content_bank:
     topic_id: CB-2026-06-28-005
+- at: '2026-07-09T18:52:19+00:00'
+  channel: telegram
+  status: published
+  message_id: 17

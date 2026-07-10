@@ -1,0 +1,13 @@
+date: '2026-07-10'
+topic: Босс AI-сотрудников
+slug: boss-ai-sotrudnikov
+status: approved
+content_bank:
+  topic_id: CB-2026-06-28-010
+publish:
+  telegram:
+    enabled: true
+    status: approved
+    publish_at: '2026-07-10T06:48:39+00:00'
+    published_at: null
+    external_id: null

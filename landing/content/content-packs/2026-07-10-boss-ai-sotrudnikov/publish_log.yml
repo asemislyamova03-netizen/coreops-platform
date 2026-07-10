@@ -34,3 +34,8 @@ events:
   url: https://www.flexity.asia/insights/boss-ai-sotrudnikov.html
   content_bank:
     topic_id: CB-2026-06-28-010
+- at: '2026-07-10T07:23:07+00:00'
+  channel: threads
+  status: published
+  external_id: '17899540977528276'
+  reply_count: 0

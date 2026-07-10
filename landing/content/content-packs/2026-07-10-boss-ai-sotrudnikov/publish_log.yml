@@ -17,3 +17,7 @@ events:
   content_bank:
     topic_id: CB-2026-06-28-010
   instagram_status: approved
+- at: '2026-07-10T06:49:13+00:00'
+  channel: telegram
+  status: published
+  message_id: 18

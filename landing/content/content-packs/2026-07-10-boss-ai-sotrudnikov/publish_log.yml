@@ -17,11 +17,20 @@ events:
   content_bank:
     topic_id: CB-2026-06-28-010
   instagram_status: approved
-- at: '2026-07-10T06:49:13+00:00'
-  channel: telegram
-  status: published
-  message_id: 18
-- at: '2026-07-10T07:03:57+00:00'
-  channel: instagram
-  status: published
-  external_id: '18085478147168557'
+- at: '2026-07-10T06:48:53+00:00'
+  action: synced_to_origin_main
+  by: cursor-agent
+  source: margosya_contentops_sync
+  channel: content_pack
+  pack: 2026-07-10-boss-ai-sotrudnikov
+  content_bank:
+    topic_id: CB-2026-06-28-010
+- at: '2026-07-10T07:07:26+00:00'
+  action: insights_site_published
+  by: cursor-agent
+  source: margosya_contentops
+  channel: insights_site
+  pack: 2026-07-10-boss-ai-sotrudnikov
+  url: https://www.flexity.asia/insights/boss-ai-sotrudnikov.html
+  content_bank:
+    topic_id: CB-2026-06-28-010

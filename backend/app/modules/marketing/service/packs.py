@@ -21,6 +21,7 @@ from app.modules.marketing.schemas import (
 )
 from app.modules.marketing.service.pack_factory import create_draft_pack_with_texts
 from app.modules.marketing.service.slugify import slugify
+from app.modules.marketing.topic_metadata import extract_editorial_fields
 
 _PATCHABLE_STATUSES = {MarketingPackStatus.DRAFT, MarketingPackStatus.ARCHIVED}
 _FORBIDDEN_PATCH_STATUSES = {
@@ -143,10 +144,30 @@ class MarketingPackService:
             raise NotFoundError("Topic not found")
         return topic
 
+    def _topic_summary(self, topic: MarketingContentTopic) -> TopicSummaryInPack:
+        editorial = extract_editorial_fields(topic.metadata_json)
+        return TopicSummaryInPack(
+            id=topic.id,
+            legacy_topic_id=topic.legacy_topic_id,
+            title=topic.title,
+            rubric=topic.rubric,
+            status=topic.status,
+            angle=topic.angle,
+            priority=topic.priority,
+            audience=editorial["audience"],
+            pain=editorial["pain"],
+            insight=editorial["insight"],
+            source_ref=editorial["source_ref"],
+            cta=editorial["cta"],
+            funnel_stage=editorial["funnel_stage"],
+            notes=editorial["notes"],
+            planned_date=editorial["planned_date"],
+        )
+
     def _to_summary(self, pack: MarketingPublicationPack) -> PackSummaryResponse:
         topic_summary = None
         if pack.topic is not None:
-            topic_summary = TopicSummaryInPack.model_validate(pack.topic)
+            topic_summary = self._topic_summary(pack.topic)
         return PackSummaryResponse(
             id=pack.id,
             tenant_id=pack.tenant_id,

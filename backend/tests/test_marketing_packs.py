@@ -386,3 +386,82 @@ def test_list_packs_filter_by_status_and_topic(client):
     )
     assert by_status.status_code == 200
     assert len(by_status.json()) >= 2
+
+
+def test_pack_detail_includes_topic_editorial_metadata(client):
+    headers, _ = _setup_marketing_tenant(client, slug_suffix="pack-meta")
+    topic_id = client.post(
+        "/api/v1/marketing/topics",
+        headers=headers,
+        json={
+            "title": "Rich pack topic",
+            "rubric": "business_diagnosis",
+            "angle": "Диагностика без хаоса",
+            "priority": 10,
+            "audience": "Собственники SMB",
+            "pain": "Фрагментированный учёт",
+            "insight": "Сначала процессы",
+            "source_ref": "M7-B smoke",
+            "cta": "Запросить диагностику",
+            "funnel_stage": "diagnosis",
+            "notes": "Pack context note",
+            "planned_date": "2026-07-22",
+            "status": "approved",
+        },
+    ).json()["id"]
+
+    pack_id = client.post(
+        "/api/v1/marketing/packs",
+        headers=headers,
+        json={"title": "Rich topic pack", "topic_id": topic_id, "slug": "rich-topic-pack"},
+    ).json()["id"]
+
+    detail = client.get(f"/api/v1/marketing/packs/{pack_id}", headers=headers)
+    assert detail.status_code == 200
+    topic = detail.json()["topic"]
+    assert topic["id"] == topic_id
+    assert topic["rubric"] == "business_diagnosis"
+    assert topic["angle"] == "Диагностика без хаоса"
+    assert topic["priority"] == 10
+    assert topic["audience"] == "Собственники SMB"
+    assert topic["pain"] == "Фрагментированный учёт"
+    assert topic["insight"] == "Сначала процессы"
+    assert topic["source_ref"] == "M7-B smoke"
+    assert topic["cta"] == "Запросить диагностику"
+    assert topic["funnel_stage"] == "diagnosis"
+    assert topic["notes"] == "Pack context note"
+    assert topic["planned_date"] == "2026-07-22"
+
+
+def test_pack_detail_topic_without_editorial_still_works(client):
+    headers, _ = _setup_marketing_tenant(client, slug_suffix="pack-thin")
+    topic_id = _create_topic(client, headers, title="Thin topic")
+
+    pack_id = client.post(
+        "/api/v1/marketing/packs",
+        headers=headers,
+        json={"title": "Thin pack", "topic_id": topic_id, "slug": "thin-topic-pack"},
+    ).json()["id"]
+
+    detail = client.get(f"/api/v1/marketing/packs/{pack_id}", headers=headers)
+    assert detail.status_code == 200
+    topic = detail.json()["topic"]
+    assert topic["title"] == "Thin topic"
+    assert topic["audience"] is None
+    assert topic["insight"] is None
+    assert topic["cta"] is None
+    assert topic["source_ref"] is None
+
+
+def test_pack_detail_without_topic_still_works(client):
+    headers, _ = _setup_marketing_tenant(client, slug_suffix="pack-orphan")
+    pack_id = client.post(
+        "/api/v1/marketing/packs",
+        headers=headers,
+        json={"title": "Orphan pack", "slug": "orphan-pack"},
+    ).json()["id"]
+
+    detail = client.get(f"/api/v1/marketing/packs/{pack_id}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["topic"] is None
+    assert detail.json()["topic_id"] is None

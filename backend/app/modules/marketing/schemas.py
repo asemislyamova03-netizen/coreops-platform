@@ -134,6 +134,8 @@ class MarketingHealthResponse(BaseModel):
 
 
 class TopicSummaryInPack(BaseModel):
+    """Nested topic on pack list/detail. M7-B: editorial fields from metadata_json."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -141,6 +143,16 @@ class TopicSummaryInPack(BaseModel):
     title: str
     rubric: str
     status: MarketingTopicStatus
+    angle: str | None = None
+    priority: int = 0
+    audience: str | None = None
+    pain: str | None = None
+    insight: str | None = None
+    source_ref: str | None = None
+    cta: str | None = None
+    funnel_stage: str | None = None
+    notes: str | None = None
+    planned_date: str | None = None
 
 
 class PackTextResponse(BaseModel):

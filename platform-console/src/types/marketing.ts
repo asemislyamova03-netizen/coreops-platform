@@ -67,6 +67,16 @@ export interface MarketingTopicSummaryInPack {
   title: string;
   rubric: string;
   status: MarketingTopicStatus;
+  angle?: string | null;
+  priority?: number;
+  audience?: string | null;
+  pain?: string | null;
+  insight?: string | null;
+  source_ref?: string | null;
+  cta?: string | null;
+  funnel_stage?: string | null;
+  notes?: string | null;
+  planned_date?: string | null;
 }
 
 export interface MarketingPackSummary {

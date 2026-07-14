@@ -67,3 +67,11 @@ from app.modules.ai.models import (  # noqa: F401
     AIUsageEvent,
 )
 from app.modules.audit.models import AuditLog, DataAccessLog, SecurityEvent  # noqa: F401
+from app.modules.marketing.models import (  # noqa: F401
+    MarketingContentTopic,
+    MarketingLeadAttribution,
+    MarketingMediaAsset,
+    MarketingPublicationPack,
+    MarketingPublicationText,
+    MarketingPublishLog,
+)

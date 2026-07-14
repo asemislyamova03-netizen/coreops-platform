@@ -57,4 +57,11 @@ MODULE_DEFINITIONS = [
         "default_mode": "internal",
         "dependencies_json": {"required": [], "recommended": []},
     },
+    {
+        "code": "marketing",
+        "name": "Marketing Cabinet",
+        "description": "Content topics, packs, publish workflow",
+        "default_mode": "internal",
+        "dependencies_json": {"required": ["parties"], "recommended": []},
+    },
 ]

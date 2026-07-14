@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { getMarketingPack } from "../../../api/marketing";
@@ -21,6 +21,13 @@ import {
   marketingPublishStatusLabel,
 } from "./marketingLabels";
 import { resolveMarketingNextAction } from "./marketingNextAction";
+import {
+  buildPackCompletenessItems,
+  buildPackTopicContextRows,
+  buildPackWritingBrief,
+  packContextCompletenessLabel,
+  packContextCompletenessLevel,
+} from "./marketingPackContext";
 import { PackDetailApprovalTab } from "./packDetail/PackDetailApprovalTab";
 import { PackDetailLogsTab } from "./packDetail/PackDetailLogsTab";
 import { PackDetailMediaTab } from "./packDetail/PackDetailMediaTab";
@@ -49,6 +56,23 @@ export function MarketingPackDetailPage() {
     queryFn: () => getMarketingPack(packId),
     enabled: !labelsLoading && Boolean(packId),
   });
+
+  const contextRows = useMemo(
+    () => buildPackTopicContextRows(packQuery.data?.topic),
+    [packQuery.data?.topic],
+  );
+  const writingBrief = useMemo(
+    () => buildPackWritingBrief(packQuery.data?.topic),
+    [packQuery.data?.topic],
+  );
+  const completenessItems = useMemo(
+    () =>
+      packQuery.data
+        ? buildPackCompletenessItems(packQuery.data)
+        : [],
+    [packQuery.data],
+  );
+  const completenessLevel = packContextCompletenessLevel(completenessItems);
 
   if (labelsLoading || packQuery.isLoading) {
     return <Loading text="Загрузка pack..." />;
@@ -143,11 +167,68 @@ export function MarketingPackDetailPage() {
           <dd>{marketingPublishStatusLabel(pack.publish_status)}</dd>
           <dt>Тема</dt>
           <dd>{pack.topic?.title ?? "—"}</dd>
-          <dt>Плановая дата</dt>
+          <dt>Плановая дата пака</dt>
           <dd>{pack.planned_date}</dd>
           <dt>Обновлён</dt>
           <dd>{formatDate(pack.updated_at)}</dd>
         </dl>
+      </div>
+
+      <div className="panel marketing-pack-topic-context">
+        <div className="marketing-pack-context-header">
+          <h3>Контекст темы</h3>
+          <Link className="btn btn-secondary" to={`/workspace/${tenantSlug}/marketing/topics`}>
+            Редактировать тему
+          </Link>
+        </div>
+        {!pack.topic ? (
+          <p className="muted">Тема не привязана к этому паку.</p>
+        ) : (
+          <dl className="detail-list marketing-pack-context-list">
+            {contextRows.map((row) => (
+              <div key={row.key} className="marketing-pack-context-row">
+                <dt>{row.label}</dt>
+                <dd className={row.isEmpty ? "muted" : undefined}>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
+
+      <div className="panel marketing-pack-writing-brief">
+        <h3>Бриф для написания</h3>
+        <dl className="detail-list marketing-pack-context-list">
+          {writingBrief.map((line) => (
+            <div key={line.key} className="marketing-pack-context-row">
+              <dt>{line.label}</dt>
+              <dd className={line.isEmpty ? "muted" : undefined}>{line.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div className="panel marketing-pack-completeness">
+        <h3>Полнота контекста</h3>
+        <p className="marketing-pack-completeness-level">
+          {packContextCompletenessLabel(completenessLevel)}
+        </p>
+        <ul className="marketing-pack-completeness-list">
+          {completenessItems.map((item) => (
+            <li
+              key={item.key}
+              className={
+                item.filled
+                  ? "marketing-pack-completeness-item is-filled"
+                  : "marketing-pack-completeness-item is-missing"
+              }
+            >
+              <span aria-hidden="true">{item.filled ? "✓" : "○"}</span> {item.label}
+            </li>
+          ))}
+        </ul>
+        <p className="muted marketing-pack-completeness-note">
+          Только индикатор. Preflight и согласование не блокируются (это M7-C).
+        </p>
       </div>
 
       <div className="tabs workspace-detail-tabs">

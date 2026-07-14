@@ -102,6 +102,9 @@ First-class already: `title`, `rubric`, `angle`, `priority`, `status`, `recommen
 
 ### M7-B — Pack detail context blocks
 
+**Status: DONE (local, 2026-07-14)** — see `docs/ai/reports/2026-07-14-marketing-m7-b-pack-context-report.md`.  
+Not committed / not deployed until separate HQ approval.
+
 **No migration.**
 
 **Frontend:**

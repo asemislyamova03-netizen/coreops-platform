@@ -1089,3 +1089,58 @@ code {
   margin-top: 0;
   margin-bottom: 8px;
 }
+
+.marketing-pack-topic-context,
+.marketing-pack-writing-brief,
+.marketing-pack-completeness {
+  margin-bottom: 16px;
+}
+
+.marketing-pack-context-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.marketing-pack-context-header h3,
+.marketing-pack-writing-brief h3,
+.marketing-pack-completeness h3 {
+  margin: 0;
+}
+
+.marketing-pack-context-list {
+  margin: 0;
+}
+
+.marketing-pack-context-row {
+  display: contents;
+}
+
+.marketing-pack-completeness-level {
+  margin: 8px 0 12px;
+  font-weight: 600;
+}
+
+.marketing-pack-completeness-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+}
+
+.marketing-pack-completeness-item.is-missing {
+  color: #6b7280;
+}
+
+.marketing-pack-completeness-item.is-filled {
+  color: #027a48;
+}
+
+.marketing-pack-completeness-note {
+  margin: 12px 0 0;
+}

@@ -951,3 +951,126 @@ code {
   margin-top: 4px;
   font-size: 0.8rem;
 }
+
+.marketing-pack-detail-panel {
+  padding-top: 8px;
+}
+
+.marketing-pack-tab h3 {
+  margin-top: 0;
+}
+
+.marketing-channel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.marketing-channel-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.marketing-channel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.marketing-channel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.marketing-save-ok {
+  color: #027a48;
+  font-size: 0.9rem;
+}
+
+.marketing-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.marketing-media-form h4,
+.marketing-media-list h4 {
+  margin: 0 0 8px;
+}
+
+.marketing-media-list {
+  margin-top: 20px;
+}
+
+.marketing-media-row {
+  margin-bottom: 12px;
+}
+
+.marketing-media-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.marketing-media-meta {
+  margin-bottom: 12px;
+}
+
+.marketing-status-block {
+  margin: 12px 0 16px;
+}
+
+.marketing-preflight-report {
+  margin-top: 16px;
+}
+
+.marketing-issue-list ul,
+.marketing-check-list ul,
+.marketing-logs-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.marketing-approval-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.marketing-reject-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 480px;
+}
+
+.marketing-topic-create,
+.marketing-packs-filters,
+.marketing-next-action {
+  margin-bottom: 16px;
+}
+
+.marketing-topic-actions,
+.marketing-media-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.marketing-topic-take-hint {
+  font-size: 0.85rem;
+}
+
+.marketing-next-action h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}

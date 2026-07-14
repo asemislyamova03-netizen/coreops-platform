@@ -27,6 +27,7 @@ export function moduleDisabledMessage(moduleCode: string): string {
   const labels: Record<string, string> = {
     finance: "Финансовый модуль отключён для этой организации.",
     documents: "Модуль документов отключён для этой организации.",
+    marketing: "Модуль маркетинга отключён для этой организации.",
   };
   return labels[moduleCode] ?? `Модуль «${moduleCode}» отключён для этой организации.`;
 }

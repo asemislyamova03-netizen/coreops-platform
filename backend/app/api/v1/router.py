@@ -25,6 +25,7 @@ from app.modules.integrations.routes import (
 )
 from app.modules.ai.routes import agents_router, proposals_router, tasks_router, usage_router
 from app.modules.audit.routes import router as audit_router
+from app.modules.marketing.routes import router as marketing_router
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -59,3 +60,4 @@ api_router.include_router(tasks_router)
 api_router.include_router(proposals_router)
 api_router.include_router(usage_router)
 api_router.include_router(audit_router)
+api_router.include_router(marketing_router)

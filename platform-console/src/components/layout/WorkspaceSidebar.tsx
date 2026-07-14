@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { segment: "clients", label: ui.clients },
   { segment: "documents", label: ui.documents },
   { segment: "finance", label: ui.finance },
+  { segment: "marketing", label: ui.marketing },
   { segment: "reports", label: ui.reports },
 ] as const;
 

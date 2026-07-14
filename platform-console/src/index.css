@@ -998,6 +998,21 @@ code {
   margin: 12px 0;
 }
 
+.marketing-form-span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 720px) {
+  .marketing-form-span-2 {
+    grid-column: span 1;
+  }
+}
+
+.marketing-textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
 .marketing-media-form h4,
 .marketing-media-list h4 {
   margin: 0 0 8px;

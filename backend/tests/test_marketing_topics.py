@@ -357,3 +357,147 @@ def test_marketing_in_module_registry(client):
     assert response.status_code == 200
     codes = {item["code"] for item in response.json()}
     assert "marketing" in codes
+
+
+def test_topic_create_persists_rich_metadata(client):
+    tenant_headers, _ = _setup_marketing_tenant(client, slug_suffix="meta-create")
+
+    created = client.post(
+        "/api/v1/marketing/topics",
+        headers=tenant_headers,
+        json={
+            "title": "Rich metadata topic",
+            "rubric": "business_diagnosis",
+            "angle": "Диагностика без хаоса",
+            "priority": 10,
+            "audience": "Собственники SMB",
+            "pain": "Фрагментированный учёт",
+            "insight": "Сначала процессы, потом ИИ",
+            "source_ref": "Разбор заявки flexity-sales",
+            "cta": "Запросить диагностику",
+            "funnel_stage": "diagnosis",
+            "notes": "M7-A smoke shape",
+            "planned_date": "2026-07-20",
+            "status": "draft",
+        },
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["audience"] == "Собственники SMB"
+    assert body["pain"] == "Фрагментированный учёт"
+    assert body["insight"] == "Сначала процессы, потом ИИ"
+    assert body["source_ref"] == "Разбор заявки flexity-sales"
+    assert body["cta"] == "Запросить диагностику"
+    assert body["funnel_stage"] == "diagnosis"
+    assert body["planned_date"] == "2026-07-20"
+    assert body["metadata_json"]["insight"] == "Сначала процессы, потом ИИ"
+    assert body["source"] == "manual"
+
+
+def test_topic_patch_updates_rich_metadata(client):
+    tenant_headers, _ = _setup_marketing_tenant(client, slug_suffix="meta-patch")
+
+    created = client.post(
+        "/api/v1/marketing/topics",
+        headers=tenant_headers,
+        json={
+            "title": "Patch me",
+            "rubric": "asem_column",
+            "insight": "old insight",
+            "cta": "old cta",
+            "status": "draft",
+        },
+    ).json()
+    topic_id = created["id"]
+
+    updated = client.patch(
+        f"/api/v1/marketing/topics/{topic_id}",
+        headers=tenant_headers,
+        json={
+            "insight": "new insight",
+            "cta": "",
+            "funnel_stage": "trust",
+            "source_ref": "https://example.com/ref",
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    body = updated.json()
+    assert body["insight"] == "new insight"
+    assert body["cta"] is None
+    assert "cta" not in body["metadata_json"]
+    assert body["funnel_stage"] == "trust"
+    assert body["source_ref"] == "https://example.com/ref"
+
+
+def test_topic_create_legacy_without_editorial_still_works(client):
+    tenant_headers, _ = _setup_marketing_tenant(client, slug_suffix="meta-legacy")
+
+    created = client.post(
+        "/api/v1/marketing/topics",
+        headers=tenant_headers,
+        json={
+            "title": "Legacy M6 create",
+            "rubric": "News",
+            "status": "approved",
+            "priority": 5,
+        },
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["metadata_json"] == {}
+    assert body["audience"] is None
+    assert body["insight"] is None
+
+
+def test_topic_rich_metadata_tenant_isolation(client):
+    uid = uuid.uuid4().hex[:8]
+    register_payload = {
+        "email": f"mkt-meta-iso-{uid}@example.com",
+        "password": "securepass123",
+        "full_name": "Meta Isolation Owner",
+        "company_name": f"Meta Isolation Provider {uid}",
+        "company_slug": f"meta-isolation-provider-{uid}",
+    }
+    reg = client.post("/api/v1/auth/register", json=register_payload)
+    assert reg.status_code == 201
+    headers = {"Authorization": f"Bearer {reg.json()['access_token']}"}
+
+    tenant_a = client.post(
+        "/api/v1/tenants",
+        json={"name": "Meta A", "slug": f"meta-a-{uid}"},
+        headers=headers,
+    ).json()["id"]
+    tenant_b = client.post(
+        "/api/v1/tenants",
+        json={"name": "Meta B", "slug": f"meta-b-{uid}"},
+        headers=headers,
+    ).json()["id"]
+    for tenant_id in (tenant_a, tenant_b):
+        client.post(f"/api/v1/tenants/{tenant_id}/modules/parties/enable", headers=headers)
+        client.post(f"/api/v1/tenants/{tenant_id}/modules/marketing/enable", headers=headers)
+
+    headers_a = {**headers, "X-Tenant-ID": tenant_a}
+    headers_b = {**headers, "X-Tenant-ID": tenant_b}
+
+    created = client.post(
+        "/api/v1/marketing/topics",
+        headers=headers_a,
+        json={
+            "title": "Secret insight topic",
+            "rubric": "founder_notes",
+            "insight": "tenant-a-only",
+            "status": "draft",
+        },
+    )
+    assert created.status_code == 201
+    topic_id = created.json()["id"]
+
+    cross = client.get(f"/api/v1/marketing/topics/{topic_id}", headers=headers_b)
+    assert cross.status_code == 404
+
+    cross_patch = client.patch(
+        f"/api/v1/marketing/topics/{topic_id}",
+        headers=headers_b,
+        json={"insight": "hijack"},
+    )
+    assert cross_patch.status_code == 404

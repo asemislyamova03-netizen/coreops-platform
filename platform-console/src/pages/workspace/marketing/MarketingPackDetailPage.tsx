@@ -227,7 +227,7 @@ export function MarketingPackDetailPage() {
           ))}
         </ul>
         <p className="muted marketing-pack-completeness-note">
-          Только индикатор. Preflight и согласование не блокируются (это M7-C).
+          Только индикатор. Жёсткая проверка — на вкладке Preflight (M7-C).
         </p>
       </div>
 

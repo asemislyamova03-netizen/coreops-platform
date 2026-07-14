@@ -66,8 +66,13 @@ export function PackDetailApprovalTab({ packId, pack }: PackDetailApprovalTabPro
 
       {!canApprove && (
         <Alert variant="info">
-          Approve доступен только после preflight_status = passed. Запустите preflight на вкладке
-          Preflight.
+          Approve доступен только после успешного preflight (без блокирующих ошибок). Запустите
+          проверку на вкладке Preflight. Предупреждения не блокируют согласование.
+        </Alert>
+      )}
+      {canApprove && (
+        <Alert variant="info">
+          Preflight пройден. Предупреждения (если были) не мешают согласованию.
         </Alert>
       )}
 

@@ -1046,11 +1046,105 @@ code {
   margin-top: 16px;
 }
 
+.marketing-preflight-banner {
+  margin-top: 16px;
+}
+
+.marketing-preflight-banner-sub {
+  display: block;
+  margin-top: 4px;
+}
+
+.marketing-preflight-meta {
+  margin: 0 0 12px;
+}
+
+.marketing-issue-list {
+  margin-bottom: 16px;
+}
+
+.marketing-issue-list h4,
+.marketing-check-list h4,
+.marketing-preflight-topic h4,
+.marketing-preflight-channels h4,
+.marketing-preflight-media h4 {
+  margin: 0 0 8px;
+}
+
+.marketing-issue-list--blockers {
+  border-left: 3px solid #b42318;
+  padding-left: 12px;
+}
+
+.marketing-issue-list--warnings {
+  border-left: 3px solid #b54708;
+  padding-left: 12px;
+}
+
+.marketing-issue-note {
+  margin: 0 0 8px;
+}
+
+.marketing-issue-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.marketing-issue-code {
+  font-size: 0.85em;
+}
+
 .marketing-issue-list ul,
 .marketing-check-list ul,
 .marketing-logs-list {
   margin: 8px 0 0;
   padding-left: 20px;
+}
+
+.marketing-check-mark.is-pass {
+  color: #027a48;
+}
+
+.marketing-check-mark.is-fail {
+  color: #b42318;
+}
+
+.marketing-check-mark.is-warn {
+  color: #b54708;
+  font-weight: 700;
+}
+
+.marketing-preflight-topic,
+.marketing-preflight-channels,
+.marketing-preflight-media {
+  margin-top: 16px;
+}
+
+.marketing-preflight-topic-grid {
+  display: grid;
+  gap: 8px 16px;
+}
+
+.marketing-preflight-topic-row {
+  display: contents;
+}
+
+.marketing-preflight-channel-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.marketing-preflight-channel-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.marketing-preflight-media-warn {
+  color: #b54708;
 }
 
 .marketing-approval-actions {

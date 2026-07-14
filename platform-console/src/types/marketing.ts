@@ -102,6 +102,8 @@ export interface MarketingPackDetail extends MarketingPackSummary {
   campaign_id: string | null;
   plan_item_id: string | null;
   preflight_at: string | null;
+  /** Stored last preflight report (M6 or M7-C1 v2). Optional until backend deploy. */
+  preflight_report_json?: Record<string, unknown>;
   approved_at: string | null;
   approved_by_user_id: string | null;
   channel_config_json: Record<string, unknown>;
@@ -191,6 +193,41 @@ export interface MarketingPreflightCheck {
   channel?: string | null;
 }
 
+/** M7-C1 topic_context_summary (additive). */
+export interface MarketingPreflightTopicContextSummary {
+  topic_id?: string;
+  title?: string | null;
+  status?: string | null;
+  audience?: string | null;
+  pain?: string | null;
+  insight?: string | null;
+  source_ref?: string | null;
+  cta?: string | null;
+  funnel_stage?: string | null;
+  notes?: string | null;
+  planned_date?: string | null;
+  has_audience?: boolean;
+  has_pain?: boolean;
+  has_insight?: boolean;
+  has_source_ref?: boolean;
+  has_cta?: boolean;
+  has_notes?: boolean;
+  has_planned_date?: boolean;
+}
+
+export interface MarketingPreflightChannelCheck {
+  channel: string;
+  present: boolean;
+  length: number;
+  short_warn?: boolean;
+  below_blocker_threshold?: boolean;
+}
+
+export interface MarketingPreflightMediaChecks {
+  count: number;
+  missing: boolean;
+}
+
 export interface MarketingPreflightResponse {
   pack_id: string;
   status: "passed" | "failed" | "warning";
@@ -202,6 +239,14 @@ export interface MarketingPreflightResponse {
   pack_status: MarketingPackStatus;
   preflight_status: MarketingPreflightStatus;
   approval_status: MarketingApprovalStatus;
+  /** M7-C1 report v2 (optional for M6 compatibility). */
+  version?: string;
+  passed?: boolean;
+  blockers?: MarketingPreflightIssue[];
+  checklist?: MarketingPreflightCheck[];
+  topic_context_summary?: MarketingPreflightTopicContextSummary | null;
+  channel_checks?: MarketingPreflightChannelCheck[];
+  media_checks?: MarketingPreflightMediaChecks;
 }
 
 export interface ListMarketingTopicsParams {

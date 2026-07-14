@@ -28,6 +28,15 @@ class TopicCreate(BaseModel):
     legacy_topic_id: str | None = Field(default=None, max_length=64)
     slug_hint: str | None = Field(default=None, max_length=128)
     metadata_json: dict = Field(default_factory=dict)
+    # M7-A editorial fields → merged into metadata_json (no migration)
+    audience: str | None = Field(default=None, max_length=512)
+    pain: str | None = None
+    insight: str | None = None
+    source_ref: str | None = None
+    cta: str | None = Field(default=None, max_length=512)
+    funnel_stage: str | None = Field(default=None, max_length=64)
+    notes: str | None = None
+    planned_date: str | None = Field(default=None, max_length=32)
 
 
 class TopicUpdate(BaseModel):
@@ -42,6 +51,14 @@ class TopicUpdate(BaseModel):
     legacy_topic_id: str | None = Field(default=None, max_length=64)
     slug_hint: str | None = Field(default=None, max_length=128)
     metadata_json: dict | None = None
+    audience: str | None = Field(default=None, max_length=512)
+    pain: str | None = None
+    insight: str | None = None
+    source_ref: str | None = None
+    cta: str | None = Field(default=None, max_length=512)
+    funnel_stage: str | None = Field(default=None, max_length=64)
+    notes: str | None = None
+    planned_date: str | None = Field(default=None, max_length=32)
 
 
 class TopicResponse(BaseModel):
@@ -62,6 +79,15 @@ class TopicResponse(BaseModel):
     last_used_at: datetime | None
     slug_hint: str | None
     metadata_json: dict
+    # Flattened editorial fields (read from metadata_json)
+    audience: str | None = None
+    pain: str | None = None
+    insight: str | None = None
+    source_ref: str | None = None
+    cta: str | None = None
+    funnel_stage: str | None = None
+    notes: str | None = None
+    planned_date: str | None = None
     created_at: datetime
     updated_at: datetime
     duplicate_status: Literal["ok", "warning", "blocked"] | None = None

@@ -23,6 +23,11 @@ from app.modules.marketing.schemas import (
 )
 from app.modules.marketing.service.pack_factory import create_draft_pack_with_texts
 from app.modules.marketing.service.slugify import slugify
+from app.modules.marketing.topic_metadata import (
+    build_topic_metadata_for_create,
+    build_topic_metadata_for_update,
+    extract_editorial_fields,
+)
 
 
 class MarketingTopicService:
@@ -57,6 +62,7 @@ class MarketingTopicService:
         return self._to_response(topic)
 
     def create_topic(self, user: User, payload: TopicCreate) -> TopicResponse:
+        metadata = build_topic_metadata_for_create(payload)
         topic = self.repo.create_topic(
             tenant_id=self.tenant_id,
             legacy_topic_id=payload.legacy_topic_id,
@@ -69,7 +75,7 @@ class MarketingTopicService:
             reusable=payload.reusable,
             recommended_channels=payload.recommended_channels,
             slug_hint=payload.slug_hint,
-            metadata_json=payload.metadata_json,
+            metadata_json=metadata,
             created_by_user_id=user.id,
             updated_by_user_id=user.id,
         )
@@ -93,11 +99,13 @@ class MarketingTopicService:
             "recommended_channels",
             "legacy_topic_id",
             "slug_hint",
-            "metadata_json",
         ):
             value = getattr(payload, field)
             if value is not None:
                 setattr(topic, field, value)
+        merged_metadata = build_topic_metadata_for_update(topic.metadata_json, payload)
+        if merged_metadata is not None:
+            topic.metadata_json = merged_metadata
         topic.updated_by_user_id = user.id
         self.db.flush()
         return self._to_response(topic)
@@ -202,6 +210,7 @@ class MarketingTopicService:
 
     def _to_response(self, topic: MarketingContentTopic) -> TopicResponse:
         duplicate_status, duplicate_detail = self._duplicate_status(topic)
+        editorial = extract_editorial_fields(topic.metadata_json)
         return TopicResponse(
             id=topic.id,
             tenant_id=topic.tenant_id,
@@ -217,7 +226,15 @@ class MarketingTopicService:
             used_count=topic.used_count,
             last_used_at=topic.last_used_at,
             slug_hint=topic.slug_hint,
-            metadata_json=topic.metadata_json,
+            metadata_json=topic.metadata_json or {},
+            audience=editorial["audience"],
+            pain=editorial["pain"],
+            insight=editorial["insight"],
+            source_ref=editorial["source_ref"],
+            cta=editorial["cta"],
+            funnel_stage=editorial["funnel_stage"],
+            notes=editorial["notes"],
+            planned_date=editorial["planned_date"],
             created_at=topic.created_at,
             updated_at=topic.updated_at,
             duplicate_status=duplicate_status,

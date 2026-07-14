@@ -47,6 +47,14 @@ export interface MarketingTopic {
   last_used_at: string | null;
   slug_hint: string | null;
   metadata_json: Record<string, unknown>;
+  audience?: string | null;
+  pain?: string | null;
+  insight?: string | null;
+  source_ref?: string | null;
+  cta?: string | null;
+  funnel_stage?: string | null;
+  notes?: string | null;
+  planned_date?: string | null;
   created_at: string;
   updated_at: string;
   duplicate_status?: "ok" | "warning" | "blocked" | null;
@@ -214,6 +222,15 @@ export interface MarketingTopicCreatePayload {
   reusable?: boolean;
   recommended_channels?: string[];
   slug_hint?: string;
+  metadata_json?: Record<string, unknown>;
+  audience?: string;
+  pain?: string;
+  insight?: string;
+  source_ref?: string;
+  cta?: string;
+  funnel_stage?: string;
+  notes?: string;
+  planned_date?: string;
 }
 
 export interface MarketingTopicUpdatePayload {
@@ -226,6 +243,15 @@ export interface MarketingTopicUpdatePayload {
   reusable?: boolean;
   recommended_channels?: string[];
   slug_hint?: string | null;
+  metadata_json?: Record<string, unknown>;
+  audience?: string | null;
+  pain?: string | null;
+  insight?: string | null;
+  source_ref?: string | null;
+  cta?: string | null;
+  funnel_stage?: string | null;
+  notes?: string | null;
+  planned_date?: string | null;
 }
 
 export interface MarketingTakeTopicPayload {

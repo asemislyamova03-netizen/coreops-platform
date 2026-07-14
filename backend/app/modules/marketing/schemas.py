@@ -227,6 +227,7 @@ class PackDetailResponse(PackSummaryResponse):
     campaign_id: uuid.UUID | None = None
     plan_item_id: uuid.UUID | None = None
     preflight_at: datetime | None = None
+    preflight_report_json: dict = Field(default_factory=dict)
     approved_at: datetime | None = None
     approved_by_user_id: uuid.UUID | None = None
     channel_config_json: dict = Field(default_factory=dict)
@@ -306,6 +307,8 @@ class PreflightRequest(BaseModel):
 
 
 class PreflightResponse(BaseModel):
+    """M7-C1: additive v2 fields; keep errors/checks for FE compatibility."""
+
     pack_id: uuid.UUID
     status: Literal["passed", "failed", "warning"]
     checked_at: datetime
@@ -316,6 +319,14 @@ class PreflightResponse(BaseModel):
     pack_status: MarketingPackStatus
     preflight_status: MarketingPreflightStatus
     approval_status: MarketingApprovalStatus
+    # M7-C1 report v2 (also stored in preflight_report_json)
+    version: str = "m7-c1"
+    passed: bool = False
+    blockers: list[PreflightIssue] = Field(default_factory=list)
+    checklist: list[PreflightCheckItem] = Field(default_factory=list)
+    topic_context_summary: dict | None = None
+    channel_checks: list[dict] = Field(default_factory=list)
+    media_checks: dict = Field(default_factory=dict)
 
 
 class ApproveRequest(BaseModel):

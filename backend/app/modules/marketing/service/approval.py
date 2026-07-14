@@ -10,7 +10,6 @@ from app.modules.marketing.enums import (
     DEFAULT_PACK_CHANNELS,
     MarketingApprovalStatus,
     MarketingChannel,
-    MarketingMediaAssetStatus,
     MarketingPackStatus,
     MarketingPreflightStatus,
     MarketingTopicStatus,
@@ -31,6 +30,12 @@ from app.modules.marketing.schemas import (
     RejectRequest,
 )
 from app.modules.marketing.service.packs import MarketingPackService
+from app.modules.marketing.service.preflight_rules import (
+    PREFLIGHT_REPORT_VERSION,
+    append_topic_context_rules,
+    build_media_checks,
+    build_social_channel_checks,
+)
 
 _TELEGRAM_MAX_CHARS = 4096
 _PREFLIGHT_ALLOWED_STATUSES = {
@@ -67,7 +72,7 @@ class MarketingApprovalService:
         checks: list[PreflightCheckItem] = []
         channel_eligibility: dict[str, bool] = {}
 
-        # Pack metadata
+        # Pack metadata (M6)
         meta_ok = bool(pack.title and pack.slug and pack.planned_date)
         checks.append(
             PreflightCheckItem(
@@ -84,7 +89,7 @@ class MarketingApprovalService:
                 )
             )
 
-        # Required text rows exist
+        # Required text rows exist (M6)
         for channel in DEFAULT_PACK_CHANNELS:
             exists = channel in text_by_channel
             checks.append(
@@ -167,23 +172,41 @@ class MarketingApprovalService:
                 )
             )
 
-        # Topic check (warning if missing, not hard block for BE5 MVP)
-        if pack.topic_id is None:
-            warnings.append(
-                PreflightIssue(
-                    code="topic_not_linked",
-                    message="Pack has no linked topic",
+        # Topic linked + editorial context (M7-C1)
+        topic_context_summary = append_topic_context_rules(
+            pack_topic_id=pack.topic_id,
+            topic=pack.topic,
+            errors=errors,
+            warnings=warnings,
+            checks=checks,
+        )
+        if pack.topic_id is not None and pack.topic is not None:
+            if pack.topic.status != MarketingTopicStatus.APPROVED:
+                errors.append(
+                    PreflightIssue(
+                        code="topic_not_approved",
+                        message="Linked topic is not approved",
+                    )
                 )
-            )
-        elif pack.topic and pack.topic.status != MarketingTopicStatus.APPROVED:
-            errors.append(
-                PreflightIssue(
-                    code="topic_not_approved",
-                    message="Linked topic is not approved",
+                checks.append(
+                    PreflightCheckItem(
+                        code="topic_approved",
+                        passed=False,
+                        message=f"status={pack.topic.status.value}",
+                    )
                 )
-            )
+            else:
+                checks.append(PreflightCheckItem(code="topic_approved", passed=True))
 
-        # Media checks (soft)
+        # Social length rules (M7-C1)
+        channel_checks = build_social_channel_checks(
+            text_by_channel=text_by_channel,
+            errors=errors,
+            warnings=warnings,
+            checks=checks,
+        )
+
+        # Media MIME (M6 hard) + missing media warning (M7-C1)
         for asset in media:
             mime_ok = asset.mime_type.lower() in ALLOWED_MEDIA_MIME_TYPES
             checks.append(
@@ -208,8 +231,11 @@ class MarketingApprovalService:
                     )
                 )
 
+        media_checks = build_media_checks(media=media, warnings=warnings, checks=checks)
+
         now = datetime.now(UTC)
         has_errors = len(errors) > 0
+        passed = not has_errors
         if has_errors:
             result_status = "failed"
             pack.preflight_status = MarketingPreflightStatus.FAILED
@@ -220,12 +246,19 @@ class MarketingApprovalService:
             pack.status = MarketingPackStatus.READY_FOR_APPROVAL
 
         report = {
+            "version": PREFLIGHT_REPORT_VERSION,
+            "passed": passed,
             "status": result_status,
             "checked_at": now.isoformat(),
             "errors": [e.model_dump() for e in errors],
+            "blockers": [e.model_dump() for e in errors],
             "warnings": [w.model_dump() for w in warnings],
             "checks": [c.model_dump() for c in checks],
+            "checklist": [c.model_dump() for c in checks],
             "channel_eligibility": channel_eligibility,
+            "topic_context_summary": topic_context_summary,
+            "channel_checks": channel_checks,
+            "media_checks": media_checks,
         }
         pack.preflight_at = now
         pack.preflight_report_json = report
@@ -243,6 +276,13 @@ class MarketingApprovalService:
             pack_status=pack.status,
             preflight_status=pack.preflight_status,
             approval_status=pack.approval_status,
+            version=PREFLIGHT_REPORT_VERSION,
+            passed=passed,
+            blockers=list(errors),
+            checklist=list(checks),
+            topic_context_summary=topic_context_summary,
+            channel_checks=channel_checks,
+            media_checks=media_checks,
         )
 
     def approve_pack(

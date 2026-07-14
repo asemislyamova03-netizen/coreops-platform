@@ -124,6 +124,9 @@ Not committed / not deployed until separate HQ approval.
 
 ### M7-C — Preflight v2
 
+**Status: M7-C1 DONE (local backend, 2026-07-14)** — see `docs/ai/reports/2026-07-14-marketing-m7-c1-backend-preflight-report.md`.  
+M7-C2 FE + deploy still pending HQ approval.
+
 **No migration** (`preflight_report_json` already exists).
 
 **Backend (`approval.py`):**

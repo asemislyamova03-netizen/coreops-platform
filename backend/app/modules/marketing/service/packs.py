@@ -207,6 +207,7 @@ class MarketingPackService:
             campaign_id=pack.campaign_id,
             plan_item_id=pack.plan_item_id,
             preflight_at=pack.preflight_at,
+            preflight_report_json=pack.preflight_report_json or {},
             approved_at=pack.approved_at,
             approved_by_user_id=pack.approved_by_user_id,
             channel_config_json=pack.channel_config_json,

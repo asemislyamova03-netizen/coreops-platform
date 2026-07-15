@@ -1,6 +1,7 @@
 import { Alert } from "../../../../components/ui/Alert";
 import type { MarketingPackDetail } from "../../../../types/marketing";
 import { formatDate } from "../../../../workspace/formatters";
+import { marketingPublishActionLabel } from "../marketingLabels";
 
 interface PackDetailLogsTabProps {
   pack: MarketingPackDetail;
@@ -21,7 +22,8 @@ export function PackDetailLogsTab({ pack }: PackDetailLogsTabProps) {
           <ul className="marketing-logs-list">
             {logs.map((log) => (
               <li key={log.id}>
-                <strong>{log.channel}</strong> · {log.action} · {log.status}
+                <strong>{log.channel}</strong> · {marketingPublishActionLabel(log.action)} ·{" "}
+                {log.status}
                 {log.published_at ? ` · ${formatDate(log.published_at)}` : ""}
                 {" · "}
                 {formatDate(log.created_at)}

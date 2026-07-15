@@ -14,6 +14,10 @@ import type {
 export const MARKETING_PUBLISH_DISABLED_MESSAGE =
   "Публикация пока выключена. Marketing Cabinet сейчас является source of truth для подготовки контента. Export/Margosya/publish будут отдельным этапом.";
 
+export const HISTORICAL_PUBLICATION_LABEL = "Опубликовано ранее";
+export const HISTORICAL_PUBLICATION_NOTE =
+  "Это отметка о прошлой публикации. Flexity не публиковал этот пост автоматически.";
+
 const TOPIC_STATUS_LABELS: Record<MarketingTopicStatus, string> = {
   draft: "Черновик",
   approved: "Утверждена",
@@ -78,6 +82,34 @@ export function marketingApprovalStatusLabel(status: string): string {
 
 export function marketingPublishStatusLabel(status: string): string {
   return PUBLISH_STATUS_LABELS[status as MarketingPublishStatus] ?? status;
+}
+
+export function hasHistoricalPublication(
+  publishStatus: string,
+  publishLogs: Array<{ action: string; status: string }>,
+): boolean {
+  return (
+    publishStatus === "published" &&
+    publishLogs.some(
+      (log) => log.action === "historical_record" && log.status === "recorded",
+    )
+  );
+}
+
+export function marketingPublishStatusDisplayLabel(
+  publishStatus: string,
+  publishLogs: Array<{ action: string; status: string }>,
+): string {
+  return hasHistoricalPublication(publishStatus, publishLogs)
+    ? HISTORICAL_PUBLICATION_LABEL
+    : marketingPublishStatusLabel(publishStatus);
+}
+
+export function marketingPublishActionLabel(action: string): string {
+  if (action === "historical_record") {
+    return "Историческая отметка публикации";
+  }
+  return action;
 }
 
 export function marketingChannelLabel(channel: string): string {

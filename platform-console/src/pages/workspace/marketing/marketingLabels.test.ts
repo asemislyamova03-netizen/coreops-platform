@@ -3,11 +3,15 @@
  */
 import assert from "node:assert/strict";
 import {
+  HISTORICAL_PUBLICATION_LABEL,
   MARKETING_PUBLISH_DISABLED_MESSAGE,
+  hasHistoricalPublication,
   marketingApprovalStatusLabel,
   marketingChannelLabel,
   marketingPackStatusLabel,
   marketingPreflightStatusLabel,
+  marketingPublishActionLabel,
+  marketingPublishStatusDisplayLabel,
   marketingTopicStatusLabel,
 } from "./marketingLabels";
 
@@ -33,6 +37,23 @@ assert.equal(marketingApprovalStatusLabel("rejected"), "Отклонён");
 
 assert.equal(marketingChannelLabel("telegram"), "Telegram");
 assert.equal(marketingChannelLabel("instagram"), "Instagram");
+
+const historicalLogs = [
+  { action: "historical_record", status: "recorded" },
+  { action: "historical_record", status: "recorded" },
+];
+assert.ok(hasHistoricalPublication("published", historicalLogs));
+assert.equal(
+  marketingPublishStatusDisplayLabel("published", historicalLogs),
+  HISTORICAL_PUBLICATION_LABEL,
+);
+assert.ok(!hasHistoricalPublication("not_started", historicalLogs));
+assert.ok(!hasHistoricalPublication("published", [{ action: "queue", status: "recorded" }]));
+assert.equal(
+  marketingPublishActionLabel("historical_record"),
+  "Историческая отметка публикации",
+);
+assert.equal(marketingPublishActionLabel("unknown_action"), "unknown_action");
 
 assert.ok(MARKETING_PUBLISH_DISABLED_MESSAGE.includes("Публикация пока выключена"));
 assert.ok(MARKETING_PUBLISH_DISABLED_MESSAGE.includes("source of truth"));

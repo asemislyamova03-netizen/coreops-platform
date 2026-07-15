@@ -251,6 +251,44 @@ class MarketingRepository:
         )
         return list(self.db.scalars(stmt).all())
 
+    def create_publish_log(self, **kwargs) -> MarketingPublishLog:
+        row = MarketingPublishLog(**kwargs)
+        self.db.add(row)
+        self.db.flush()
+        return row
+
+    def find_historical_publish_log(
+        self,
+        tenant_id: uuid.UUID,
+        pack_id: uuid.UUID,
+        *,
+        channel: str,
+        source: str,
+        evidence_ref: str | None,
+        published_at_date: str | None,
+    ) -> MarketingPublishLog | None:
+        """Idempotency lookup for action=historical_record."""
+        stmt = select(MarketingPublishLog).where(
+            MarketingPublishLog.tenant_id == tenant_id,
+            MarketingPublishLog.pack_id == pack_id,
+            MarketingPublishLog.channel == channel,
+            MarketingPublishLog.action == "historical_record",
+        )
+        candidates = list(self.db.scalars(stmt).all())
+        for row in candidates:
+            meta = row.metadata_json or {}
+            if meta.get("source") != source:
+                continue
+            if evidence_ref:
+                if meta.get("evidence_ref") == evidence_ref:
+                    return row
+            else:
+                if meta.get("evidence_ref"):
+                    continue
+                if meta.get("published_at_date") == published_at_date:
+                    return row
+        return None
+
 
 # Backward-compatible alias used by topics service
 MarketingTopicRepository = MarketingRepository

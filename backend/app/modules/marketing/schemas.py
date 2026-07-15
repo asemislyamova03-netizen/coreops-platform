@@ -335,3 +335,51 @@ class ApproveRequest(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=1024)
+
+
+# --- M7-D historical publish (no outbound publisher) ---
+
+HistoricalPublishChannel = Literal[
+    "telegram",
+    "instagram",
+    "threads",
+    "insights",
+    "insights_site",
+    "manual",
+    "external",
+]
+
+HistoricalPublishSource = Literal[
+    "historical_import",
+    "margosya_archive",
+    "manual",
+]
+
+
+class HistoricalPublishRequest(BaseModel):
+    channels: list[HistoricalPublishChannel] = Field(min_length=1)
+    published_at: datetime | None = None
+    source: HistoricalPublishSource = "historical_import"
+    external_url: str | None = Field(default=None, max_length=1024)
+    evidence_ref: str | None = Field(default=None, max_length=512)
+    note: str | None = Field(default=None, max_length=2048)
+    target_social_channels: list[HistoricalPublishChannel] | None = None
+    needs_review: bool = False
+    update_publish_status: bool = True
+
+
+class HistoricalPublishChannelResult(BaseModel):
+    channel: str
+    status: Literal["created", "existing", "skipped"]
+    log_id: uuid.UUID | None = None
+
+
+class HistoricalPublishResponse(BaseModel):
+    pack_id: uuid.UUID
+    publish_status: MarketingPublishStatus
+    pack_status: MarketingPackStatus
+    approval_status: MarketingApprovalStatus
+    logs_created: int
+    skipped_existing: int
+    needs_review: bool = False
+    channel_results: list[HistoricalPublishChannelResult] = Field(default_factory=list)

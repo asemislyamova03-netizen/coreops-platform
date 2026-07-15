@@ -16,9 +16,11 @@ import {
 import { MarketingPageHeader } from "./MarketingPageHeader";
 import {
   marketingApprovalStatusLabel,
+  hasHistoricalPublication as hasHistoricalPublicationRecord,
   marketingPackStatusLabel,
   marketingPreflightStatusLabel,
-  marketingPublishStatusLabel,
+  HISTORICAL_PUBLICATION_NOTE,
+  marketingPublishStatusDisplayLabel,
 } from "./marketingLabels";
 import { resolveMarketingNextAction } from "./marketingNextAction";
 import {
@@ -124,6 +126,10 @@ export function MarketingPackDetailPage() {
   }
 
   const nextAction = resolveMarketingNextAction(pack);
+  const hasHistoricalPublication = hasHistoricalPublicationRecord(
+    pack.publish_status,
+    pack.publish_logs,
+  );
 
   return (
     <div className="page">
@@ -164,7 +170,13 @@ export function MarketingPackDetailPage() {
           <dt>Согласование</dt>
           <dd>{marketingApprovalStatusLabel(pack.approval_status)}</dd>
           <dt>Публикация</dt>
-          <dd>{marketingPublishStatusLabel(pack.publish_status)}</dd>
+          <dd>{marketingPublishStatusDisplayLabel(pack.publish_status, pack.publish_logs)}</dd>
+          {hasHistoricalPublication && (
+            <>
+              <dt>Историческая отметка</dt>
+              <dd>{HISTORICAL_PUBLICATION_NOTE}</dd>
+            </>
+          )}
           <dt>Тема</dt>
           <dd>{pack.topic?.title ?? "—"}</dd>
           <dt>Плановая дата пака</dt>
@@ -253,7 +265,9 @@ export function MarketingPackDetailPage() {
         {activeTab === "approval" && (
           <PackDetailApprovalTab packId={packId} pack={pack} />
         )}
-        {activeTab === "publish" && <PackDetailPublishTab />}
+        {activeTab === "publish" && (
+          <PackDetailPublishTab hasHistoricalPublication={hasHistoricalPublication} />
+        )}
         {activeTab === "logs" && <PackDetailLogsTab pack={pack} />}
       </div>
     </div>

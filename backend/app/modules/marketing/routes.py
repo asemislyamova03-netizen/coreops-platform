@@ -10,6 +10,8 @@ from app.core.tenancy import TenantContext
 from app.modules.marketing.enums import MarketingChannel, MarketingPackStatus, MarketingTopicStatus
 from app.modules.marketing.schemas import (
     ApproveRequest,
+    HistoricalPublishRequest,
+    HistoricalPublishResponse,
     MarketingHealthResponse,
     MediaCreate,
     MediaUpdate,
@@ -30,6 +32,7 @@ from app.modules.marketing.schemas import (
     TopicUpdate,
 )
 from app.modules.marketing.service.approval import MarketingApprovalService
+from app.modules.marketing.service.historical_publish import MarketingHistoricalPublishService
 from app.modules.marketing.service.packs import MarketingPackService
 from app.modules.marketing.service.media import MarketingMediaService
 from app.modules.marketing.service.texts import MarketingTextService
@@ -56,6 +59,13 @@ def _media_service(ctx: TenantContext, db: Session) -> MarketingMediaService:
 
 def _approval_service(ctx: TenantContext, db: Session) -> MarketingApprovalService:
     return MarketingApprovalService(db, ctx.tenant.id)
+
+
+def _historical_publish_service(
+    ctx: TenantContext,
+    db: Session,
+) -> MarketingHistoricalPublishService:
+    return MarketingHistoricalPublishService(db, ctx.tenant.id)
 
 
 @router.get("/health", response_model=MarketingHealthResponse)
@@ -236,6 +246,21 @@ def reject_pack(
     db: Session = Depends(get_db),
 ) -> PackDetailResponse:
     result = _approval_service(ctx, db).reject_pack(ctx.user, pack_id, payload)
+    db.commit()
+    return result
+
+
+@router.post(
+    "/packs/{pack_id}/record-historical-publish",
+    response_model=HistoricalPublishResponse,
+)
+def record_historical_publish(
+    pack_id: uuid.UUID,
+    payload: HistoricalPublishRequest,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> HistoricalPublishResponse:
+    result = _historical_publish_service(ctx, db).record(ctx.user, pack_id, payload)
     db.commit()
     return result
 

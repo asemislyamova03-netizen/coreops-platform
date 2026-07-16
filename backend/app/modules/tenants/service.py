@@ -7,6 +7,7 @@ from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedEr
 from app.core.permissions import get_provider_staff, user_is_provider_owner
 from app.modules.auth.models import User
 from app.modules.auth.repository import UserRepository
+from app.modules.branches.service import BranchService
 from app.modules.provider.repository import ProviderRepository
 from app.modules.industry_templates.repository import IndustryTemplateRepository
 from app.modules.industry_templates.service import IndustryTemplateService
@@ -58,6 +59,7 @@ class TenantService:
             slug=payload.slug,
             status=payload.status,
         )
+        BranchService(self.db).ensure_default_branch(tenant.id)
 
         owner_user_id = payload.owner_user_id
         if payload.owner_email and not owner_user_id:

@@ -10,6 +10,9 @@ from app.modules.marketing.enums import (
     MarketingMediaAssetStatus,
     MarketingPackStatus,
     MarketingPreflightStatus,
+    MarketingPublishingConnectionStatus,
+    MarketingPublishingProvider,
+    MarketingPublishingTokenStatus,
     MarketingPublishStatus,
     MarketingTextStatus,
     MarketingTopicStatus,
@@ -383,3 +386,31 @@ class HistoricalPublishResponse(BaseModel):
     skipped_existing: int
     needs_review: bool = False
     channel_results: list[HistoricalPublishChannelResult] = Field(default_factory=list)
+
+
+# --- M8-B internal service view (not exposed via HTTP routes) ---
+
+
+class PublishingConnectionView(BaseModel):
+    """Service-layer DTO; never includes secret_ref (has_secret only)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    provider: MarketingPublishingProvider
+    account_display_name: str
+    account_identifier: str | None
+    status: MarketingPublishingConnectionStatus
+    token_status: MarketingPublishingTokenStatus
+    has_secret: bool
+    scopes_json: list[str] = Field(default_factory=list)
+    expires_at: datetime | None = None
+    last_checked_at: datetime | None = None
+    last_error_code: str | None = None
+    last_error_message_redacted: str | None = None
+    metadata_json: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+    created_by_user_id: uuid.UUID | None = None
+    updated_by_user_id: uuid.UUID | None = None

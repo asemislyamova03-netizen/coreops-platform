@@ -10,7 +10,13 @@ from app.modules.marketing.models import (
     MarketingMediaAsset,
     MarketingPublicationPack,
     MarketingPublicationText,
+    MarketingPublishingConnection,
     MarketingPublishLog,
+)
+from app.modules.marketing.enums import (
+    MarketingPublishingConnectionStatus,
+    MarketingPublishingProvider,
+    MarketingPublishingTokenStatus,
 )
 
 
@@ -288,6 +294,85 @@ class MarketingRepository:
                 if meta.get("published_at_date") == published_at_date:
                     return row
         return None
+
+    # --- Publishing connections (M8-B) ---
+
+    def list_publishing_connections(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        provider: MarketingPublishingProvider | None = None,
+        status: MarketingPublishingConnectionStatus | None = None,
+        token_status: MarketingPublishingTokenStatus | None = None,
+    ) -> list[MarketingPublishingConnection]:
+        stmt = (
+            select(MarketingPublishingConnection)
+            .where(MarketingPublishingConnection.tenant_id == tenant_id)
+            .order_by(MarketingPublishingConnection.created_at.desc())
+        )
+        if provider is not None:
+            stmt = stmt.where(MarketingPublishingConnection.provider == provider)
+        if status is not None:
+            stmt = stmt.where(MarketingPublishingConnection.status == status)
+        if token_status is not None:
+            stmt = stmt.where(MarketingPublishingConnection.token_status == token_status)
+        return list(self.db.scalars(stmt).all())
+
+    def get_publishing_connection(
+        self,
+        tenant_id: uuid.UUID,
+        connection_id: uuid.UUID,
+    ) -> MarketingPublishingConnection | None:
+        stmt = select(MarketingPublishingConnection).where(
+            MarketingPublishingConnection.tenant_id == tenant_id,
+            MarketingPublishingConnection.id == connection_id,
+        )
+        return self.db.scalar(stmt)
+
+    def get_publishing_connection_for_update(
+        self,
+        tenant_id: uuid.UUID,
+        connection_id: uuid.UUID,
+    ) -> MarketingPublishingConnection | None:
+        """Tenant-scoped load with row lock (FOR UPDATE). SQLite may no-op the lock."""
+        stmt = (
+            select(MarketingPublishingConnection)
+            .where(
+                MarketingPublishingConnection.tenant_id == tenant_id,
+                MarketingPublishingConnection.id == connection_id,
+            )
+            .with_for_update()
+        )
+        return self.db.scalar(stmt)
+
+    def create_publishing_connection(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        provider: MarketingPublishingProvider,
+        account_display_name: str,
+        account_identifier: str | None,
+        status: MarketingPublishingConnectionStatus,
+        token_status: MarketingPublishingTokenStatus,
+        scopes_json: list,
+        metadata_json: dict,
+        created_by_user_id: uuid.UUID | None,
+        updated_by_user_id: uuid.UUID | None,
+    ) -> MarketingPublishingConnection:
+        row = MarketingPublishingConnection(
+            tenant_id=tenant_id,
+            provider=provider,
+            account_display_name=account_display_name,
+            account_identifier=account_identifier,
+            status=status,
+            token_status=token_status,
+            scopes_json=scopes_json,
+            metadata_json=metadata_json,
+            created_by_user_id=created_by_user_id,
+            updated_by_user_id=updated_by_user_id,
+        )
+        self.db.add(row)
+        return row
 
 
 # Backward-compatible alias used by topics service

@@ -32,6 +32,12 @@ class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         default=TenantStatus.TRIAL,
         nullable=False,
     )
+    default_branch_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("branches.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     provider_company: Mapped["ProviderCompany"] = relationship(
         "ProviderCompany",
@@ -46,6 +52,18 @@ class Tenant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         "TenantModule",
         back_populates="tenant",
         lazy="selectin",
+    )
+    branches: Mapped[list["Branch"]] = relationship(
+        "Branch",
+        back_populates="tenant",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        foreign_keys="Branch.tenant_id",
+    )
+    default_branch: Mapped["Branch | None"] = relationship(
+        "Branch",
+        lazy="joined",
+        foreign_keys=[default_branch_id],
     )
     settings: Mapped["TenantSettings | None"] = relationship(
         "TenantSettings",

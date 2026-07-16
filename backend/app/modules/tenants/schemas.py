@@ -40,6 +40,7 @@ class TenantResponse(BaseModel):
     name: str
     slug: str
     industry_template_id: uuid.UUID | None
+    default_branch_id: uuid.UUID | None
     status: TenantStatus
     created_at: datetime
     updated_at: datetime

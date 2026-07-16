@@ -1,4 +1,4 @@
-from app.core.exceptions import ConflictError
+from app.core.exceptions import ConflictError, NotFoundError
 
 
 class MarketingTopicNotApprovedError(ConflictError):
@@ -40,5 +40,25 @@ class MarketingPreflightNotPassedError(ConflictError):
 
 
 class MarketingInvalidPackStateError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
+class MarketingPublishingConnectionValidationError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
+class MarketingPublishingConnectionDuplicateError(ConflictError):
+    def __init__(self) -> None:
+        super().__init__("publishing_connection_duplicate")
+
+
+class MarketingPublishingConnectionNotFoundError(NotFoundError):
+    def __init__(self) -> None:
+        super().__init__("publishing_connection_not_found")
+
+
+class MarketingPublishingSecretLifecycleError(ConflictError):
     def __init__(self, detail: str) -> None:
         super().__init__(detail)

@@ -73,5 +73,6 @@ from app.modules.marketing.models import (  # noqa: F401
     MarketingMediaAsset,
     MarketingPublicationPack,
     MarketingPublicationText,
+    MarketingPublishingConnection,
     MarketingPublishLog,
 )

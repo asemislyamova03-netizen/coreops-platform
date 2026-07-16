@@ -66,6 +66,28 @@ class MarketingAttributionTouchType(str, enum.Enum):
     CONVERTED = "converted"
 
 
+class MarketingPublishingProvider(str, enum.Enum):
+    TELEGRAM = "telegram"
+    INSTAGRAM = "instagram"
+    THREADS = "threads"
+    TIKTOK = "tiktok"
+
+
+class MarketingPublishingConnectionStatus(str, enum.Enum):
+    NOT_CONNECTED = "not_connected"
+    ACTIVE = "active"
+    ERROR = "error"
+    DISABLED = "disabled"
+    EXPIRED = "expired"
+
+
+class MarketingPublishingTokenStatus(str, enum.Enum):
+    NOT_CONFIGURED = "not_configured"
+    VALID = "valid"
+    EXPIRING = "expiring"
+    INVALID = "invalid"
+
+
 DEFAULT_PACK_CHANNELS: tuple[MarketingChannel, ...] = (
     MarketingChannel.TELEGRAM,
     MarketingChannel.INSTAGRAM,

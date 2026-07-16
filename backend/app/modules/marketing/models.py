@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -26,12 +27,15 @@ from app.modules.marketing.enums import (
     MarketingAttributionTouchType,
     MarketingChannel,
     MarketingMediaAssetStatus,
+    MarketingMediaValidationStatus,
     MarketingPackStatus,
     MarketingPreflightStatus,
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
     MarketingPublishStatus,
+    MarketingStorageProfileStatus,
+    MarketingStorageResourceMode,
     MarketingTextStatus,
     MarketingTopicStatus,
 )
@@ -201,9 +205,113 @@ class MarketingPublicationText(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditU
     )
 
 
+class MarketingStorageResourceProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
+    """Tenant-scoped storage mode + limits. No credentials / config_json."""
+
+    __tablename__ = "marketing_storage_resource_profiles"
+    __table_args__ = (
+        Index("ix_marketing_storage_profiles_tenant", "tenant_id"),
+        Index(
+            "uq_marketing_storage_profile_tenant_mode_active",
+            "tenant_id",
+            "mode",
+            unique=True,
+            sqlite_where=text("status = 'ACTIVE'"),
+            postgresql_where=text("status = 'ACTIVE'"),
+        ),
+        Index(
+            "uq_marketing_storage_profile_tenant_default",
+            "tenant_id",
+            unique=True,
+            sqlite_where=text("is_default IS TRUE"),
+            postgresql_where=text("is_default IS TRUE"),
+        ),
+        CheckConstraint(
+            "mode IN ('FLEXITY_MANAGED','CLIENT_PUBLIC_URL','CLIENT_BUCKET')",
+            name="ck_marketing_storage_profile_mode_values",
+        ),
+        CheckConstraint(
+            "status IN ('ACTIVE','DISABLED')",
+            name="ck_marketing_storage_profile_status_values",
+        ),
+        CheckConstraint(
+            "(is_default IS FALSE) OR (status = 'ACTIVE')",
+            name="ck_marketing_storage_profile_default_requires_active",
+        ),
+        # Portable with SQLAlchemy Enum name storage (ACTIVE/CLIENT_BUCKET names).
+        CheckConstraint(
+            "NOT (status = 'ACTIVE' AND mode = 'CLIENT_BUCKET')",
+            name="ck_marketing_storage_profile_no_active_client_bucket",
+        ),
+        CheckConstraint(
+            "max_upload_bytes IS NULL OR (max_upload_bytes > 0 AND max_upload_bytes <= 52428800)",
+            name="ck_marketing_storage_profile_max_upload_bytes",
+        ),
+        CheckConstraint(
+            "max_url_length IS NULL OR (max_url_length > 0 AND max_url_length <= 2048)",
+            name="ck_marketing_storage_profile_max_url_length",
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mode: Mapped[MarketingStorageResourceMode] = mapped_column(
+        Enum(
+            MarketingStorageResourceMode,
+            name="marketing_storage_resource_mode",
+            native_enum=False,
+        ),
+        nullable=False,
+    )
+    status: Mapped[MarketingStorageProfileStatus] = mapped_column(
+        Enum(
+            MarketingStorageProfileStatus,
+            name="marketing_storage_profile_status",
+            native_enum=False,
+        ),
+        default=MarketingStorageProfileStatus.DISABLED,
+        server_default="DISABLED",
+        nullable=False,
+        index=True,
+    )
+    is_default: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    max_upload_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    max_url_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Normalized unique MIME list as JSON array (portable across SQLite/PG).
+    allowed_mime_types: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+
 class MarketingMediaAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
     __tablename__ = "marketing_media_assets"
-    __table_args__ = (Index("ix_marketing_media_tenant_pack", "tenant_id", "pack_id"),)
+    __table_args__ = (
+        Index("ix_marketing_media_tenant_pack", "tenant_id", "pack_id"),
+        CheckConstraint(
+            "validation_status IN ("
+            "'LEGACY_UNVERIFIED','REGISTERED_UNVERIFIED','VALIDATED_METADATA',"
+            "'REJECTED','ARCHIVED')",
+            name="ck_marketing_media_validation_status_values",
+        ),
+        CheckConstraint(
+            "resource_mode IS NULL OR resource_mode IN ("
+            "'FLEXITY_MANAGED','CLIENT_PUBLIC_URL','CLIENT_BUCKET')",
+            name="ck_marketing_media_resource_mode_values",
+        ),
+        CheckConstraint(
+            "declared_size_bytes IS NULL OR declared_size_bytes >= 0",
+            name="ck_marketing_media_declared_size_nonneg",
+        ),
+        CheckConstraint(
+            "verified_size_bytes IS NULL OR verified_size_bytes >= 0",
+            name="ck_marketing_media_verified_size_nonneg",
+        ),
+    )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
@@ -231,6 +339,36 @@ class MarketingMediaAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMi
         Enum(MarketingMediaAssetStatus, name="marketing_media_status", native_enum=False),
         default=MarketingMediaAssetStatus.PENDING,
         nullable=False,
+    )
+    # M8-C2a: safety track. Existing/legacy rows default to LEGACY_UNVERIFIED —
+    # never treated as malware-safe or publish-ready.
+    validation_status: Mapped[MarketingMediaValidationStatus] = mapped_column(
+        Enum(
+            MarketingMediaValidationStatus,
+            name="marketing_media_validation_status",
+            native_enum=False,
+        ),
+        default=MarketingMediaValidationStatus.LEGACY_UNVERIFIED,
+        server_default="LEGACY_UNVERIFIED",
+        nullable=False,
+    )
+    declared_mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    declared_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    verified_mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    verified_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    storage_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("marketing_storage_resource_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    resource_mode: Mapped[MarketingStorageResourceMode | None] = mapped_column(
+        Enum(
+            MarketingStorageResourceMode,
+            name="marketing_media_resource_mode",
+            native_enum=False,
+        ),
+        nullable=True,
     )
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 

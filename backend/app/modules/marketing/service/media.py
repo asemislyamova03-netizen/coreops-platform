@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
 from app.modules.auth.models import User
-from app.modules.marketing.enums import ALLOWED_MEDIA_MIME_TYPES, MarketingMediaAssetStatus
+from app.modules.marketing.enums import (
+    ALLOWED_MEDIA_MIME_TYPES,
+    MarketingMediaAssetStatus,
+    MarketingMediaValidationStatus,
+)
 from app.modules.marketing.exceptions import MarketingInvalidMimeTypeError
 from app.modules.marketing.models import MarketingMediaAsset, MarketingPublicationPack
 from app.modules.marketing.repository import MarketingRepository
@@ -40,6 +44,11 @@ class MarketingMediaService:
         pack_id: uuid.UUID,
         payload: MediaCreate,
     ) -> PackMediaAssetResponse:
+        """Legacy attach path (git_path / existing API).
+
+        Compatibility: existing assets stay legacy_unverified — never auto-validated.
+        Mode A/B lifecycle services are separate domain entrypoints.
+        """
         pack = self._get_pack_or_404(pack_id)
         mime_type = _validate_mime(payload.mime_type)
 
@@ -57,6 +66,8 @@ class MarketingMediaService:
             height=payload.height,
             alt_text=payload.alt_text,
             status=MarketingMediaAssetStatus.STORED,
+            validation_status=MarketingMediaValidationStatus.LEGACY_UNVERIFIED,
+            declared_mime_type=mime_type,
             metadata_json=payload.metadata_json,
             created_by_user_id=user.id,
             updated_by_user_id=user.id,

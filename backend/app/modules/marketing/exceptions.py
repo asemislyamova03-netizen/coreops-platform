@@ -62,3 +62,28 @@ class MarketingPublishingConnectionNotFoundError(NotFoundError):
 class MarketingPublishingSecretLifecycleError(ConflictError):
     def __init__(self, detail: str) -> None:
         super().__init__(detail)
+
+
+class MarketingStorageProfileValidationError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
+class MarketingStorageProfileNotFoundError(NotFoundError):
+    def __init__(self) -> None:
+        super().__init__("storage_profile_not_found")
+
+
+class MarketingStorageProfileDuplicateActiveError(ConflictError):
+    def __init__(self) -> None:
+        super().__init__("storage_profile_active_duplicate")
+
+
+class MarketingManagedMediaLifecycleError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
+class MarketingPublicUrlValidationError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)

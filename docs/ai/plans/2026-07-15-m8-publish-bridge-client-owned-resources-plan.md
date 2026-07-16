@@ -2,12 +2,13 @@
 
 **Date:** 2026-07-15
 **Project:** Flexity / `coreops-platform`
-**Status:** M8-A ✅ · M8-B ✅ FINAL ACCEPTED (PG smoke PASS) · M8-C umbrella ✅ · M8-C1a implemented (review) — M8-C2 **not approved**
+**Status:** M8-A ✅ · M8-B ✅ · M8-C1a ✅ · M8-C2a ✅ FINAL ACCEPTED / GREEN — PG smoke `0017→0018→0017→0018` PASS; M8-D **not approved**
 **Parent research:** `docs/ai/research/2026-07-15-m8-client-owned-publish-resources-architecture-research.md`
 **Accepted ADR:** `docs/architecture/decisions/2026-07-15-m8-publish-bridge-client-owned-resources-adr.md`
 **M8-A report:** `docs/ai/reports/2026-07-15-m8-a-publish-bridge-architecture-decision-report.md`
 **M8-B implementation plan:** `docs/ai/plans/2026-07-16-m8-b-connected-accounts-implementation-plan.md`
 **M8-C implementation plan:** `docs/ai/plans/2026-07-16-m8-c-secret-vault-storage-resource-profiles-implementation-plan.md`
+**Branch:** `feature/marketing-m8-publish-bridge` · Alembic head: `0018_mkt_storage_profiles`
 
 ## Goal
 
@@ -173,7 +174,7 @@ Add Threads, Instagram, TikTok and Insights only after shared security, media an
 | M8-C plan complete ✅ | Umbrella **HQ APPROVED WITH CLARIFICATIONS**; C2 code **not approved** |
 | M8-C1a complete (review) | Secret vault core hardened (dedicated UoW) + `0017_mkt_secret_binding` — awaiting HQ + mandatory PG smoke `0016→0017` |
 | M8-C1 remaining | Encrypted-file adapter / env wiring — deferred |
-| M8-C2 code approval | Separate HQ gate — **not granted**; after M8-C1 acceptance |
+| M8-C2 code approval | ✅ **FINAL ACCEPTED / GREEN** (2026-07-16) — storage profiles + Mode A/B boundary; PG smoke PASS |
 | M8-C2 complete | Storage profiles + StoragePort + media validation; PG smoke on new head |
 | Production vault adapter | Deployment/infrastructure gate — required before M8-D/E live work |
 | Production storage backend | Deployment gate — required before Mode A production uploads |
@@ -191,7 +192,7 @@ Add Threads, Instagram, TikTok and Insights only after shared security, media an
 
 ## Next safe step
 
-1. HQ review/accept **M8-C1a** (Secret Vault Core Boundary).
-2. Optional: PostgreSQL smoke `0016 → 0017_mkt_secret_binding` before deploy.
-3. After M8-C1 acceptance, request **M8-C2 code approval** (storage profiles only).
-4. Do not start M8-D, production vault/storage wiring, Telegram adapter, or client onboarding UI until M8-C slices are accepted.
+1. M8-C2a accepted — local commit + full regression green; **no deploy / no production migration**.
+2. Production storage provider (S3-compatible adapter) remains a **separate deployment gate** — unresolved in C2a.
+3. Request **M8-D plan approval** when ready (dry-run/publish contract) — **not started**.
+4. Do not start Telegram adapter, client onboarding UI, or production vault/storage wiring until M8-D is approved.

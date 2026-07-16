@@ -20,9 +20,10 @@ def test_0017_migration_revision_chain():
     assert rev.down_revision == DOWN_REVISION_0017
     assert len(REVISION_0017) <= 32
 
-    head = script.get_current_head()
-    assert head == REVISION_0017
-    assert script.get_heads() == [REVISION_0017]
+    # 0017 remains in chain; head may advance to later revisions.
+    assert script.get_revision(REVISION_0017) is not None
+    heads = script.get_heads()
+    assert len(heads) == 1
 
 
 def test_0017_migration_module_importable():

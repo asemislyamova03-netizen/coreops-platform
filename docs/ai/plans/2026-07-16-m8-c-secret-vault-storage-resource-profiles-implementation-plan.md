@@ -7,8 +7,9 @@
 **Parent M8 plan:** `docs/ai/plans/2026-07-15-m8-publish-bridge-client-owned-resources-plan.md`
 **M8-B baseline plan:** `docs/ai/plans/2026-07-16-m8-b-connected-accounts-implementation-plan.md`
 **HQ gate:** M8-C umbrella plan — **HQ APPROVED WITH CLARIFICATIONS (2026-07-16)**.
-**M8-C1a status:** hardened locally (dedicated UoW + post-commit safety + row lock path) — awaiting HQ review / mandatory PG smoke `0016→0017`.
-**M8-C1 remaining / M8-C2 code:** **not approved**. Production vault/storage providers are **not selected**.
+**M8-C1a status:** ✅ FINAL ACCEPTED / GREEN (dedicated UoW + PG smoke).
+**M8-C2a status:** ✅ **FINAL ACCEPTED / GREEN** (2026-07-16) — cardinality (ACTIVE per mode + `is_default`), `object_storage` package, opaque `StorageObjectRef`, URL validator hardening, `verified_size_bytes`, enum NAME storage parity. Tests green; PostgreSQL smoke `0017→0018→0017→0018` PASS on disposable DB. **No deploy / no production migration.**
+**Not approved yet:** local FS / S3/R2 production adapters, client_bucket, HTTP/UI, M8-D, orphan sweeper.
 
 ## Goal
 

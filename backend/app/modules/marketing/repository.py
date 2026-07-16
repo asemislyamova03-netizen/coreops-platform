@@ -12,11 +12,14 @@ from app.modules.marketing.models import (
     MarketingPublicationText,
     MarketingPublishingConnection,
     MarketingPublishLog,
+    MarketingStorageResourceProfile,
 )
 from app.modules.marketing.enums import (
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
+    MarketingStorageProfileStatus,
+    MarketingStorageResourceMode,
 )
 
 
@@ -368,6 +371,79 @@ class MarketingRepository:
             token_status=token_status,
             scopes_json=scopes_json,
             metadata_json=metadata_json,
+            created_by_user_id=created_by_user_id,
+            updated_by_user_id=updated_by_user_id,
+        )
+        self.db.add(row)
+        return row
+
+    # --- Storage resource profiles (M8-C2a) ---
+
+    def list_storage_profiles(
+        self, tenant_id: uuid.UUID
+    ) -> list[MarketingStorageResourceProfile]:
+        stmt = (
+            select(MarketingStorageResourceProfile)
+            .where(MarketingStorageResourceProfile.tenant_id == tenant_id)
+            .order_by(MarketingStorageResourceProfile.created_at.desc())
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def get_storage_profile(
+        self,
+        tenant_id: uuid.UUID,
+        profile_id: uuid.UUID,
+    ) -> MarketingStorageResourceProfile | None:
+        stmt = select(MarketingStorageResourceProfile).where(
+            MarketingStorageResourceProfile.tenant_id == tenant_id,
+            MarketingStorageResourceProfile.id == profile_id,
+        )
+        return self.db.scalar(stmt)
+
+    def get_active_storage_profile(
+        self,
+        tenant_id: uuid.UUID,
+        mode: MarketingStorageResourceMode,
+    ) -> MarketingStorageResourceProfile | None:
+        stmt = select(MarketingStorageResourceProfile).where(
+            MarketingStorageResourceProfile.tenant_id == tenant_id,
+            MarketingStorageResourceProfile.mode == mode,
+            MarketingStorageResourceProfile.status == MarketingStorageProfileStatus.ACTIVE,
+        )
+        return self.db.scalar(stmt)
+
+    def get_default_storage_profile(
+        self, tenant_id: uuid.UUID
+    ) -> MarketingStorageResourceProfile | None:
+        stmt = select(MarketingStorageResourceProfile).where(
+            MarketingStorageResourceProfile.tenant_id == tenant_id,
+            MarketingStorageResourceProfile.is_default.is_(True),
+        )
+        return self.db.scalar(stmt)
+
+    def create_storage_profile(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        mode: MarketingStorageResourceMode,
+        status: MarketingStorageProfileStatus,
+        is_default: bool,
+        display_name: str,
+        max_upload_bytes: int | None,
+        max_url_length: int | None,
+        allowed_mime_types: list | None,
+        created_by_user_id: uuid.UUID | None,
+        updated_by_user_id: uuid.UUID | None,
+    ) -> MarketingStorageResourceProfile:
+        row = MarketingStorageResourceProfile(
+            tenant_id=tenant_id,
+            mode=mode,
+            status=status,
+            is_default=is_default,
+            display_name=display_name,
+            max_upload_bytes=max_upload_bytes,
+            max_url_length=max_url_length,
+            allowed_mime_types=allowed_mime_types,
             created_by_user_id=created_by_user_id,
             updated_by_user_id=updated_by_user_id,
         )

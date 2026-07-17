@@ -1,9 +1,11 @@
 # Instagram Publishing
 
-Flexity supports two Instagram publisher scripts for content packs:
+**Production live publishing is NOT supported yet.**
+
+Flexity has two Instagram publisher scripts for content packs:
 
 - `scripts/content/publish_instagram.py` — schema validator and preview for `feed_image`, `carousel`, and `reels`;
-- `scripts/content/publish_instagram_live.py` — live-oriented publisher MVP for approved `feed_image` posts only.
+- `scripts/content/publish_instagram_live.py` — dry-run-first publisher for approved `feed_image` / `carousel` / `reels` packs. Live paths remain non-production.
 
 ## Schema dry-run
 
@@ -19,7 +21,7 @@ landing/content/content-packs/*/instagram.yml
 
 It reads the caption file referenced by `caption_source`, normally `instagram.md`, and does not modify any file.
 
-Running the script without `--dry-run` always fails with:
+Running the schema script without `--dry-run` always fails with:
 
 ```text
 Instagram live publishing is not implemented yet. Use --dry-run.
@@ -31,37 +33,30 @@ Instagram live publishing is not implemented yet. Use --dry-run.
 python scripts/content/publish_instagram_live.py
 ```
 
-Default mode is dry-run. It scans the same content packs, but also reads each pack's top-level `pack.yml` and applies live MVP gates.
+Default mode is dry-run. It scans the same content packs, reads each pack's top-level `pack.yml`, and applies eligibility gates.
 
 Dry-run does not:
 
 - require Instagram secrets;
-- call Meta API;
+- call Meta / external HTTP APIs;
 - write `instagram.yml`, `publish_log.yml`, or any other file.
 
-For every valid eligible pack, dry-run prints:
+For every valid eligible pack, dry-run prints pack name, `type`, caption length, media URL(s), `publish_at`, and `would_publish=true`.
 
-- pack name;
-- `type=feed_image`;
-- caption length;
-- `image_url` (HTTPS only);
-- scheduled `publish_at`;
-- `would_publish=true`.
-
-## Live publisher (`--live`)
+## Live publisher (`--live`) — non-production
 
 ```bash
 python scripts/content/publish_instagram_live.py --live
 ```
 
-Live mode is enabled only with the explicit `--live` flag.
+**Production live publishing is NOT supported yet.** `--live` is an ops/experimental path only.
 
-Required environment variables:
+Required environment variables for any `--live` attempt:
 
 - `INSTAGRAM_USER_ID`
 - `INSTAGRAM_ACCESS_TOKEN`
 
-Secrets are read only from the environment. The script never prints the token and never writes credentials to files or logs. If either secret is missing, the command fails closed before any API call.
+Secrets are read only from the environment. Tokens must not appear in stdout/stderr or logs. Provider-like fragments (`Bearer …`, `Authorization: …`, `access_token=`) are redacted via `sanitize_error`.
 
 Live mode may write only:
 
@@ -70,21 +65,32 @@ Live mode may write only:
 
 It does not modify `pack.yml`, `instagram.md`, Telegram files, or workflow artifacts.
 
-### Meta API flow (feed image MVP)
+### Reels live — fail-closed experimental gate
 
-1. Create media container: `POST /{INSTAGRAM_USER_ID}/media` with `image_url` and caption.
+Instagram **Reels** live publish is unsafe without status polling and stronger idempotency. Default is fail-closed:
+
+```bash
+# Blocked:
+python scripts/content/publish_instagram_live.py --live
+# (eligible reels pack → ERROR, no API call)
+
+# Explicit experimental unlock only (NOT for production):
+python scripts/content/publish_instagram_live.py --live --allow-experimental-live
+# or:
+FLEXITY_ALLOW_EXPERIMENTAL_REELS_LIVE=1 python scripts/content/publish_instagram_live.py --live
+```
+
+`feed_image` / `carousel` `--live` still require secrets and remain non-production; they do not use the Reels experimental env, but must not be treated as production publishing.
+
+### Meta API flow (current script)
+
+1. Create media container: `POST /{INSTAGRAM_USER_ID}/media`.
 2. Publish media container: `POST /{INSTAGRAM_USER_ID}/media_publish` with `creation_id`.
-3. After confirmed API success, write:
-   - `instagram.yml`: `published_at`, `external_id`, `status: published`;
-   - `publish_log.yml`: append `channel: instagram`, `status: published`, `external_id`.
+3. After confirmed API success, write `published_at`, `external_id`, `status: published` and append `publish_log.yml`.
 
-On API failure, the script appends an error event to `publish_log.yml` and does not set `published_at`, `external_id`, or `status: published`.
-
-Before the first real `--live` run, verify exact Meta permissions, App Review status, and Graph API version in the Meta App Dashboard. The script currently uses Graph API version `v21.0` as a placeholder constant and that value must be confirmed against the dashboard before production use.
+On API failure, the script appends a redacted error event and does not mark the pack published.
 
 ## Eligibility gates
-
-A pack is considered for live publisher dry-run or `--live` only when all gates pass.
 
 ### Skip (exit 0, no API)
 
@@ -96,54 +102,30 @@ A pack is considered for live publisher dry-run or `--live` only when all gates 
 
 ### Fail closed (non-zero exit, no API)
 
-- `publish_at` is missing or has no timezone;
-- `type` is not `feed_image` (Reels and carousel are future scope);
-- `media.image_url` is missing or does not start with `https://`;
-- `caption_source` is missing, escapes the pack directory, points to a missing file, or is not `instagram.md`;
-- caption file is empty;
-- in `--live` mode: `INSTAGRAM_USER_ID` or `INSTAGRAM_ACCESS_TOKEN` is missing.
+- invalid `publish_at` / media / caption rules;
+- in `--live` mode: missing `INSTAGRAM_USER_ID` or `INSTAGRAM_ACCESS_TOKEN`;
+- in `--live` mode for `type: reels` without experimental unlock.
 
-Republish protection: if `published_at` or `external_id` is already set, the pack is skipped and API is never called.
+## Follow-ups (documented, not implemented here)
 
-## instagram.yml fields (live MVP)
+- **Reels status poll** after container create (wait for Meta processing before publish);
+- **atomic idempotency** beyond soft YAML `published_at` / `external_id` skip (tenant-safe keys in M8-D core).
 
-```yaml
-status: "approved"
-type: "feed_image"
-publish_at: "YYYY-MM-DDT12:00:00+05:00"
-published_at: null
-external_id: null
-media:
-  image_url: "https://cdn.example.com/post.jpg"
-caption_source: "instagram.md"
-```
+## First real publish gate
 
-Live publisher MVP supports only:
+Implementation of these scripts does **not** approve any real Instagram publication.
 
-- `type: feed_image`;
-- `media.image_url` as HTTPS public URL;
-- `caption_source: instagram.md`.
+Before any real Meta API publish:
 
-The schema dry-run script still validates `reels` and `carousel` for future work, but the live publisher rejects them.
-
-Without a public HTTPS image URL, Meta cannot fetch a feed image from the content pack.
-
-## First live publish gate
-
-Implementation of the live publisher does **not** approve the first real Instagram publication.
-
-Before the first `--live` run with real credentials:
-
-1. Run both dry-run commands and confirm the expected eligible pack list.
-2. Review caption, image URL, and target Instagram account manually.
-3. Verify Meta permissions, token scope/expiry, and Graph API version in the Meta App Dashboard.
+1. Run dry-run and confirm the expected eligible pack list.
+2. Review caption, media URL(s), and target account manually.
+3. Verify Meta permissions, token scope/expiry, and Graph API version.
 4. Obtain **separate explicit approval** for the first Meta API publish.
-5. After publish, verify the public post, `external_id`, and `publish_log.yml`.
 
 ## GitHub Actions
 
-No Instagram workflow is included yet. A manually triggered workflow with protected secrets will be added only after local/manual verification of the live publisher.
+No Instagram workflow is included in this hardening slice. A manually triggered workflow with protected secrets stays deferred.
 
-## Relationship to Telegram
+## Relationship to Telegram / TikTok
 
-The Instagram live publisher does not read Telegram metadata and does not modify the Telegram publisher or workflow.
+The Instagram live publisher does not read Telegram or TikTok metadata and does not modify those publishers.

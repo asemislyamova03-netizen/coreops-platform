@@ -62,6 +62,15 @@
 4. **Tenant isolation:** N/A for filesystem content-pack scripts (no multi-tenant DB path in this extract)
 5. **No real publications / external API calls** during verification (tests mock `requests`)
 
+## Hardening follow-up (same branch, separate commit)
+
+After extract tip `0b0796b`:
+
+1. TikTok (+ IG) `sanitize_error` also redacts `Bearer …` and `Authorization: …`
+2. TikTok `--live` and Instagram Reels `--live` are **fail-closed** unless `--allow-experimental-live` or the matching env gate is set
+3. CLI help + `docs/content/tiktok-publishing.md` / `docs/content/instagram-publishing.md` state plainly: **production live publishing is NOT supported yet**
+4. Documented (not implemented): Reels status poll + atomic idempotency
+
 ## Verification commands
 
 ```bash

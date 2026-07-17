@@ -331,7 +331,17 @@ class InstagramLivePublisherTests(unittest.TestCase):
             )
         return result, stdout.getvalue(), stderr.getvalue()
 
-    def test_reels_publishes_when_video_url_present(self) -> None:
+    def test_reels_live_without_experimental_gate_fails_closed(self) -> None:
+        self.create_pack(post_type="reels")
+        with patch.object(publish_instagram_live.requests, "post") as post:
+            result, stdout, stderr = self.run_main(["--live"])
+        self.assertEqual(result, 1)
+        post.assert_not_called()
+        self.assertIn("fail-closed", stderr)
+        self.assertIn("NOT supported yet", stderr)
+        self.assert_token_absent(stdout, stderr)
+
+    def test_reels_publishes_when_experimental_flag_and_video_url_present(self) -> None:
         self.create_pack(post_type="reels")
         create_response = Mock(status_code=200)
         create_response.json.return_value = {"id": "creation-reel"}
@@ -339,18 +349,87 @@ class InstagramLivePublisherTests(unittest.TestCase):
         publish_response.json.return_value = {"id": "reel-media"}
         with patch.object(
             publish_instagram_live.requests, "post", side_effect=[create_response, publish_response]
-        ):
-            result, stdout, _ = self.run_main(["--live"])
+        ) as post:
+            result, stdout, stderr = self.run_main(["--live", "--allow-experimental-live"])
         self.assertEqual(result, 0)
+        self.assertEqual(post.call_count, 2)
         self.assertIn("PUBLISHED test-pack: external_id=reel-media", stdout)
+        self.assert_token_absent(stdout, stderr)
+
+    def test_reels_publishes_when_experimental_env_set(self) -> None:
+        self.create_pack(post_type="reels")
+        create_response = Mock(status_code=200)
+        create_response.json.return_value = {"id": "creation-reel"}
+        publish_response = Mock(status_code=200)
+        publish_response.json.return_value = {"id": "reel-media"}
+        environment = {
+            **self.environment,
+            publish_instagram_live.EXPERIMENTAL_REELS_LIVE_ENV: "1",
+        }
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with patch.object(
+            publish_instagram_live.requests, "post", side_effect=[create_response, publish_response]
+        ) as post:
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                result = publish_instagram_live.main(
+                    ["--live"],
+                    self.content_dir,
+                    self.now,
+                    environment,
+                )
+        self.assertEqual(result, 0)
+        self.assertEqual(post.call_count, 2)
+        self.assertIn("PUBLISHED test-pack: external_id=reel-media", stdout.getvalue())
+        self.assert_token_absent(stdout.getvalue(), stderr.getvalue())
 
     def test_reels_without_video_url_fails_closed(self) -> None:
         self.create_pack(post_type="reels", media={"video_url": ""})
         with patch.object(publish_instagram_live.requests, "post") as post:
-            result, _, stderr = self.run_main(["--live"])
+            result, _, stderr = self.run_main(["--live", "--allow-experimental-live"])
         self.assertEqual(result, 1)
         post.assert_not_called()
         self.assertIn("media.video_url is required", stderr)
+
+    def test_reels_dry_run_does_not_call_external_apis(self) -> None:
+        pack_dir = self.create_pack(post_type="reels")
+        before = (pack_dir / "instagram.yml").read_bytes()
+        with patch.object(publish_instagram_live.requests, "post") as post, patch.object(
+            publish_instagram_live.requests, "get"
+        ) as get:
+            result, stdout, stderr = self.run_main([])
+        self.assertEqual(result, 0)
+        post.assert_not_called()
+        get.assert_not_called()
+        self.assertIn("type=reels", stdout)
+        self.assertIn("would_publish=true", stdout)
+        self.assertEqual((pack_dir / "instagram.yml").read_bytes(), before)
+        self.assert_token_absent(stdout, stderr)
+
+    def test_sanitize_error_redacts_bearer_authorization_and_access_token(self) -> None:
+        self.assertEqual(
+            publish_instagram_live.sanitize_error("prefix Bearer test-token-secret-abc suffix"),
+            "prefix Bearer [REDACTED] suffix",
+        )
+        self.assertEqual(
+            publish_instagram_live.sanitize_error("Authorization: test-token-secret-abc"),
+            "Authorization: [REDACTED]",
+        )
+        self.assertEqual(
+            publish_instagram_live.sanitize_error("access_token=test-token-secret-abc&x=1"),
+            "access_token=[REDACTED]&x=1",
+        )
+        combined = publish_instagram_live.sanitize_error(
+            "Authorization: Bearer test-token-secret-abc access_token=test-token-secret-abc"
+        )
+        self.assertNotIn("test-token-secret-abc", combined)
+        self.assertIn("[REDACTED]", combined)
+
+    def test_cli_help_states_production_live_not_supported(self) -> None:
+        help_text = publish_instagram_live.build_parser().format_help()
+        self.assertIn("NOT supported yet", help_text)
+        self.assertIn("--allow-experimental-live", help_text)
+        self.assertIn(publish_instagram_live.EXPERIMENTAL_REELS_LIVE_ENV, help_text)
 
     def test_carousel_publishes_with_two_items(self) -> None:
         self.create_pack(

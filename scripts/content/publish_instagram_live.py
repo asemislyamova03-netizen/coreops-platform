@@ -21,7 +21,13 @@ GRAPH_API_VERSION = "v21.0"
 GRAPH_API_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 SUPPORTED_TYPES = {"feed_image", "carousel", "reels"}
 MVP_CAPTION_SOURCE = "instagram.md"
-TOKEN_REDACT_PATTERN = re.compile(r"access_token=[^&\s]+", re.IGNORECASE)
+EXPERIMENTAL_REELS_LIVE_ENV = "FLEXITY_ALLOW_EXPERIMENTAL_REELS_LIVE"
+# Redact common token leak shapes from provider/error text before logging or printing.
+_TOKEN_REDACT_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"(?i)bearer\s+\S+"), "Bearer [REDACTED]"),
+    (re.compile(r"(?i)authorization\s*[:=]\s*\S+"), "Authorization: [REDACTED]"),
+    (re.compile(r"(?i)access_token=[^&\s]+"), "access_token=[REDACTED]"),
+)
 
 
 def now_iso() -> str:
@@ -66,7 +72,18 @@ def append_log(pack_dir: Path, event: dict[str, Any]) -> None:
 
 
 def sanitize_error(message: str) -> str:
-    return TOKEN_REDACT_PATTERN.sub("access_token=[REDACTED]", message)
+    sanitized = message
+    for pattern, replacement in _TOKEN_REDACT_PATTERNS:
+        sanitized = pattern.sub(replacement, sanitized)
+    return sanitized
+
+
+def experimental_reels_live_allowed(
+    environment: Mapping[str, str], *, allow_experimental_live: bool
+) -> bool:
+    if allow_experimental_live:
+        return True
+    return str(environment.get(EXPERIMENTAL_REELS_LIVE_ENV, "")).strip() == "1"
 
 
 def pack_eligibility(pack: dict[str, Any]) -> tuple[bool, str]:
@@ -328,6 +345,7 @@ def run_scan(
     now: datetime,
     live: bool,
     environment: Mapping[str, str],
+    allow_experimental_live: bool = False,
 ) -> int:
     if live:
         missing = check_secrets(environment)
@@ -341,6 +359,9 @@ def run_scan(
 
     user_id = environment.get("INSTAGRAM_USER_ID", "")
     token = environment.get("INSTAGRAM_ACCESS_TOKEN", "")
+    reels_live_allowed = experimental_reels_live_allowed(
+        environment, allow_experimental_live=allow_experimental_live
+    )
 
     preview_count = 0
     published_count = 0
@@ -355,7 +376,7 @@ def run_scan(
         except (OSError, ValueError, yaml.YAMLError) as exc:
             error_count += 1
             print(
-                f"ERROR {pack_dir.name}: cannot read pack.yml: {exc}",
+                f"ERROR {pack_dir.name}: cannot read pack.yml: {sanitize_error(str(exc))}",
                 file=sys.stderr,
             )
             continue
@@ -365,7 +386,7 @@ def run_scan(
             allowed, reason, publish_at = should_publish(pack, config, now)
         except (OSError, ValueError, yaml.YAMLError) as exc:
             error_count += 1
-            print(f"ERROR {pack_dir.name}: {exc}", file=sys.stderr)
+            print(f"ERROR {pack_dir.name}: {sanitize_error(str(exc))}", file=sys.stderr)
             continue
 
         if not allowed:
@@ -376,7 +397,7 @@ def run_scan(
             post_type, caption, media_items = validate_instagram_media_mvp(pack_dir, config)
         except (OSError, UnicodeError, ValueError) as exc:
             error_count += 1
-            print(f"ERROR {pack_dir.name}: {exc}", file=sys.stderr)
+            print(f"ERROR {pack_dir.name}: {sanitize_error(str(exc))}", file=sys.stderr)
             continue
 
         if not live:
@@ -399,6 +420,17 @@ def run_scan(
                 "would_publish=true"
             )
             preview_count += 1
+            continue
+
+        if post_type == "reels" and not reels_live_allowed:
+            error_count += 1
+            print(
+                f"ERROR {pack_dir.name}: Instagram Reels live publishing is experimental "
+                "and fail-closed by default. Production live publishing is NOT supported yet. "
+                f"Pass --allow-experimental-live or set {EXPERIMENTAL_REELS_LIVE_ENV}=1 "
+                "to unlock the unsafe experimental Reels path. Prefer dry-run (default).",
+                file=sys.stderr,
+            )
             continue
 
         try:
@@ -438,12 +470,29 @@ def run_scan(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Publish approved Instagram feed_image/carousel/reels content packs."
+        description=(
+            "Instagram content-pack publisher for feed_image/carousel/reels (dry-run default). "
+            "Production live publishing is NOT supported yet."
+        )
     )
     parser.add_argument(
         "--live",
         action="store_true",
-        help="Publish eligible packs via Meta API. Default is dry-run.",
+        help=(
+            "Attempt Meta API publish for eligible packs. "
+            "Production live publishing is NOT supported yet. "
+            "Reels live additionally requires --allow-experimental-live or "
+            f"{EXPERIMENTAL_REELS_LIVE_ENV}=1. Default is dry-run."
+        ),
+    )
+    parser.add_argument(
+        "--allow-experimental-live",
+        action="store_true",
+        help=(
+            "Explicitly unlock the unsafe experimental Reels --live path. "
+            f"Alternative: {EXPERIMENTAL_REELS_LIVE_ENV}=1. Not for production. "
+            "Follow-up still required: Reels status poll + atomic idempotency."
+        ),
     )
     return parser
 
@@ -465,6 +514,7 @@ def main(
         now=current,
         live=args.live,
         environment=environment,
+        allow_experimental_live=args.allow_experimental_live,
     )
 
 

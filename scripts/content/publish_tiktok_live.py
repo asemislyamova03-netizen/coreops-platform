@@ -18,7 +18,13 @@ from publish_instagram import load_yaml, parse_publish_at, read_caption
 ROOT = Path(__file__).resolve().parents[2]
 CONTENT_PACKS_DIR = ROOT / "landing" / "content" / "content-packs"
 TIKTOK_API_BASE = "https://open.tiktokapis.com/v2"
-TOKEN_REDACT_PATTERN = re.compile(r"access_token=[^&\s]+", re.IGNORECASE)
+EXPERIMENTAL_LIVE_ENV = "FLEXITY_ALLOW_EXPERIMENTAL_TIKTOK_LIVE"
+# Redact common token leak shapes from provider/error text before logging or printing.
+_TOKEN_REDACT_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"(?i)bearer\s+\S+"), "Bearer [REDACTED]"),
+    (re.compile(r"(?i)authorization\s*[:=]\s*\S+"), "Authorization: [REDACTED]"),
+    (re.compile(r"(?i)access_token=[^&\s]+"), "access_token=[REDACTED]"),
+)
 
 
 def now_iso() -> str:
@@ -57,7 +63,16 @@ def append_log(pack_dir: Path, event: dict[str, Any]) -> None:
 
 
 def sanitize_error(message: str) -> str:
-    return TOKEN_REDACT_PATTERN.sub("access_token=[REDACTED]", message)
+    sanitized = message
+    for pattern, replacement in _TOKEN_REDACT_PATTERNS:
+        sanitized = pattern.sub(replacement, sanitized)
+    return sanitized
+
+
+def experimental_live_allowed(environment: Mapping[str, str], *, allow_experimental_live: bool) -> bool:
+    if allow_experimental_live:
+        return True
+    return str(environment.get(EXPERIMENTAL_LIVE_ENV, "")).strip() == "1"
 
 
 def should_publish(pack: dict[str, Any], config: dict[str, Any], now: datetime) -> tuple[bool, str, datetime | None]:
@@ -136,7 +151,26 @@ def publish_one(pack_dir: Path, config: dict[str, Any], token: str) -> str:
     return external_id
 
 
-def run_scan(*, content_packs_dir: Path, now: datetime, live: bool, environment: Mapping[str, str], pack_filter: str | None) -> int:
+def run_scan(
+    *,
+    content_packs_dir: Path,
+    now: datetime,
+    live: bool,
+    environment: Mapping[str, str],
+    pack_filter: str | None,
+    allow_experimental_live: bool = False,
+) -> int:
+    if live and not experimental_live_allowed(
+        environment, allow_experimental_live=allow_experimental_live
+    ):
+        print(
+            "ERROR: TikTok live publishing is experimental and fail-closed by default. "
+            "Production live publishing is NOT supported yet. "
+            f"Pass --allow-experimental-live or set {EXPERIMENTAL_LIVE_ENV}=1 "
+            "to unlock the unsafe experimental path. Prefer dry-run (default).",
+            file=sys.stderr,
+        )
+        return 1
     if live:
         missing = check_secrets(environment)
         if missing:
@@ -160,7 +194,7 @@ def run_scan(*, content_packs_dir: Path, now: datetime, live: bool, environment:
             allowed, reason, publish_at = should_publish(pack, config, now)
         except (OSError, ValueError, yaml.YAMLError) as exc:
             errors += 1
-            print(f"ERROR {pack_dir.name}: {exc}", file=sys.stderr)
+            print(f"ERROR {pack_dir.name}: {sanitize_error(str(exc))}", file=sys.stderr)
             continue
         if not allowed:
             print(f"SKIP {pack_dir.name}: {reason}")
@@ -169,7 +203,7 @@ def run_scan(*, content_packs_dir: Path, now: datetime, live: bool, environment:
             _, video_url = validate_tiktok(pack_dir, config)
         except (OSError, ValueError, UnicodeError) as exc:
             errors += 1
-            print(f"ERROR {pack_dir.name}: {exc}", file=sys.stderr)
+            print(f"ERROR {pack_dir.name}: {sanitize_error(str(exc))}", file=sys.stderr)
             continue
         if not live:
             print(
@@ -198,8 +232,29 @@ def run_scan(*, content_packs_dir: Path, now: datetime, live: bool, environment:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Publish TikTok content packs.")
-    parser.add_argument("--live", action="store_true", help="Publish eligible packs via TikTok API.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "TikTok content-pack publisher (prep / dry-run). "
+            "Production live publishing is NOT supported yet."
+        )
+    )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help=(
+            "Unsafe experimental TikTok API publish path. Disabled unless "
+            f"--allow-experimental-live or {EXPERIMENTAL_LIVE_ENV}=1 is set. "
+            "Production live publishing is NOT supported yet. Default is dry-run."
+        ),
+    )
+    parser.add_argument(
+        "--allow-experimental-live",
+        action="store_true",
+        help=(
+            "Explicitly unlock the unsafe experimental --live path. "
+            f"Alternative: {EXPERIMENTAL_LIVE_ENV}=1. Not for production."
+        ),
+    )
     parser.add_argument("--pack", type=str, default="", help="Optional single pack_dir name.")
     return parser
 
@@ -222,6 +277,7 @@ def main(
         live=args.live,
         environment=environment,
         pack_filter=pack_filter,
+        allow_experimental_live=args.allow_experimental_live,
     )
 
 

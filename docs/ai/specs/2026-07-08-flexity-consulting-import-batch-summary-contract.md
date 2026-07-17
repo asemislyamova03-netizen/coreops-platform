@@ -1,7 +1,7 @@
 # Flexity Consulting Import Batch Summary Contract (C1)
 
-**Дата:** 2026-07-08  
-**Статус:** C1 local readiness contract  
+**Дата:** 2026-07-08
+**Статус:** C1 local readiness contract
 **Режим:** documentation-only
 
 ---

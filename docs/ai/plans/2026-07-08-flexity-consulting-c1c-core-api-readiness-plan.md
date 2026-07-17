@@ -1,8 +1,8 @@
 # Implementation Plan: C1c Core API Readiness (Consulting Write-Import Preconditions)
 
-**Дата:** 2026-07-08  
-**Статус:** waiting for approval (documentation-only)  
-**Ветка:** `main`  
+**Дата:** 2026-07-08
+**Статус:** waiting for approval (documentation-only)
+**Ветка:** `main`
 **Режим:** documentation-only — no code, no migrations, no deploy, no import
 
 ---
@@ -39,9 +39,9 @@
 
 Фокус только на partial-зонах из C2a/C2b:
 
-1. documents / contracts API readiness  
-2. finance / payments / debts API readiness  
-3. import / audit summary endpoint (если нужен)  
+1. documents / contracts API readiness
+2. finance / payments / debts API readiness
+3. import / audit summary endpoint (если нужен)
 4. subscription / package assignment (если нужен для launch)
 
 Не цель C1c: полный ERP-контур, dual-write, production cutover, C2b code, Clinic/Booking/Trailers.
@@ -106,18 +106,18 @@ Using only `/documents/generate`:
 
 ### 3.4 Acceptance criteria (when A1/A2 coded)
 
-1. Create orphan-safe instance with `work_item_id=null` + review flag in payload/context.  
-2. Persist zero amount with review flag (policy already defined).  
-3. Set mapped `DocumentStatus` from legacy status without forcing regenerate.  
-4. Tenant-scoped; no cross-tenant write.  
-5. Idempotency key or `external_legacy_id` strategy documented (even if stored only in `context_json` for v1).  
+1. Create orphan-safe instance with `work_item_id=null` + review flag in payload/context.
+2. Persist zero amount with review flag (policy already defined).
+3. Set mapped `DocumentStatus` from legacy status without forcing regenerate.
+4. Tenant-scoped; no cross-tenant write.
+5. Idempotency key or `external_legacy_id` strategy documented (even if stored only in `context_json` for v1).
 6. Tests: contract schemas + route happy path + nullable link + zero amount.
 
 ### 3.5 Explicitly out of C1c documents scope
 
-- Contract template content migration from legacy.  
-- EDS / signature production flows for imported history.  
-- Binary file bulk import of signed PDFs (unless later approved slice).  
+- Contract template content migration from legacy.
+- EDS / signature production flows for imported history.
+- Binary file bulk import of signed PDFs (unless later approved slice).
 - Broad documents refactor.
 
 ---
@@ -139,13 +139,13 @@ Using only `/documents/generate`:
 
 Gate3 / status policy require:
 
-- `INCOME` → `direction=incoming`, status completed  
-- `EXPENSE` → `direction=outgoing`, status completed  
-- unknown → needs_review  
+- `INCOME` → `direction=incoming`, status completed
+- `EXPENSE` → `direction=outgoing`, status completed
+- unknown → needs_review
 
 Without a first-class direction (or approved surrogate), write import either:
 
-- drops EXPENSE/INCOME distinction, or  
+- drops EXPENSE/INCOME distinction, or
 - hides it in `notes` (fragile, not queryable, breaks finance aggregates).
 
 **Debts:** Core models AR as invoice balances (`/finance/receivables`), not as legacy free-standing debt rows. Faithful debt import needs either invoice reconstruction or an approved “debt note / unallocated balance” contract — **not present as a dedicated API**.
@@ -170,18 +170,18 @@ Without a first-class direction (or approved surrogate), write import either:
 
 ### 4.4 Acceptance criteria (payments)
 
-1. Round-trip: create payment with explicit direction (or approved B2 surrogate that API returns).  
-2. Mapping matrix INSURED: INCOME/EXPENSE/unknown behave per status acceptance policy.  
-3. List filter by direction (nice-to-have; not mandatory for v1 if documented).  
-4. Aggregate check still possible: incoming vs outgoing sums for import reconciliation.  
-5. Tenant isolation tests updated.  
+1. Round-trip: create payment with explicit direction (or approved B2 surrogate that API returns).
+2. Mapping matrix INSURED: INCOME/EXPENSE/unknown behave per status acceptance policy.
+3. List filter by direction (nice-to-have; not mandatory for v1 if documented).
+4. Aggregate check still possible: incoming vs outgoing sums for import reconciliation.
+5. Tenant isolation tests updated.
 6. If B1: migration separately approved and reversible per project rules.
 
 ### 4.5 Explicitly out of C1c finance scope
 
-- Full accounting ledger.  
-- Payroll.  
-- Bank integrations.  
+- Full accounting ledger.
+- Payroll.
+- Bank integrations.
 - Auto-rebuild of entire legacy finance dictionaries.
 
 ---
@@ -215,9 +215,9 @@ Without a first-class direction (or approved surrogate), write import either:
 
 ### 5.4 Acceptance criteria
 
-1. Summary validates against C1 contract (no PII).  
-2. Every write-mode batch produces exactly one finished summary.  
-3. Retrieval documented for ops (endpoint or audit filter).  
+1. Summary validates against C1 contract (no PII).
+2. Every write-mode batch produces exactly one finished summary.
+3. Retrieval documented for ops (endpoint or audit filter).
 4. Schema totals rules enforced server-side when POST exists.
 
 ---
@@ -237,9 +237,9 @@ Without a first-class direction (or approved surrogate), write import either:
 
 **No, not as a write-import blocker**, if launch runbook does:
 
-1. Create tenant (+ default_branch).  
-2. `POST /tenants/{id}/subscription` with an approved plan (`business` or later consulting-specific).  
-3. Confirm modules/features needed for import targets (documents, finance, crm, parties, catalog).  
+1. Create tenant (+ default_branch).
+2. `POST /tenants/{id}/subscription` with an approved plan (`business` or later consulting-specific).
+3. Confirm modules/features needed for import targets (documents, finance, crm, parties, catalog).
 4. Keep billing/invoicing **manual** (already allowed in readiness review).
 
 ### 6.3 Optional follow-ups (not C1c blockers)
@@ -252,9 +252,9 @@ Without a first-class direction (or approved surrogate), write import either:
 
 ### 6.4 Acceptance for launch (ops checklist, no new API)
 
-1. Target tenant has active subscription.  
-2. Modules `parties`, `crm`, `catalog`, `documents`, `finance` enabled.  
-3. Import operator has tenant-scoped credentials.  
+1. Target tenant has active subscription.
+2. Modules `parties`, `crm`, `catalog`, `documents`, `finance` enabled.
+3. Import operator has tenant-scoped credentials.
 4. No claim of full auto-billing.
 
 ---
@@ -293,13 +293,13 @@ Without a first-class direction (or approved surrogate), write import either:
 
 ### Forbidden in C1c-code
 
-- Legacy Flask `/dashboard`, `/var/www/consult_app`  
-- C2b/C2c write client implementation mixed into same PR without approval  
-- Dual-write  
-- Production deploy / Nginx / systemd  
-- Broad accounting / payroll / inventory  
-- Auth redesign, billing engine redesign  
-- Clinic / Booking / Trailers scopes  
+- Legacy Flask `/dashboard`, `/var/www/consult_app`
+- C2b/C2c write client implementation mixed into same PR without approval
+- Dual-write
+- Production deploy / Nginx / systemd
+- Broad accounting / payroll / inventory
+- Auth redesign, billing engine redesign
+- Clinic / Booking / Trailers scopes
 
 ---
 
@@ -323,11 +323,11 @@ Production write        ── separate gates ──►  needs A+B + durable sum
 
 ## 10) Test plan (for future C1c-code)
 
-1. Documents import create: null work_item, zero amount, status mapping, tenant isolation.  
-2. Payments: direction round-trip; unknown → needs_review; list/create compatibility.  
-3. If migration B1: alembic up/down on empty test DB (only after migration approval).  
-4. Import summary: validate schema; POST (if C2) or audit event details parseable.  
-5. Regression: existing `test_status_mapping_contracts`, `test_import_summary_contract`, documents/finance suites.  
+1. Documents import create: null work_item, zero amount, status mapping, tenant isolation.
+2. Payments: direction round-trip; unknown → needs_review; list/create compatibility.
+3. If migration B1: alembic up/down on empty test DB (only after migration approval).
+4. Import summary: validate schema; POST (if C2) or audit event details parseable.
+5. Regression: existing `test_status_mapping_contracts`, `test_import_summary_contract`, documents/finance suites.
 6. No production self-test; no real SQLite writes; no deploy.
 
 ---
@@ -347,15 +347,15 @@ Production write        ── separate gates ──►  needs A+B + durable sum
 
 ## 12) Explicit out of scope (this plan + C1c-code)
 
-- Import script / C2b adapter implementation  
-- Actual import or export of real data  
-- Production DB writes / deploy / service restarts  
-- Dual-write architecture  
-- Changes to legacy Consulting Flask  
-- Full accounting / payroll / inventory  
-- Clinic / Booking / Trailers work  
-- EDS / government integrations  
-- Compliance certification claims  
+- Import script / C2b adapter implementation
+- Actual import or export of real data
+- Production DB writes / deploy / service restarts
+- Dual-write architecture
+- Changes to legacy Consulting Flask
+- Full accounting / payroll / inventory
+- Clinic / Booking / Trailers work
+- EDS / government integrations
+- Compliance certification claims
 
 ---
 
@@ -367,29 +367,29 @@ Production write        ── separate gates ──►  needs A+B + durable sum
 
 ### Files intentionally not touched
 
-- All backend production code  
-- All migrations  
-- All legacy projects  
-- Deploy / env / secrets  
-- C2b/C2c code  
+- All backend production code
+- All migrations
+- All legacy projects
+- Deploy / env / secrets
+- C2b/C2c code
 
 ---
 
 ## Steps (completed by this document)
 
-1. Classify task and freeze constraints.  
-2. Diff C2a partial endpoints against live routes/schemas/models.  
-3. List minimal API gaps A–D with options and acceptance criteria.  
-4. Separate staging vs production needs for audit summary and subscriptions.  
-5. Define future file list and C2b/C2c gates.  
+1. Classify task and freeze constraints.
+2. Diff C2a partial endpoints against live routes/schemas/models.
+3. List minimal API gaps A–D with options and acceptance criteria.
+4. Separate staging vs production needs for audit summary and subscriptions.
+5. Define future file list and C2b/C2c gates.
 6. **Stop** — wait for approval before any C1c code.
 
 ---
 
 ## Tests/checks (this planning step)
 
-- Documentation-only: yes.  
-- No code / migrations / deploy / import: yes.  
+- Documentation-only: yes.
+- No code / migrations / deploy / import: yes.
 - Focus limited to C2a/C2b partial areas: yes.
 
 ---

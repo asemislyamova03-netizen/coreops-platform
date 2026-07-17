@@ -1,9 +1,9 @@
 # Report: Core CRM E2 — Contact Match API
 
-**Дата:** 2026-07-13  
-**Проект:** Flexity / `coreops-platform`  
-**Тип:** Backend local slice (read-only Match API)  
-**Статус:** ✅ **IMPLEMENTED (local)** — deploy не выполнялся  
+**Дата:** 2026-07-13
+**Проект:** Flexity / `coreops-platform`
+**Тип:** Backend local slice (read-only Match API)
+**Статус:** ✅ **IMPLEMENTED (local)** — deploy не выполнялся
 **Prerequisite:** `docs/ai/plans/2026-07-13-core-crm-e2-contact-match-dedup-plan.md`
 
 ---
@@ -43,7 +43,7 @@ Route registered **before** `GET /parties/{party_id}` to avoid shadowing.
 | telegram_user_id | exact | telegram CM **numeric** value **or** `metadata_json.telegram.user_id` |
 | name | weak | `display_name` contains (Python, Cyrillic-safe) |
 
-Normalization: `backend/app/modules/parties/matching.py`  
+Normalization: `backend/app/modules/parties/matching.py`
 Phone: digits only; `8XXXXXXXXXX` → `7…`; reject &lt; 10 digits.
 
 ---
@@ -100,11 +100,11 @@ Covered: normalize, 422 empty, phone/email, telegram username + metadata user_id
 
 ## Not touched
 
-- Frontend  
-- Public inbound  
-- Migrations  
-- Deploy  
-- Party merge / auto-link  
+- Frontend
+- Public inbound
+- Migrations
+- Deploy
+- Party merge / auto-link
 
 ---
 

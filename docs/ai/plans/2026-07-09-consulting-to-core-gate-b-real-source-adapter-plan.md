@@ -1,7 +1,7 @@
 # Implementation Plan: Gate B Real-Source Read-Only Dry-Run Adapter (Preparation Only)
 
-**Дата:** 2026-07-09  
-**Статус:** waiting for approval — **GATE B PREPARATION ONLY**  
+**Дата:** 2026-07-09
+**Статус:** waiting for approval — **GATE B PREPARATION ONLY**
 **Режим:** planning only — no dry-run execution, no real-source reads, no SQLite/Core writes, no import
 
 ---

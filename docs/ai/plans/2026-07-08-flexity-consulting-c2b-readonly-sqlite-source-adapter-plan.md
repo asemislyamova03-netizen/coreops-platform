@@ -1,25 +1,25 @@
 # Implementation Plan: C2b Read-Only SQLite Source Adapter (Planning Only)
 
-**Дата:** 2026-07-08  
-**Статус:** waiting for approval (documentation-only)  
+**Дата:** 2026-07-08
+**Статус:** waiting for approval (documentation-only)
 **Режим:** planning only — no code, no SQLite access, no data export, no production actions
 
 ---
 
 ## Task Classification
 
-1. **Project:** Flexity  
-2. **Category:** documentation_only  
-3. **Risk level:** low (docs only); future C2b-code = medium (PII / live source risk)  
-4. **Intended scope (this step):**  
-   `docs/ai/plans/2026-07-08-flexity-consulting-c2b-readonly-sqlite-source-adapter-plan.md` only  
-5. **Forbidden scope (this step and beyond without new approval):**  
-   - production data / `consulting_os.db` reads  
-   - SQLite copy/export  
-   - Core API writes / Core DB writes  
-   - deploy / migrations / service restarts  
-   - legacy `/dashboard` or `/var/www/consult_app` changes  
-   - dual-write  
+1. **Project:** Flexity
+2. **Category:** documentation_only
+3. **Risk level:** low (docs only); future C2b-code = medium (PII / live source risk)
+4. **Intended scope (this step):**
+   `docs/ai/plans/2026-07-08-flexity-consulting-c2b-readonly-sqlite-source-adapter-plan.md` only
+5. **Forbidden scope (this step and beyond without new approval):**
+   - production data / `consulting_os.db` reads
+   - SQLite copy/export
+   - Core API writes / Core DB writes
+   - deploy / migrations / service restarts
+   - legacy `/dashboard` or `/var/www/consult_app` changes
+   - dual-write
 6. **Required plan type:** implementation plan (planning-only; no code until C2b adapter implementation is separately approved)
 
 ### Inputs used
@@ -40,9 +40,9 @@
 
 ## 1. Executive summary
 
-- **C2a** synthetic dry-run **завершён и принят**: pipeline  
+- **C2a** synthetic dry-run **завершён и принят**: pipeline
   `synthetic source → map/transform → validation → dry-run/no-op REST target → import batch summary` работает локально.
-- **C2b (этот документ)** планирует **только** будущий **read-only SQLite source adapter**.  
+- **C2b (этот документ)** планирует **только** будущий **read-only SQLite source adapter**.
   Реализация кода и любой доступ к реальной SQLite **не входят** в этот шаг.
 - Legacy `/dashboard` (`consult_app`) остаётся **bridge / reference / archive** на переходный период.
 - Flexity Core остаётся **единственным REST/API target**. Import никогда не проектируется как direct PostgreSQL inserts.
@@ -66,9 +66,9 @@
 
 ### Required operational gates (future, not this doc step)
 
-1. Confirmed backup of source DB + backup ID recorded.  
-2. Explicit approval for **C2b adapter implementation**.  
-3. Explicit approval for **C2b-dry-run against real source** (separate from implementation).  
+1. Confirmed backup of source DB + backup ID recorded.
+2. Explicit approval for **C2b adapter implementation**.
+3. Explicit approval for **C2b-dry-run against real source** (separate from implementation).
 4. No production cutover without still later approvals.
 
 ---
@@ -127,11 +127,11 @@ Core remains REST/API-shaped payload validation only. **No** Core HTTP writes in
 
 ### Files not to touch (C2b-code future)
 
-- `/var/www/consult_app/**`, legacy Flask routes/templates  
-- Core production deploy / Nginx / systemd  
-- Migrations (unless separately approved)  
-- Auth / billing / subscription plan changes  
-- Dual-write infrastructure  
+- `/var/www/consult_app/**`, legacy Flask routes/templates
+- Core production deploy / Nginx / systemd
+- Migrations (unless separately approved)
+- Auth / billing / subscription plan changes
+- Dual-write infrastructure
 
 ---
 
@@ -153,12 +153,12 @@ Core remains REST/API-shaped payload validation only. **No** Core HTTP writes in
 
 ## 5. Data protection rules
 
-- Mask: names, phones, emails, notes, document/body text, addresses.  
-- Never write IIN / BIN / passport / sensitive identifiers into markdown reports or CI logs.  
-- Never paste raw customer records into AI/chat reports.  
-- No screenshots of live data in planning/implementation docs.  
-- No sending real DB content outside server / approved local environment.  
-- Reports remain aggregate + issue codes + technical synthetic IDs only.  
+- Mask: names, phones, emails, notes, document/body text, addresses.
+- Never write IIN / BIN / passport / sensitive identifiers into markdown reports or CI logs.
+- Never paste raw customer records into AI/chat reports.
+- No screenshots of live data in planning/implementation docs.
+- No sending real DB content outside server / approved local environment.
+- Reports remain aggregate + issue codes + technical synthetic IDs only.
 - Gate 2 remnant: `clients` / `payments` / several finance dictionaries contain personal data — treat all client/payment text fields as sensitive by default.
 
 ---
@@ -167,11 +167,11 @@ Core remains REST/API-shaped payload validation only. **No** Core HTTP writes in
 
 Must be compatible with C2a synthetic source output:
 
-1. **Same internal legacy-shaped DTOs** (keys/fields as in `build_consulting_synthetic_fixture()` / Gate 3 mapping inputs).  
-2. **Must not bypass** mapper or validator — only replace the source adapter.  
-3. **Preserve source IDs as `external_ref` / metadata only** (e.g. `metadata_json.synthetic_source_id` pattern → `legacy_*_id` / `external_legacy_id`), never as Core primary keys.  
-4. **`source_system` = `legacy_consult_app`** for real adapter context (C2a used `consult_app_synthetic`).  
-5. Tenant / `default_branch` still come from **import context**, not from SQLite (legacy has no `tenant_id`).  
+1. **Same internal legacy-shaped DTOs** (keys/fields as in `build_consulting_synthetic_fixture()` / Gate 3 mapping inputs).
+2. **Must not bypass** mapper or validator — only replace the source adapter.
+3. **Preserve source IDs as `external_ref` / metadata only** (e.g. `metadata_json.synthetic_source_id` pattern → `legacy_*_id` / `external_legacy_id`), never as Core primary keys.
+4. **`source_system` = `legacy_consult_app`** for real adapter context (C2a used `consult_app_synthetic`).
+5. Tenant / `default_branch` still come from **import context**, not from SQLite (legacy has no `tenant_id`).
 6. Target remains **Core REST API-shaped payloads** via transform; no-op target in C2b.
 
 ---
@@ -188,9 +188,9 @@ Must be compatible with C2a synthetic source output:
 
 Boundaries:
 
-- C2b never writes to Core.  
-- C2c may write only via Core REST to staging after partial API gaps are addressed or explicitly waived.  
-- No production cutover before separate approval.  
+- C2b never writes to Core.
+- C2c may write only via Core REST to staging after partial API gaps are addressed or explicitly waived.
+- No production cutover before separate approval.
 - No dual-write unless separately designed.
 
 ---
@@ -206,9 +206,9 @@ From C2a report:
 | Payments / debts / direction | **partial** (no explicit direction on `PaymentCreate`) | No | **Yes — needs C1c finance direction contract before faithful payment write import** |
 | Tenant / `default_branch` | readiness validated in C2a | No | Must remain required in context |
 
-**Recommendation:**  
-- Start C2b-code **without waiting for C1c** (source adapter + dry-run only).  
-- Run **C1c in parallel** (docs import contract + payment direction) so C2c is not blocked later.  
+**Recommendation:**
+- Start C2b-code **without waiting for C1c** (source adapter + dry-run only).
+- Run **C1c in parallel** (docs import contract + payment direction) so C2c is not blocked later.
 - **Do not** promote C2c write-mode until C1c gaps are closed or explicitly accepted with documented limitations.
 
 ---
@@ -217,13 +217,13 @@ From C2a report:
 
 Must pass **before** approved C2b-dry-run against live `consulting_os.db`:
 
-1. **Synthetic regression** — existing C2a `test_imports_dry_run.py` + status/import summary contracts remain green.  
-2. **Read-only connection test** — against **synthetic** SQLite fixture (not production DB).  
-3. **No-write assertion test** — attempt/assert that connection rejects writes; pipeline never opens Core DB write session.  
-4. **Masking / logging tests** — PII fields never appear in serialized report/log helpers.  
-5. **Schema mismatch test** — altered fixture schema fails fingerprint check.  
-6. **Batching test** — `max_rows_per_table` / stream batches produce stable counts.  
-7. **Source contract test** — adapter output keys match synthetic fixture domains; `source_system=legacy_consult_app`.  
+1. **Synthetic regression** — existing C2a `test_imports_dry_run.py` + status/import summary contracts remain green.
+2. **Read-only connection test** — against **synthetic** SQLite fixture (not production DB).
+3. **No-write assertion test** — attempt/assert that connection rejects writes; pipeline never opens Core DB write session.
+4. **Masking / logging tests** — PII fields never appear in serialized report/log helpers.
+5. **Schema mismatch test** — altered fixture schema fails fingerprint check.
+6. **Batching test** — `max_rows_per_table` / stream batches produce stable counts.
+7. **Source contract test** — adapter output keys match synthetic fixture domains; `source_system=legacy_consult_app`.
 8. **Pipeline integration** — real-adapter feed + no-op target produces `ImportBatchSummary` without Core calls.
 
 ---
@@ -253,17 +253,17 @@ Must pass **before** approved C2b-dry-run against live `consulting_os.db`:
 
 ### Preconditions before approving C2b-code
 
-- C2a accepted (done).  
-- This C2b plan approved.  
-- Agreement: Core remains REST/API target; adapter feeds existing pipeline; no dual-write.  
+- C2a accepted (done).
+- This C2b plan approved.
+- Agreement: Core remains REST/API target; adapter feeds existing pipeline; no dual-write.
 - Test strategy includes synthetic SQLite fixture (no real PII).
 
 ### Still deferred
 
-- Any connection to `/var/www/consult_app/instance/consulting_os.db`  
-- Any copy/export of that DB  
-- C2c staging REST write adapter  
-- Production import / cutover  
+- Any connection to `/var/www/consult_app/instance/consulting_os.db`
+- Any copy/export of that DB
+- C2c staging REST write adapter
+- Production import / cutover
 
 ---
 
@@ -275,29 +275,29 @@ Must pass **before** approved C2b-dry-run against live `consulting_os.db`:
 
 ### Files not to touch
 
-- All production code  
-- All legacy Flask code  
-- Migrations, env, deploy configs  
-- Real SQLite DB  
+- All production code
+- All legacy Flask code
+- Migrations, env, deploy configs
+- Real SQLite DB
 
 ---
 
 ## Steps (already completed by this document)
 
-1. Restate C2a → C2b boundary.  
-2. Define read-only access model from Gate 1 path.  
-3. Define adapter architecture and output contract.  
-4. Define safety, data protection, tests, risks, phase boundaries.  
-5. Record decision checkpoint.  
+1. Restate C2a → C2b boundary.
+2. Define read-only access model from Gate 1 path.
+3. Define adapter architecture and output contract.
+4. Define safety, data protection, tests, risks, phase boundaries.
+5. Record decision checkpoint.
 6. **Stop** — wait for approval before C2b-code or any SQLite access.
 
 ---
 
 ## Tests/checks (this planning step)
 
-- Documentation completeness vs user checklist: yes.  
-- No code changes: yes.  
-- No SQLite connection / export: yes.  
+- Documentation completeness vs user checklist: yes.
+- No code changes: yes.
+- No SQLite connection / export: yes.
 - No Core/legacy writes: yes.
 
 ---

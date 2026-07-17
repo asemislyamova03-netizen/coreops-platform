@@ -1,8 +1,8 @@
 # Implementation Plan: C2c Write-Import Planning (Consulting → Flexity Core REST)
 
-**Дата:** 2026-07-08  
-**Статус:** waiting for approval (documentation-only)  
-**Ветка:** `main`  
+**Дата:** 2026-07-08
+**Статус:** waiting for approval (documentation-only)
+**Ветка:** `main`
 **Режим:** planning only — no code, no import, no production, no deploy, no alembic upgrade, no real SQLite access
 
 ---
@@ -60,8 +60,8 @@
 
 ### Gate wording (binding)
 
-1. Approval for **C2c code** ≠ approval for **staging alembic upgrade**.  
-2. Approval for **staging alembic upgrade** ≠ approval for **production alembic upgrade**.  
+1. Approval for **C2c code** ≠ approval for **staging alembic upgrade**.
+2. Approval for **staging alembic upgrade** ≠ approval for **production alembic upgrade**.
 3. Approval for **staging write-import** requires staging already on revision including `0013` (or documented waiver — not recommended).
 
 ---
@@ -86,22 +86,22 @@
 
 Hard rules:
 
-1. **All writes** go through Flexity Core **REST API** (HTTP to Core endpoints).  
-2. **No** direct PostgreSQL inserts from the import script.  
-3. **No** bypass of tenant scope, `default_branch` context, validation, or import/audit summary recording.  
-4. Source side stays **read-only** (`mode=ro`); legacy remains bridge until cutover.  
-5. Write mode **disabled by default**; explicit flag + approval per environment.  
+1. **All writes** go through Flexity Core **REST API** (HTTP to Core endpoints).
+2. **No** direct PostgreSQL inserts from the import script.
+3. **No** bypass of tenant scope, `default_branch` context, validation, or import/audit summary recording.
+4. Source side stays **read-only** (`mode=ro`); legacy remains bridge until cutover.
+5. Write mode **disabled by default**; explicit flag + approval per environment.
 6. Idempotency / `external_ref` strategy must use Core API payloads (documents `context_json`, parties external ids, etc.) — not raw SQL upserts.
 
 ### Planned staged entity write order (future)
 
-1. Tenant / `default_branch` readiness (pre-check; create only if approved bootstrap)  
-2. Users / roles (if in import slice)  
-3. Parties / contacts  
-4. Catalog / services  
-5. Work items / orders / stages / lines  
-6. Documents / contracts via `/documents/import`  
-7. Finance payments (with `direction` / `legacy_payment_type`)  
+1. Tenant / `default_branch` readiness (pre-check; create only if approved bootstrap)
+2. Users / roles (if in import slice)
+3. Parties / contacts
+4. Catalog / services
+5. Work items / orders / stages / lines
+6. Documents / contracts via `/documents/import`
+7. Finance payments (with `direction` / `legacy_payment_type`)
 8. Import batch summary via audit hook (`record_import_batch_summary_event` or later dedicated API)
 
 Debts: **deferred** per C1c D1 unless separately approved.
@@ -129,8 +129,8 @@ C2c-0  →  C2c-1 (migration)  →  C2c-2 (script + synthetic/staging API)
                                                                          →  [future prod plan]
 ```
 
-- C2c-3 must **not** write to Core.  
-- C2c-4 must not start before C2c-1 success + C2c-3 review (or explicit waiver for synthetic-only write in C2c-2).  
+- C2c-3 must **not** write to Core.
+- C2c-4 must not start before C2c-1 success + C2c-3 review (or explicit waiver for synthetic-only write in C2c-2).
 - Production never folds into C2c-1…C2c-5 without a new plan.
 
 ---
@@ -151,22 +151,22 @@ C2c-0  →  C2c-1 (migration)  →  C2c-2 (script + synthetic/staging API)
 
 ### Still partial / deferred (do not block planning; block specific writes if in scope)
 
-- Dedicated `/audit/import-batches` REST list API (prefer before production cutover).  
-- Debt-specific import API (deferred D1).  
-- Idempotent upsert uniqueness enforcement by `external_ref`.  
+- Dedicated `/audit/import-batches` REST list API (prefer before production cutover).
+- Debt-specific import API (deferred D1).
+- Idempotent upsert uniqueness enforcement by `external_ref`.
 - Binary signed PDF / full document lifecycle import.
 
 ---
 
 ## 6) Data protection rules
 
-1. **No raw PII** in logs, markdown reports, chat, or CI artefacts (names, phones, emails, notes, document body text).  
-2. **No full table dumps** of real source or target.  
-3. **No real-source write** into Core before real-source dry-run review (C2c-3) and explicit C2c-4 approval.  
-4. Import logs / summary / error reports: **masked** (reuse C2b `masking.py` patterns).  
-5. Reports: aggregates, issue codes, technical IDs, synthetic placeholders only.  
-6. **No copy/export** of `consulting_os.db` without separate approval.  
-7. Production data access (read or write) requires **separate** approval beyond this planning doc.  
+1. **No raw PII** in logs, markdown reports, chat, or CI artefacts (names, phones, emails, notes, document body text).
+2. **No full table dumps** of real source or target.
+3. **No real-source write** into Core before real-source dry-run review (C2c-3) and explicit C2c-4 approval.
+4. Import logs / summary / error reports: **masked** (reuse C2b `masking.py` patterns).
+5. Reports: aggregates, issue codes, technical IDs, synthetic placeholders only.
+6. **No copy/export** of `consulting_os.db` without separate approval.
+7. Production data access (read or write) requires **separate** approval beyond this planning doc.
 8. Staging write should prefer synthetic fixture or explicitly approved reduced/masked dataset when possible.
 
 ---
@@ -208,27 +208,27 @@ Reference: `docs/ai/runbooks/2026-07-08-flexity-consulting-import-backup-rollbac
 
 Operational must-haves for C2c-4+:
 
-1. Freeze further batches on trigger.  
-2. Capture batch id + environment.  
-3. Restore target from backup point.  
-4. Post-rollback verification summary (aggregates only).  
+1. Freeze further batches on trigger.
+2. Capture batch id + environment.
+3. Restore target from backup point.
+4. Post-rollback verification summary (aggregates only).
 5. Do not “patch forward” in production without new approval.
 
 ---
 
 ## 9) Explicit out of scope
 
-- Production import / cutover  
-- Production deploy / Nginx / systemd / service restart  
-- Production Alembic upgrade  
-- Staging or any alembic upgrade **without** its own approval (C2c-1 is planned, not approved by this doc alone)  
-- Legacy `/dashboard` rewrite or dual-write  
-- Direct PostgreSQL loaders  
-- Full accounting / payroll / taxes / inventory expansion  
-- Clinic / Booking / Trailers scopes  
-- Debt API build-out  
-- Subscription product redesign  
-- Compliance / certification claims  
+- Production import / cutover
+- Production deploy / Nginx / systemd / service restart
+- Production Alembic upgrade
+- Staging or any alembic upgrade **without** its own approval (C2c-1 is planned, not approved by this doc alone)
+- Legacy `/dashboard` rewrite or dual-write
+- Direct PostgreSQL loaders
+- Full accounting / payroll / taxes / inventory expansion
+- Clinic / Booking / Trailers scopes
+- Debt API build-out
+- Subscription product redesign
+- Compliance / certification claims
 - This planning step itself writing any code or touching real DB
 
 ---
@@ -245,19 +245,19 @@ Operational must-haves for C2c-4+:
 
 ### Preconditions before approving C2c-code
 
-- This C2c planning doc accepted.  
-- Agreement: REST-only writes; no direct PG.  
-- Awareness of `0013` migration gate.  
-- C2a/C2b local dry-run baseline remains green.  
+- This C2c planning doc accepted.
+- Agreement: REST-only writes; no direct PG.
+- Awareness of `0013` migration gate.
+- C2a/C2b local dry-run baseline remains green.
 - Masking + no-PII report policy accepted.
 
 ### Still deferred until later approvals
 
-- Staging alembic upgrade (C2c-1)  
-- Real SQLite path allowlist / backup ID for C2c-3  
-- Staging write-import (C2c-4)  
-- Client review (C2c-5)  
-- Production migration / import / cutover  
+- Staging alembic upgrade (C2c-1)
+- Real SQLite path allowlist / backup ID for C2c-3
+- Staging write-import (C2c-4)
+- Client review (C2c-5)
+- Production migration / import / cutover
 
 ---
 
@@ -269,29 +269,29 @@ Operational must-haves for C2c-4+:
 
 ### Files intentionally not touched
 
-- All backend code  
-- All alembic applications  
-- All legacy projects  
-- Env / deploy / secrets  
-- Real SQLite DB  
+- All backend code
+- All alembic applications
+- All legacy projects
+- Env / deploy / secrets
+- Real SQLite DB
 
 ---
 
 ## Steps (completed by this document)
 
-1. Restate C1c + C2a/C2b baseline.  
-2. Lock migration prerequisite for `Payment.direction`.  
-3. Define REST-only target architecture.  
-4. Split C2c-0…C2c-5 + future production boundary.  
-5. Checklist API readiness, validation, data protection, rollback.  
-6. Decision checkpoint.  
+1. Restate C1c + C2a/C2b baseline.
+2. Lock migration prerequisite for `Payment.direction`.
+3. Define REST-only target architecture.
+4. Split C2c-0…C2c-5 + future production boundary.
+5. Checklist API readiness, validation, data protection, rollback.
+6. Decision checkpoint.
 7. **Stop** — wait for approvals before code or any DB action.
 
 ---
 
 ## Tests/checks (this planning step)
 
-- Documentation completeness vs required sections: yes.  
+- Documentation completeness vs required sections: yes.
 - No code / alembic / import / deploy / SQLite access: yes.
 
 ---

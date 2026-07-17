@@ -1,19 +1,19 @@
 # Flexity Consulting C2a Synthetic Dry-Run Implementation Report
 
-**Дата:** 2026-07-08  
-**Статус:** C2a local implementation completed  
-**Режим:** synthetic/local-only dry-run  
+**Дата:** 2026-07-08
+**Статус:** C2a local implementation completed
+**Режим:** synthetic/local-only dry-run
 **Архитектурное правило:** Flexity Core = REST/API target. Import generates/validates Core API-shaped payloads. Target adapter = dry-run/no-op only (no direct PostgreSQL inserts, no Core DB writes, no production API calls).
 
 ---
 
 ## Task Classification
 
-1. **Project:** Flexity  
-2. **Category:** platform_core (local import dry-run tooling)  
-3. **Risk level:** low (synthetic + no-op only)  
-4. **Intended scope:** `backend/app/modules/imports_dry_run/*`, `backend/scripts/c2a_synthetic_dry_run.py`, `backend/tests/test_imports_dry_run.py`, this report  
-5. **Forbidden scope:** production data, real SQLite adapter, Core DB writes, production API calls, deploy, migrations, legacy `/dashboard` or `/var/www/consult_app`, dual-write  
+1. **Project:** Flexity
+2. **Category:** platform_core (local import dry-run tooling)
+3. **Risk level:** low (synthetic + no-op only)
+4. **Intended scope:** `backend/app/modules/imports_dry_run/*`, `backend/scripts/c2a_synthetic_dry_run.py`, `backend/tests/test_imports_dry_run.py`, this report
+5. **Forbidden scope:** production data, real SQLite adapter, Core DB writes, production API calls, deploy, migrations, legacy `/dashboard` or `/var/www/consult_app`, dual-write
 6. **Required plan:** implementation (approved for C2a synthetic dry-run only)
 
 ---
@@ -67,10 +67,10 @@ Result: successful synthetic summary/report JSON output (no PII, no DB/API write
 
 ## 3) Pipeline structure (implemented)
 
-1. **Synthetic source adapter** — `SyntheticSourceAdapter` + `build_consulting_synthetic_fixture()`  
-2. **Legacy-to-Core mapping/transform** — C1 helpers (`map_legacy_order_status`, stage status, contract assessment, payment type)  
-3. **Validation layer** — statuses, required fields, duplicates/orphans, policy checks, finance aggregates, tenant/branch readiness  
-4. **Dry-run/no-op target adapter** — validates payloads against Core REST DTO schemas; never calls HTTP; never writes DB  
+1. **Synthetic source adapter** — `SyntheticSourceAdapter` + `build_consulting_synthetic_fixture()`
+2. **Legacy-to-Core mapping/transform** — C1 helpers (`map_legacy_order_status`, stage status, contract assessment, payment type)
+3. **Validation layer** — statuses, required fields, duplicates/orphans, policy checks, finance aggregates, tenant/branch readiness
+4. **Dry-run/no-op target adapter** — validates payloads against Core REST DTO schemas; never calls HTTP; never writes DB
 5. **Import batch summary + warning/error report** — `ImportBatchSummary` + `DryRunValidationReport`
 
 ---
@@ -146,7 +146,7 @@ C2a uses `source → map → validate → no-op target` (REST-shaped payloads on
 
 ### Missing / partial target API endpoints
 
-1. **Documents import (partial):** direct contract instance create/upsert missing; only generate flow exists.  
+1. **Documents import (partial):** direct contract instance create/upsert missing; only generate flow exists.
 2. **Finance direction (partial):** no explicit direction field on `PaymentCreate`; legacy semantics are indirect.
 
 ---
@@ -157,8 +157,8 @@ For **C2a**: **not required** — synthetic dry-run completed locally.
 
 Before **real import / staging REST target (C2c and later)**, **yes — minimal C1b/C1c-style API readiness items**:
 
-1. Document import contract: direct contract create/upsert vs generate-only.  
-2. Explicit finance direction (or approved mapping contract) for legacy payment INCOME/EXPENSE.  
+1. Document import contract: direct contract create/upsert vs generate-only.
+2. Explicit finance direction (or approved mapping contract) for legacy payment INCOME/EXPENSE.
 3. Confirm tenant create always provisions `default_branch` and import context requires both IDs (already validated in C2a dry-run).
 
 These are blockers for **real write import**, not for C2a or read-only C2b source planning.
@@ -167,20 +167,20 @@ These are blockers for **real write import**, not for C2a or read-only C2b sourc
 
 ## 9) What remains for C2b
 
-- Plan + implement **read-only SQLite source adapter** (only after separate approval).  
-- Keep dry-run / no-op target by default.  
-- Wire real source rows into existing mapping/validation pipeline.  
-- Re-run synthetic + real-adapter dry-run tests on local/staging-safe fixtures.  
-- Still **no** production SQLite by default, **no** Core writes, **no** dual-write.  
+- Plan + implement **read-only SQLite source adapter** (only after separate approval).
+- Keep dry-run / no-op target by default.
+- Wire real source rows into existing mapping/validation pipeline.
+- Re-run synthetic + real-adapter dry-run tests on local/staging-safe fixtures.
+- Still **no** production SQLite by default, **no** Core writes, **no** dual-write.
 - Staging REST write client = **C2c**, separately approved.
 
 ---
 
 ## 10) Risks
 
-1. Partial documents/finance API fit can block or ambiguity real import until C1b/C1c decisions.  
-2. Review-warning volume will grow on real legacy data.  
-3. Moving from C2a → C2b must keep no-write / no-production-data guarantees unless explicitly approved.  
+1. Partial documents/finance API fit can block or ambiguity real import until C1b/C1c decisions.
+2. Review-warning volume will grow on real legacy data.
+3. Moving from C2a → C2b must keep no-write / no-production-data guarantees unless explicitly approved.
 4. Treating import as direct SQL inserts would violate Core REST target architecture — forbidden by design.
 
 ---
@@ -189,9 +189,9 @@ These are blockers for **real write import**, not for C2a or read-only C2b sourc
 
 If C2a rollback is needed:
 
-1. Remove `backend/app/modules/imports_dry_run/`.  
-2. Remove `backend/scripts/c2a_synthetic_dry_run.py`.  
-3. Remove `backend/tests/test_imports_dry_run.py`.  
+1. Remove `backend/app/modules/imports_dry_run/`.
+2. Remove `backend/scripts/c2a_synthetic_dry_run.py`.
+3. Remove `backend/tests/test_imports_dry_run.py`.
 4. Re-run related contract/dry-run tests to confirm baseline.
 
 No DB rollback needed: C2a performs no migrations and no DB writes.
@@ -202,18 +202,18 @@ No DB rollback needed: C2a performs no migrations and no DB writes.
 
 Confirmed in C2a:
 
-- no production data used;  
-- no real SQLite source adapter;  
-- no access to `consulting_os.db`;  
-- no import execution against Core/production;  
-- no data export of real client data;  
-- no deploy;  
-- no migrations;  
-- no Core API write calls;  
-- no Core DB writes;  
-- no direct PostgreSQL insert design;  
-- no dual-write;  
-- no legacy `/dashboard` changes;  
+- no production data used;
+- no real SQLite source adapter;
+- no access to `consulting_os.db`;
+- no import execution against Core/production;
+- no data export of real client data;
+- no deploy;
+- no migrations;
+- no Core API write calls;
+- no Core DB writes;
+- no direct PostgreSQL insert design;
+- no dual-write;
+- no legacy `/dashboard` changes;
 - no `/var/www/consult_app` changes.
 
 ---

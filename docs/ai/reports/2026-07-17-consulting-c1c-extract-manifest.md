@@ -1,19 +1,19 @@
 # Consulting/C1c CRM Inbound Extract Manifest
 
-**Date:** 2026-07-17  
-**Source (READ ONLY):** `C:/Users/АДМИН/OneDrive/Documents/Flexity`  
-**Source tip:** `feature/marketing-m8-publish-bridge` @ `9658a82` + large uncommitted WIP  
-**Target worktree:** `.worktrees/consulting-c1c-crm-inbound`  
-**Target branch:** `feature/consulting-c1c-crm-inbound` FROM `origin/main` @ `76773ec`  
+**Date:** 2026-07-17
+**Source (READ ONLY):** `C:/Users/АДМИН/OneDrive/Documents/Flexity`
+**Source tip:** `feature/marketing-m8-publish-bridge` @ `9658a82` + large uncommitted WIP
+**Target worktree:** `.worktrees/consulting-c1c-crm-inbound`
+**Target branch:** `feature/consulting-c1c-crm-inbound` FROM `origin/main` @ `76773ec`
 **Mode:** local extract only — no push / merge / deploy / dirty-root mutation
 
 ## Task Classification
 
-1. **Project:** Flexity  
-2. **Category:** universal_module (CRM inbound match + Consulting import readiness)  
-3. **Risk level:** medium  
-4. **Intended scope:** parties match, public_leads rate-limit + match, imports_dry_run, finance PaymentDirection ORM, documents import, CRM console UI, related tests/docs/scripts  
-5. **Forbidden scope:** wholesale `models.py`, `test_tenants.py`, `conftest.py`, `branches/**`, E1a/E1b/M8 migrations/process overlay, credentials, `.env`, `.ai_local`, `.worktrees`, dumps  
+1. **Project:** Flexity
+2. **Category:** universal_module (CRM inbound match + Consulting import readiness)
+3. **Risk level:** medium
+4. **Intended scope:** parties match, public_leads rate-limit + match, imports_dry_run, finance PaymentDirection ORM, documents import, CRM console UI, related tests/docs/scripts
+5. **Forbidden scope:** wholesale `models.py`, `test_tenants.py`, `conftest.py`, `branches/**`, E1a/E1b/M8 migrations/process overlay, credentials, `.env`, `.ai_local`, `.worktrees`, dumps
 6. **Required plan:** extract/reconstruct (approved by parent task)
 
 ## PaymentDirection migration decision

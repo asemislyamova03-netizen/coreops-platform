@@ -1,7 +1,7 @@
 # Plan: Consulting -> Core Staging Write-Import (Planning Only)
 
-**Date:** 2026-07-09  
-**Status:** planning only (no execution)  
+**Date:** 2026-07-09
+**Status:** planning only (no execution)
 **Scope:** documentation only
 
 ---
@@ -11,11 +11,11 @@
 - Gate B masked dry-run completed with exit code `0`.
 - PII scan: `PASS`.
 - No SQLite/Core/live writes were made in Gate B read-only path.
-- Masked report path (outside repo):  
+- Masked report path (outside repo):
   `/home/ubuntu/import_work/reports/consulting_gate_b_dry_run_2026-07-09.json`
-- Sanitized report:  
+- Sanitized report:
   `docs/ai/reports/2026-07-09-consulting-to-core-gate-b-dry-run-report.md`
-- Business decision memo:  
+- Business decision memo:
   `docs/ai/decisions/2026-07-09-consulting-import-business-decisions.md`
 
 ---

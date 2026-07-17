@@ -1,9 +1,9 @@
 # Implementation Plan: S3/E5 — Public inbound `/demo` → flexity-sales with match
 
-**Дата:** 2026-07-13  
-**Проект:** Flexity / `coreops-platform`  
-**Тип:** documentation-only implementation plan  
-**Статус:** ⏸ **waiting for approval** (код / env / deploy / enable — **не трогать** в этой сессии)  
+**Дата:** 2026-07-13
+**Проект:** Flexity / `coreops-platform`
+**Тип:** documentation-only implementation plan
+**Статус:** ⏸ **waiting for approval** (код / env / deploy / enable — **не трогать** в этой сессии)
 
 **Prerequisites (already deployed on flexity-sales):**
 - E1–E1.4 disposition + board/list UX
@@ -17,7 +17,7 @@
 - `docs/ai/reviews/2026-07-03-public-inbound-b2b-local-smoke-report.md`
 - `docs/ai/plans/2026-07-13-core-crm-e2-contact-match-dedup-plan.md`
 
-**CRM:** https://flexity.asia/console/workspace/flexity-sales/crm  
+**CRM:** https://flexity.asia/console/workspace/flexity-sales/crm
 **Landing:** https://www.flexity.asia/demo/ (SUBMIT_URL → `https://flexity.asia/api/v1/public/leads`)
 
 ---
@@ -48,12 +48,12 @@ E5 **не** делает merge Party, **не** auto-spam, **не** показы�
 
 ### Task Classification (coordinator)
 
-1. **Project:** Flexity  
-2. **Category:** documentation_only  
-3. **Risk level:** high (for future enable; plan itself low)  
-4. **Intended scope:** this plan file only  
-5. **Forbidden scope:** production code/server/env/landing live  
-6. **Required plan:** documentation-only → this document  
+1. **Project:** Flexity
+2. **Category:** documentation_only
+3. **Risk level:** high (for future enable; plan itself low)
+4. **Intended scope:** this plan file only
+5. **Forbidden scope:** production code/server/env/landing live
+6. **Required plan:** documentation-only → this document
 
 ---
 
@@ -151,8 +151,8 @@ Re-verify these IDs immediately before any enablement (stages can be recreated).
 
 ### Principle
 
-Reuse E2 matching logic **internally** (call `PartyService.match_parties` / shared matching helpers with target tenant_id).  
-Do **not** call HTTP Match API from public client.  
+Reuse E2 matching logic **internally** (call `PartyService.match_parties` / shared matching helpers with target tenant_id).
+Do **not** call HTTP Match API from public client.
 Do **not** return match candidates to the browser.
 
 ### Exact match (phone / email)
@@ -163,7 +163,7 @@ If any **exact** hit on phone and/or email (whatsapp only if form later sends it
 2. **Do not** create Party.
 3. Create new WorkItem with `primary_party_id = matched.party_id`.
 4. Store attribution in WorkItem `custom_fields_json` / description.
-5. Add internal note in description or custom field, e.g.  
+5. Add internal note in description or custom field, e.g.
    `Public demo form matched existing contact` + `matched_on=[phone|email]`.
 6. Audit metadata: `party_reused=true`, `match_type=exact`.
 
@@ -346,26 +346,26 @@ Test lead title/message must be clearly marked, e.g. `E5 TEST — delete after s
 
 ### Unit / API tests (local)
 
-1. `ENABLED=false` → 403  
-2. Invalid payload (no consent / honeypot filled / no phone&email) → 422  
-3. Exact email match → same `party_id`, new `work_item_id`, no extra Party  
-4. Exact phone match → reuse Party  
-5. No match → new Party + WorkItem  
-6. Weak name only → new Party + `possible_match_party_ids` set; **not** auto-link  
-7. WorkItem tenant/pipeline/stage/source=`website_demo` correct  
-8. UTM/custom fields stored  
-9. Public response does not include match candidates / contact methods  
-10. Cross-tenant: match cannot return other tenant Party  
+1. `ENABLED=false` → 403
+2. Invalid payload (no consent / honeypot filled / no phone&email) → 422
+3. Exact email match → same `party_id`, new `work_item_id`, no extra Party
+4. Exact phone match → reuse Party
+5. No match → new Party + WorkItem
+6. Weak name only → new Party + `possible_match_party_ids` set; **not** auto-link
+7. WorkItem tenant/pipeline/stage/source=`website_demo` correct
+8. UTM/custom fields stored
+9. Public response does not include match candidates / contact methods
+10. Cross-tenant: match cannot return other tenant Party
 11. Rate limit trips after threshold (when implemented)
 
 ### Manual smoke (only after enable approval)
 
-1. Disabled still 403 before flip  
-2. One test submit from allowed origin  
-3. Appears in flexity-sales CRM `new_lead`  
-4. Second submit same phone/email → **same Party**, second WorkItem; E4 history shows first  
-5. Close as spam via E1 works  
-6. Kindergarten unchanged  
+1. Disabled still 403 before flip
+2. One test submit from allowed origin
+3. Appears in flexity-sales CRM `new_lead`
+4. Second submit same phone/email → **same Party**, second WorkItem; E4 history shows first
+5. Close as spam via E1 works
+6. Kindergarten unchanged
 
 ---
 
@@ -431,9 +431,9 @@ No alembic rollback required for E5 MVP (JSON fields only).
 
 ## Approval
 
-**Status:** ⏸ waiting for approval  
+**Status:** ⏸ waiting for approval
 
-Next approval should specify which slice to implement first (**recommend E5-A**, still disabled).  
+Next approval should specify which slice to implement first (**recommend E5-A**, still disabled).
 Separate HQ approvals required for: rate-limit approach, env wiring, and **enable**.
 
 ---

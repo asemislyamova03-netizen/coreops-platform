@@ -1,7 +1,7 @@
 # C2 Plan: Flexity Consulting Import Script (Planning Only)
 
-**Дата:** 2026-07-08  
-**Статус:** documentation-only plan  
+**Дата:** 2026-07-08
+**Статус:** documentation-only plan
 **Режим:** без code changes, без import, без production действий
 
 ---

@@ -1,10 +1,10 @@
 # Implementation Plan: Core CRM E2 — Contact match / dedup (Match API)
 
-**Дата:** 2026-07-13  
-**Проект:** Flexity / `coreops-platform`  
-**Тип:** documentation-only implementation plan  
-**Статус:** ⏸ **waiting for approval** (код / migrations / deploy — не трогать)  
-**Prerequisites:** E1–E1.4 deployed on `flexity-sales`; audit  
+**Дата:** 2026-07-13
+**Проект:** Flexity / `coreops-platform`
+**Тип:** documentation-only implementation plan
+**Статус:** ⏸ **waiting for approval** (код / migrations / deploy — не трогать)
+**Prerequisites:** E1–E1.4 deployed on `flexity-sales`; audit
 `docs/ai/reviews/2026-07-10-lead-dedup-spam-identities-audit.md`
 
 **CRM URL:** https://flexity.asia/console/workspace/flexity-sales/crm
@@ -133,7 +133,7 @@ ctx: TenantContext = Depends(require_module("parties"))
 
 **Validation:**
 
-- хотя бы один из: `phone`, `email`, `telegram_username`, `telegram_user_id`, `whatsapp`  
+- хотя бы один из: `phone`, `email`, `telegram_username`, `telegram_user_id`, `whatsapp`
   (если только `name` → вернуть empty exact + optional weak, или `400` с ясным сообщением — **рекомендация: 200 + empty exact, weak name optional**);
 - max lengths как у ContactMethod (`value` ≤ 320).
 
@@ -324,7 +324,7 @@ E2 request **не требует** Instagram field in MVP; document as E2.1 / E4
 
 ### Step 2 — Repository candidates
 
-1. `list_contact_methods_for_match(tenant_id, method_types: list)`  
+1. `list_contact_methods_for_match(tenant_id, method_types: list)`
    or per-type queries joining Party (active preferred; include all non-deleted).
 2. Optional: weak name search reusing existing `display_name ILIKE`.
 
@@ -422,7 +422,7 @@ E2 Match API (this plan)
 
 **Status: waiting for approval**
 
-После approval — реализовать только Steps 1–5 (backend + tests).  
+После approval — реализовать только Steps 1–5 (backend + tests).
 Frontend / public inbound / migrations / deploy — отдельные approvals.
 
 ---

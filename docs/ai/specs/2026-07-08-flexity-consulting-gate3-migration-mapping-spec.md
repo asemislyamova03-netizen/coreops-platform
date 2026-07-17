@@ -1,7 +1,7 @@
 # Flexity Consulting Gate 3 Migration Mapping Spec (First Client)
 
-**Дата:** 2026-07-08  
-**Статус:** documentation-only spec  
+**Дата:** 2026-07-08
+**Статус:** documentation-only spec
 **Режим:** no code / no migrations / no import / no production actions
 
 ---

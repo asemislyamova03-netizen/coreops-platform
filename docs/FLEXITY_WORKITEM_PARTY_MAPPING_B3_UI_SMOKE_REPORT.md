@@ -1,7 +1,7 @@
 # FLEXITY WORKITEM PARTY MAPPING B3 UI SMOKE REPORT
 
-**Дата:** 2026-07-02  
-**Slice:** B3 UI smoke — platform-console + sales/kg tenants  
+**Дата:** 2026-07-02
+**Slice:** B3 UI smoke — platform-console + sales/kg tenants
 **Статус:** ⚠️ **PASSED WITH NOTES** (API+labels layer; live browser UI not run)
 
 ---

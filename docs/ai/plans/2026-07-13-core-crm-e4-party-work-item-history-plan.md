@@ -1,16 +1,16 @@
 # Implementation Plan: Core CRM E4 — Previous interactions / Party work item history
 
-**Дата:** 2026-07-13  
-**Проект:** Flexity / `coreops-platform`  
-**Тип:** documentation-only implementation plan  
-**Статус:** ⏸ **waiting for approval** (код / migrations / deploy / server — не трогать)  
+**Дата:** 2026-07-13
+**Проект:** Flexity / `coreops-platform`
+**Тип:** documentation-only implementation plan
+**Статус:** ⏸ **waiting for approval** (код / migrations / deploy / server — не трогать)
 **Prerequisites:**
 - E1–E1.4 disposition + board/list UX deployed
 - E2 Match API deployed (`POST /parties/match`)
 - E3 CreateWorkItemModal match UI deployed + browser smoke by Асем
 - Deploy report: `docs/ai/reports/2026-07-13-core-crm-e2-e3-match-deploy-smoke-report.md`
 
-**CRM URL:** https://flexity.asia/console/workspace/flexity-sales/crm  
+**CRM URL:** https://flexity.asia/console/workspace/flexity-sales/crm
 **Tenant:** `flexity-sales` (`90553fe9-22d1-458d-ab84-c7353f2d80e2`)
 
 ---
@@ -35,12 +35,12 @@ E4 **не** мержит контакты, **не** auto-link, **не** трог
 
 ### Task Classification (coordinator)
 
-1. **Project:** Flexity  
-2. **Category:** documentation_only (implementation later: universal_module CRM UI)  
-3. **Risk level:** low  
-4. **Intended scope:** this plan file only  
-5. **Forbidden scope:** production code, server, migrations, public inbound  
-6. **Required plan:** documentation-only change → this document  
+1. **Project:** Flexity
+2. **Category:** documentation_only (implementation later: universal_module CRM UI)
+3. **Risk level:** low
+4. **Intended scope:** this plan file only
+5. **Forbidden scope:** production code, server, migrations, public inbound
+6. **Required plan:** documentation-only change → this document
 
 ---
 
@@ -214,7 +214,7 @@ If safe → open other WorkItem in the **same** modal.
 <LeadDetailModal workItemId={selectedWorkItemId} ... />
 ```
 
-**No `key={selectedWorkItemId}` today.**  
+**No `key={selectedWorkItemId}` today.**
 `LeadDetailModal` uses one-shot `hydrated` flag — switching `workItemId` without remount would leave stale form state.
 
 ### Recommended E4 behavior
@@ -278,7 +278,7 @@ Data already in `work_items` + EAV custom fields.
 ### Slice E4 (frontend-only)
 
 1. In `LeadDetailModal`:
-   - when `partyId` set, `useQuery`  
+   - when `partyId` set, `useQuery`
      `["workspace-party-work-items", partyId]` → `listWorkItems({ primary_party_id: partyId, limit: 20 })`;
    - filter out `workItemId`;
    - take first 5;
@@ -369,7 +369,7 @@ Console-only rollback of dist backup; no DB rollback. Backend unchanged → no b
 
 ## Approval
 
-**Status:** ⏸ waiting for approval  
+**Status:** ⏸ waiting for approval
 
 Approve to allow **frontend implementation only** (no backend / migrations / deploy until separate HQ approval).
 

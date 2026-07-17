@@ -1,9 +1,9 @@
 # FLEXITY WORKITEM PARTY MAPPING B3 PLAN
 
-**Дата:** 2026-07-02  
-**Проект:** Flexity  
-**Категория:** `documentation_only` — B3 planning / review  
-**Статус:** ожидает HQ approval перед implementation  
+**Дата:** 2026-07-02
+**Проект:** Flexity
+**Категория:** `documentation_only` — B3 planning / review
+**Статус:** ожидает HQ approval перед implementation
 **Предшествующие slices:** B1 ✅, B2a ✅ PASSED
 
 **Основание:**
@@ -367,7 +367,7 @@ No API default changes recommended — role should be set explicitly by Console 
 | 5 | `CreateWorkItemModal` — `entityLabel("party")` instead of «Клиент» | `CreateWorkItemModal.tsx` |
 | 6 | Add `lead`, `contact` to `partyRoleRu` | `ruUi.ts` |
 
-**Estimated files:** 5–6 platform-console files only.  
+**Estimated files:** 5–6 platform-console files only.
 **No backend changes. No migrations. No seed changes.**
 
 ### Out of scope for minimal B3
@@ -427,7 +427,7 @@ Cursor must **stop and request HQ approval** if implementation requires:
 3. **Console UI smoke** on running dev stack (`flexity-sales` + kg tenant).
 4. **Then** HQ decision on **B2b public inbound** cherry-pick.
 
-**Order:** B3 implementation → console smoke → B2b decision.  
+**Order:** B3 implementation → console smoke → B2b decision.
 **Not parallel:** do not cherry-pick inbound while B3 is open.
 
 ---
@@ -436,12 +436,12 @@ Cursor must **stop and request HQ approval** if implementation requires:
 
 ### 1. Current issue
 
-Console treats every Party as **«клиент»** (`party_role=client`), while sales tenant template defines **«Лид» / «Контакт»**.  
+Console treats every Party as **«клиент»** (`party_role=client`), while sales tenant template defines **«Лид» / «Контакт»**.
 If we switch to `lead` without fixing `ClientsPage` filter, **contacts disappear from the list**.
 
 ### 2. Recommended party_role approach
 
-**Option B — `party_role=lead`**, selected automatically from template `labels_config.party_roles` (label-driven, no slug hardcode).  
+**Option B — `party_role=lead`**, selected automatically from template `labels_config.party_roles` (label-driven, no slug hardcode).
 No migration — metadata string only.
 
 ### 3. Recommended implementation slice

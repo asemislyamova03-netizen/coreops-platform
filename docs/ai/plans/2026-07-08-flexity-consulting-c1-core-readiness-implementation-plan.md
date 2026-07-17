@@ -1,7 +1,7 @@
 # C1 Implementation Plan: Flexity Consulting Core Target Readiness Fixes
 
-**Дата:** 2026-07-08  
-**Статус:** draft / awaiting approval  
+**Дата:** 2026-07-08
+**Статус:** draft / awaiting approval
 **Режим:** documentation-only (без code changes, без migrations, без import script, без production действий)
 
 ---

@@ -1,7 +1,7 @@
 # Report: Consulting → Core Gate B Real-Source Adapter Implementation
 
-**Дата:** 2026-07-09  
-**Статус:** implementation complete — **READY_FOR_GATE_B_DRY_RUN_APPROVAL**  
+**Дата:** 2026-07-09
+**Статус:** implementation complete — **READY_FOR_GATE_B_DRY_RUN_APPROVAL**
 **Режим:** adapter code only — no real-source dry-run executed
 
 ---
@@ -57,7 +57,7 @@
 
 ## 4) CLI implemented
 
-Entry: `backend/scripts/c2b_real_source_dry_run.py`  
+Entry: `backend/scripts/c2b_real_source_dry_run.py`
 Core logic: `backend/app/modules/imports_dry_run/gate_b_runner.py`
 
 ### Required flags

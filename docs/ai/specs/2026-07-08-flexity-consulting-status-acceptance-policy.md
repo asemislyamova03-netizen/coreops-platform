@@ -1,7 +1,7 @@
 # Flexity Consulting Status Acceptance Policy (C1)
 
-**Дата:** 2026-07-08  
-**Статус:** C1 policy baseline  
+**Дата:** 2026-07-08
+**Статус:** C1 policy baseline
 **Режим:** documentation-only
 
 ---

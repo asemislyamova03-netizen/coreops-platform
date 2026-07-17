@@ -1,9 +1,9 @@
 # Report: Core CRM E3 — CreateWorkItemModal contact match UI
 
-**Дата:** 2026-07-13  
-**Проект:** Flexity / `coreops-platform`  
-**Тип:** Frontend local slice  
-**Статус:** ✅ **IMPLEMENTED (local)** — deploy не выполнялся  
+**Дата:** 2026-07-13
+**Проект:** Flexity / `coreops-platform`
+**Тип:** Frontend local slice
+**Статус:** ✅ **IMPLEMENTED (local)** — deploy не выполнялся
 **Prerequisite:** E2 Match API (`docs/ai/reports/2026-07-13-core-crm-e2-party-match-api-report.md`)
 
 ---
@@ -116,8 +116,8 @@ Clears on: switch to existing mode, clear/change payload fingerprint, dismiss, m
 
 ## Next recommended step
 
-1. Local smoke CreateWorkItemModal against local/staging API with E2 deployed  
-2. Deploy order: **backend E2 first**, then console E3  
+1. Local smoke CreateWorkItemModal against local/staging API with E2 deployed
+2. Deploy order: **backend E2 first**, then console E3
 3. Later: telegram/whatsapp fields in create form (optional)
 
 ---

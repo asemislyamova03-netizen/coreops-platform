@@ -691,12 +691,17 @@ def test_start_does_not_change_work_item_stage_or_status(db_session):
     assert work_item.status == original_status
 
 
-# --- T13 create_work_item creates zero runs ---
+# --- T13 create_work_item auto-starts when overlay ACTIVE (E1b2) ---
 
 
-def test_create_work_item_creates_zero_runs_even_with_active_config(db_session):
+def test_create_work_item_auto_starts_run_when_config_active(db_session):
+    """E1b2: ACTIVE config → WorkflowService.create_work_item starts one ProcessRun.
+
+    Former E1b anti-hook (zero runs + no start_run in source) inverted here.
+    Full matrix: tests/test_process_overlay_e1b2_auto_start.py
+    """
     tenant, pipeline, config, actor = _setup_configuration(db_session, "crm-create")
-    _activate_overlay(db_session, tenant, config, actor)
+    version, config_orm = _activate_overlay(db_session, tenant, config, actor)
 
     user = User(
         email="e1b-create@test.com",
@@ -716,13 +721,20 @@ def test_create_work_item_creates_zero_runs_even_with_active_config(db_session):
             pipeline_id=pipeline.id,
             stage_id=stage.id,
             work_item_type="lead",
-            title="CRM create only",
+            title="CRM create with overlay",
         ),
     )
     assert created.id is not None
-    assert _count_runs(db_session, tenant_id=tenant.id) == 0
-    assert "start_run" not in inspect.getsource(WorkflowService.create_work_item)
-    assert "ProcessOverlayRunService" not in inspect.getsource(WorkflowService)
+    assert _count_runs(db_session, tenant_id=tenant.id) == 1
+    active = ProcessOverlayRepository(db_session).get_active_run_for_work_item(
+        tenant.id, created.id
+    )
+    assert active is not None
+    assert active.run_state == ProcessRunState.ACTIVE
+    assert active.process_definition_version_id == version.id
+    assert active.process_definition_version_id == config_orm.active_definition_version_id
+    assert "_maybe_auto_start_process_run" in inspect.getsource(WorkflowService.create_work_item)
+    assert "ProcessOverlayRunService" in inspect.getsource(WorkflowService._maybe_auto_start_process_run)
 
 
 # --- T14 move_stage leaves run ACTIVE ---

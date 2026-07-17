@@ -737,10 +737,11 @@ def test_create_work_item_auto_starts_run_when_config_active(db_session):
     assert "ProcessOverlayRunService" in inspect.getsource(WorkflowService._maybe_auto_start_process_run)
 
 
-# --- T14 move_stage leaves run ACTIVE ---
+# --- T14 move_stage with ACTIVE run: E1c allows edge + syncs stage (no auto-complete) ---
 
 
 def test_move_stage_leaves_active_run_unchanged(db_session):
+    """E1c rewrite of E1b T14: allowed edge applies; run stays ACTIVE; stage cache syncs."""
     tenant, pipeline, config, _, work_item, actor = _setup_active_run_context(db_session, "crm-move")
     service = ProcessOverlayRunService(db_session)
     started = service.start_run(
@@ -771,7 +772,7 @@ def test_move_stage_leaves_active_run_unchanged(db_session):
     stored = ProcessOverlayRepository(db_session).get_run(tenant.id, started.id)
     assert stored is not None
     assert stored.run_state == ProcessRunState.ACTIVE
-    assert stored.current_stage_code == "new_lead"  # E1b: no sync on move_stage
+    assert stored.current_stage_code == "contacted"  # E1c: sync after applied transition
 
 
 # --- T15 version pin immutable (no repo update path) ---

@@ -126,6 +126,24 @@ class WorkflowRepository:
         )
         return self.db.scalar(stmt)
 
+    def get_work_item_for_update(
+        self,
+        tenant_id: uuid.UUID,
+        work_item_id: uuid.UUID,
+    ) -> WorkItem | None:
+        """Tenant-scoped WorkItem with row lock. SQLite may no-op FOR UPDATE."""
+        stmt = (
+            select(WorkItem)
+            .where(WorkItem.tenant_id == tenant_id, WorkItem.id == work_item_id)
+            .options(
+                selectinload(WorkItem.participants),
+                selectinload(WorkItem.activities),
+                selectinload(WorkItem.tasks),
+            )
+            .with_for_update()
+        )
+        return self.db.scalar(stmt)
+
     def create_work_item(self, **kwargs) -> WorkItem:
         item = WorkItem(**kwargs)
         self.db.add(item)

@@ -211,6 +211,34 @@ class ProcessOverlayRepository:
         )
         return self.db.scalar(stmt)
 
+    def get_active_run_for_work_item_for_update(
+        self,
+        tenant_id: uuid.UUID,
+        work_item_id: uuid.UUID,
+    ) -> ProcessRun | None:
+        """Tenant-scoped ACTIVE run with row lock. SQLite may no-op FOR UPDATE."""
+        stmt = (
+            select(ProcessRun)
+            .where(
+                ProcessRun.tenant_id == tenant_id,
+                ProcessRun.work_item_id == work_item_id,
+                ProcessRun.run_state == ProcessRunState.ACTIVE,
+            )
+            .with_for_update()
+        )
+        return self.db.scalar(stmt)
+
+    def update_run_current_stage_code(
+        self,
+        run: ProcessRun,
+        *,
+        current_stage_code: str,
+    ) -> ProcessRun:
+        """Sync stage cache only. Never mutates process_definition_version_id."""
+        run.current_stage_code = current_stage_code
+        self.db.flush()
+        return run
+
     def create_run(
         self,
         *,

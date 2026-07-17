@@ -75,3 +75,8 @@ from app.modules.marketing.models import (  # noqa: F401
     MarketingPublicationText,
     MarketingPublishLog,
 )
+from app.modules.process_overlay.models import (  # noqa: F401
+    ProcessDefinitionVersion,
+    ProcessTemplate,
+    TenantProcessConfiguration,
+)

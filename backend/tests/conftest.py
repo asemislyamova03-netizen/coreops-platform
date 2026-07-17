@@ -1,7 +1,7 @@
 import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -15,13 +15,25 @@ TEST_DATABASE_URL = "sqlite://"
 
 @pytest.fixture
 def db_engine():
+    from sqlalchemy import event
+
     engine = create_engine(
         TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     Base.metadata.create_all(bind=engine)
     yield engine
+    with engine.connect() as conn:
+        conn.execute(text("PRAGMA foreign_keys=OFF"))
+        conn.commit()
     Base.metadata.drop_all(bind=engine)
     engine.dispose()
 
@@ -49,6 +61,9 @@ def seed_catalog(db_session: Session) -> None:
     from app.modules.integrations.service import IntegrationService
 
     IntegrationService(db_session).seed_providers()
+    from app.modules.process_overlay.service import ProcessOverlayCatalogService
+
+    ProcessOverlayCatalogService(db_session).seed_templates()
 
 
 @pytest.fixture

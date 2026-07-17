@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.modules.process_overlay.enums import ProcessOverlayActivationState
+from app.modules.process_overlay.enums import ProcessOverlayActivationState, ProcessRunState
 from app.modules.process_overlay.policy_schema import PolicySnapshotV1
 
 
@@ -52,3 +52,22 @@ class ProcessDefinitionVersionResponse(BaseModel):
 class PublishDefinitionVersionRequest(BaseModel):
     policy: PolicySnapshotV1
     publish_reason: str = Field(min_length=1, max_length=2000)
+
+
+class ProcessRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    tenant_process_configuration_id: uuid.UUID
+    process_definition_version_id: uuid.UUID
+    work_item_id: uuid.UUID
+    run_state: ProcessRunState
+    started_at: datetime
+    started_by_user_id: uuid.UUID
+    completed_at: datetime | None
+    completed_by_user_id: uuid.UUID | None
+    completion_reason: str | None
+    current_stage_code: str | None
+    created_at: datetime
+    updated_at: datetime

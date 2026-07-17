@@ -7,6 +7,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     JSON,
     String,
     Text,
@@ -14,12 +15,13 @@ from sqlalchemy import (
     Uuid,
     event,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.core.models import AuditUserMixin, TimestampMixin, UUIDPrimaryKeyMixin
-from app.modules.process_overlay.enums import ProcessOverlayActivationState
+from app.modules.process_overlay.enums import ProcessOverlayActivationState, ProcessRunState
 from app.modules.process_overlay.exceptions import ProcessDefinitionImmutableError
 
 
@@ -169,3 +171,73 @@ class ProcessDefinitionVersion(Base, UUIDPrimaryKeyMixin):
 @event.listens_for(ProcessDefinitionVersion, "before_update", propagate=True)
 def _prevent_process_definition_version_update(_mapper, _connection, _target) -> None:
     raise ProcessDefinitionImmutableError("Published process definition versions are immutable")
+
+
+class ProcessRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Runtime binding: WorkItem ↔ pinned ProcessDefinitionVersion under a tenant config."""
+
+    __tablename__ = "process_runs"
+    __table_args__ = (
+        # Ownership guard (E1a active-version style): config+version must pair via
+        # uq_process_def_version_config_id. No separate single-column FKs to config/version.
+        ForeignKeyConstraint(
+            ["tenant_process_configuration_id", "process_definition_version_id"],
+            [
+                "process_definition_versions.tenant_process_configuration_id",
+                "process_definition_versions.id",
+            ],
+            name="fk_process_run_config_version",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "run_state IN ('active', 'completed', 'cancelled')",
+            name="ck_process_run_state_valid",
+        ),
+        Index(
+            "uq_process_run_one_active_per_work_item",
+            "work_item_id",
+            unique=True,
+            postgresql_where=text("run_state = 'active'"),
+            sqlite_where=text("run_state = 'active'"),
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    tenant_process_configuration_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        nullable=False,
+        index=True,
+    )
+    process_definition_version_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        nullable=False,
+        index=True,
+    )
+    work_item_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("work_items.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    run_state: Mapped[ProcessRunState] = mapped_column(
+        Enum(
+            ProcessRunState,
+            name="process_run_state",
+            native_enum=False,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        default=ProcessRunState.ACTIVE,
+        nullable=False,
+        index=True,
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_by_user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    completion_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    current_stage_code: Mapped[str | None] = mapped_column(String(64), nullable=True)

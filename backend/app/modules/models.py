@@ -77,6 +77,7 @@ from app.modules.marketing.models import (  # noqa: F401
 )
 from app.modules.process_overlay.models import (  # noqa: F401
     ProcessDefinitionVersion,
+    ProcessRun,
     ProcessTemplate,
     TenantProcessConfiguration,
 )

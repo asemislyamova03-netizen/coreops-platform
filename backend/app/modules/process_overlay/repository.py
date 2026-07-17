@@ -4,10 +4,11 @@ from datetime import UTC, datetime
 from sqlalchemy import func, inspect, select
 from sqlalchemy.orm import Session
 
-from app.modules.process_overlay.enums import ProcessOverlayActivationState
+from app.modules.process_overlay.enums import ProcessOverlayActivationState, ProcessRunState
 from app.modules.process_overlay.exceptions import ProcessDefinitionImmutableError
 from app.modules.process_overlay.models import (
     ProcessDefinitionVersion,
+    ProcessRun,
     ProcessTemplate,
     TenantProcessConfiguration,
 )
@@ -176,3 +177,69 @@ class ProcessOverlayRepository:
             raise ProcessDefinitionImmutableError(
                 "tenant_process_configuration_id is immutable after publish"
             )
+
+    # --- ProcessRun (E1b runtime binding) ---
+
+    def get_run(self, tenant_id: uuid.UUID, run_id: uuid.UUID) -> ProcessRun | None:
+        stmt = select(ProcessRun).where(
+            ProcessRun.tenant_id == tenant_id,
+            ProcessRun.id == run_id,
+        )
+        return self.db.scalar(stmt)
+
+    def get_active_run_for_work_item(
+        self,
+        tenant_id: uuid.UUID,
+        work_item_id: uuid.UUID,
+    ) -> ProcessRun | None:
+        stmt = select(ProcessRun).where(
+            ProcessRun.tenant_id == tenant_id,
+            ProcessRun.work_item_id == work_item_id,
+            ProcessRun.run_state == ProcessRunState.ACTIVE,
+        )
+        return self.db.scalar(stmt)
+
+    def create_run(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        tenant_process_configuration_id: uuid.UUID,
+        process_definition_version_id: uuid.UUID,
+        work_item_id: uuid.UUID,
+        started_by_user_id: uuid.UUID,
+        current_stage_code: str | None = None,
+        started_at: datetime | None = None,
+    ) -> ProcessRun:
+        run = ProcessRun(
+            tenant_id=tenant_id,
+            tenant_process_configuration_id=tenant_process_configuration_id,
+            process_definition_version_id=process_definition_version_id,
+            work_item_id=work_item_id,
+            run_state=ProcessRunState.ACTIVE,
+            started_at=started_at or datetime.now(UTC),
+            started_by_user_id=started_by_user_id,
+            completed_at=None,
+            completed_by_user_id=None,
+            completion_reason=None,
+            current_stage_code=current_stage_code,
+        )
+        self.db.add(run)
+        self.db.flush()
+        return run
+
+    def update_run_lifecycle(
+        self,
+        run: ProcessRun,
+        *,
+        run_state: ProcessRunState,
+        completed_at: datetime,
+        completed_by_user_id: uuid.UUID,
+        completion_reason: str | None,
+    ) -> ProcessRun:
+        """Update terminal lifecycle fields only. Never mutates process_definition_version_id."""
+        run.run_state = run_state
+        run.completed_at = completed_at
+        run.completed_by_user_id = completed_by_user_id
+        run.completion_reason = completion_reason
+        self.db.flush()
+        return run

@@ -1,3 +1,5 @@
+import pytest
+
 REGISTER_PAYLOAD = {
     "email": "owner@example.com",
     "password": "securepass123",
@@ -35,10 +37,223 @@ def test_create_and_list_tenants(client):
     tenant = created.json()
     assert tenant["slug"] == "demo-client"
     assert tenant["status"] == "trial"
+    assert tenant["default_branch_id"] is not None
 
     listed = client.get("/api/v1/tenants", headers=headers)
     assert listed.status_code == 200
     assert len(listed.json()) == 1
+
+
+def test_create_tenant_provisions_default_branch(client, db_session):
+    import uuid
+
+    from app.modules.branches.models import Branch
+
+    headers = _auth_header(client)
+    created = client.post(
+        "/api/v1/tenants",
+        json={"name": "Branch Tenant", "slug": "branch-tenant"},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant = created.json()
+    assert tenant["default_branch_id"] is not None
+
+    branch = db_session.get(Branch, uuid.UUID(tenant["default_branch_id"]))
+    assert branch is not None
+    assert str(branch.tenant_id) == tenant["id"]
+    assert branch.is_default is True
+    assert branch.is_active is True
+    assert branch.code == "main"
+
+
+def test_branch_code_unique_within_tenant(db_session):
+    import uuid
+
+    from sqlalchemy.exc import IntegrityError
+
+    from app.core.enums import TenantStatus
+    from app.modules.branches.repository import BranchRepository
+    from app.modules.provider.models import ProviderCompany
+    from app.modules.tenants.models import Tenant
+
+    provider = ProviderCompany(name="Branch Provider", slug="branch-provider", is_active=True)
+    tenant = Tenant(
+        provider_company=provider,
+        name="Branch Tenant",
+        slug="branch-tenant-unique",
+        status=TenantStatus.TRIAL,
+    )
+    db_session.add_all([provider, tenant])
+    db_session.flush()
+
+    repo = BranchRepository(db_session)
+    repo.create(tenant_id=tenant.id, code="main", name="Main branch", is_default=True)
+    db_session.flush()
+
+    with pytest.raises(IntegrityError):
+        repo.create(tenant_id=tenant.id, code="main", name="Duplicate", is_default=False)
+        db_session.flush()
+
+
+def test_same_branch_code_allowed_across_tenants(db_session):
+    from app.core.enums import TenantStatus
+    from app.modules.branches.repository import BranchRepository
+    from app.modules.provider.models import ProviderCompany
+    from app.modules.tenants.models import Tenant
+
+    provider = ProviderCompany(name="Multi Tenant Provider", slug="multi-branch-provider", is_active=True)
+    tenant_a = Tenant(
+        provider_company=provider,
+        name="Tenant A",
+        slug="tenant-a-branch",
+        status=TenantStatus.TRIAL,
+    )
+    tenant_b = Tenant(
+        provider_company=provider,
+        name="Tenant B",
+        slug="tenant-b-branch",
+        status=TenantStatus.TRIAL,
+    )
+    db_session.add_all([provider, tenant_a, tenant_b])
+    db_session.flush()
+
+    repo = BranchRepository(db_session)
+    branch_a = repo.create(
+        tenant_id=tenant_a.id,
+        code="main",
+        name="Main branch",
+        is_default=True,
+    )
+    branch_b = repo.create(
+        tenant_id=tenant_b.id,
+        code="main",
+        name="Main branch",
+        is_default=True,
+    )
+    db_session.flush()
+
+    assert branch_a.tenant_id != branch_b.tenant_id
+    assert branch_a.code == branch_b.code == "main"
+
+
+def test_ensure_default_branch_is_idempotent(db_session):
+    import uuid
+
+    from sqlalchemy import func, select
+
+    from app.core.enums import TenantStatus
+    from app.modules.branches.models import Branch
+    from app.modules.branches.service import BranchService
+    from app.modules.provider.models import ProviderCompany
+    from app.modules.tenants.models import Tenant
+
+    provider = ProviderCompany(name="Idempotent Provider", slug="idempotent-provider", is_active=True)
+    tenant = Tenant(
+        provider_company=provider,
+        name="Idempotent Tenant",
+        slug="idempotent-tenant",
+        status=TenantStatus.TRIAL,
+    )
+    db_session.add_all([provider, tenant])
+    db_session.flush()
+
+    service = BranchService(db_session)
+    first_branch_id = service.ensure_default_branch(tenant.id)
+    second_branch_id = service.ensure_default_branch(tenant.id)
+
+    assert first_branch_id == second_branch_id
+    db_session.refresh(tenant)
+    assert tenant.default_branch_id == first_branch_id
+
+    branch_count = db_session.scalar(
+        select(func.count()).select_from(Branch).where(Branch.tenant_id == tenant.id)
+    )
+    assert branch_count == 1
+
+
+def test_get_default_is_deterministic_for_duplicate_defaults(db_session):
+    from datetime import UTC, datetime, timedelta
+
+    from app.core.enums import TenantStatus
+    from app.modules.branches.models import Branch
+    from app.modules.branches.repository import BranchRepository
+    from app.modules.provider.models import ProviderCompany
+    from app.modules.tenants.models import Tenant
+
+    provider = ProviderCompany(
+        name="Deterministic Provider",
+        slug="deterministic-provider",
+        is_active=True,
+    )
+    tenant = Tenant(
+        provider_company=provider,
+        name="Deterministic Tenant",
+        slug="deterministic-tenant",
+        status=TenantStatus.TRIAL,
+    )
+    db_session.add_all([provider, tenant])
+    db_session.flush()
+
+    older_time = datetime.now(UTC) - timedelta(days=1)
+    newer_time = datetime.now(UTC)
+    older_branch = Branch(
+        tenant_id=tenant.id,
+        code="legacy-default",
+        name="Older default",
+        is_default=True,
+        is_active=True,
+        created_at=older_time,
+        updated_at=older_time,
+    )
+    newer_branch = Branch(
+        tenant_id=tenant.id,
+        code="secondary-default",
+        name="Newer default",
+        is_default=True,
+        is_active=True,
+        created_at=newer_time,
+        updated_at=newer_time,
+    )
+    db_session.add_all([older_branch, newer_branch])
+    db_session.flush()
+
+    selected = BranchRepository(db_session).get_default(tenant.id)
+    assert selected is not None
+    assert selected.id == older_branch.id
+
+
+def test_tenant_create_and_update_schemas_exclude_default_branch_id():
+    from app.modules.tenants.schemas import TenantCreate, TenantUpdate
+
+    assert "default_branch_id" not in TenantCreate.model_fields
+    assert "default_branch_id" not in TenantUpdate.model_fields
+
+
+def test_tenant_create_api_ignores_caller_supplied_default_branch_id(client, db_session):
+    import uuid
+
+    from app.modules.branches.models import Branch
+
+    headers = _auth_header(client)
+    forged_branch_id = uuid.uuid4()
+    created = client.post(
+        "/api/v1/tenants",
+        json={
+            "name": "Ignored Branch Id Tenant",
+            "slug": "ignored-branch-id-tenant",
+            "default_branch_id": str(forged_branch_id),
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201
+    tenant = created.json()
+    assert tenant["default_branch_id"] is not None
+    assert tenant["default_branch_id"] != str(forged_branch_id)
+
+    branch = db_session.get(Branch, uuid.UUID(tenant["default_branch_id"]))
+    assert branch is not None
+    assert str(branch.tenant_id) == tenant["id"]
 
 
 def test_get_tenant_by_id(client):

@@ -1,6 +1,7 @@
 """Import all ORM models for Alembic autogenerate and metadata registration."""
 
 from app.modules.auth.models import User  # noqa: F401
+from app.modules.branches.models import Branch  # noqa: F401
 from app.modules.module_registry.models import ModuleDefinition, TenantModule  # noqa: F401
 from app.modules.provider.models import ProviderCompany, ProviderStaff  # noqa: F401
 from app.modules.subscriptions.models import (  # noqa: F401

@@ -51,6 +51,8 @@ class InstagramLivePublisherTests(unittest.TestCase):
         published_at: str | None = None,
         external_id: str | None = None,
         image_url: str = "https://cdn.example.com/post.jpg",
+        video_url: str = "https://cdn.example.com/reel.mp4",
+        media: dict | None = None,
         caption_source: str = "instagram.md",
         caption: str = "Approved caption",
     ) -> Path:
@@ -66,13 +68,16 @@ class InstagramLivePublisherTests(unittest.TestCase):
             yaml.safe_dump(pack, allow_unicode=True, sort_keys=False),
             encoding="utf-8",
         )
+        media_payload = media if media is not None else {"image_url": image_url}
+        if post_type == "reels" and media is None:
+            media_payload = {"video_url": video_url}
         instagram = {
             "status": instagram_status,
             "type": post_type,
             "publish_at": publish_at,
             "published_at": published_at,
             "external_id": external_id,
-            "media": {"image_url": image_url},
+            "media": media_payload,
             "caption_source": caption_source,
         }
         (pack_dir / "instagram.yml").write_text(
@@ -228,12 +233,12 @@ class InstagramLivePublisherTests(unittest.TestCase):
         self.assertIn("caption_source is required", stderr)
 
     def test_unsupported_type_fails_closed(self) -> None:
-        self.create_pack(post_type="carousel")
+        self.create_pack(post_type="story")
         with patch.object(publish_instagram_live.requests, "post") as post:
             result, _, stderr = self.run_main(["--live"])
         self.assertEqual(result, 1)
         post.assert_not_called()
-        self.assertIn("type must be feed_image", stderr)
+        self.assertIn("type must be one of", stderr)
 
     def test_api_container_error_does_not_mark_published(self) -> None:
         pack_dir = self.create_pack()
@@ -326,13 +331,78 @@ class InstagramLivePublisherTests(unittest.TestCase):
             )
         return result, stdout.getvalue(), stderr.getvalue()
 
-    def test_reels_type_fails_closed(self) -> None:
+    def test_reels_publishes_when_video_url_present(self) -> None:
         self.create_pack(post_type="reels")
+        create_response = Mock(status_code=200)
+        create_response.json.return_value = {"id": "creation-reel"}
+        publish_response = Mock(status_code=200)
+        publish_response.json.return_value = {"id": "reel-media"}
+        with patch.object(
+            publish_instagram_live.requests, "post", side_effect=[create_response, publish_response]
+        ):
+            result, stdout, _ = self.run_main(["--live"])
+        self.assertEqual(result, 0)
+        self.assertIn("PUBLISHED test-pack: external_id=reel-media", stdout)
+
+    def test_reels_without_video_url_fails_closed(self) -> None:
+        self.create_pack(post_type="reels", media={"video_url": ""})
         with patch.object(publish_instagram_live.requests, "post") as post:
             result, _, stderr = self.run_main(["--live"])
         self.assertEqual(result, 1)
         post.assert_not_called()
-        self.assertIn("type must be feed_image", stderr)
+        self.assertIn("media.video_url is required", stderr)
+
+    def test_carousel_publishes_with_two_items(self) -> None:
+        self.create_pack(
+            post_type="carousel",
+            media={
+                "items": [
+                    {"image_url": "https://cdn.example.com/slide-1.jpg"},
+                    {"image_url": "https://cdn.example.com/slide-2.jpg"},
+                ]
+            },
+        )
+        child1 = Mock(status_code=200)
+        child1.json.return_value = {"id": "child-1"}
+        child2 = Mock(status_code=200)
+        child2.json.return_value = {"id": "child-2"}
+        parent = Mock(status_code=200)
+        parent.json.return_value = {"id": "parent-carousel"}
+        publish = Mock(status_code=200)
+        publish.json.return_value = {"id": "carousel-media"}
+        with patch.object(
+            publish_instagram_live.requests,
+            "post",
+            side_effect=[child1, child2, parent, publish],
+        ):
+            result, stdout, _ = self.run_main(["--live"])
+        self.assertEqual(result, 0)
+        self.assertIn("PUBLISHED test-pack: external_id=carousel-media", stdout)
+
+    def test_carousel_child_create_error_fails_closed(self) -> None:
+        self.create_pack(
+            post_type="carousel",
+            media={
+                "items": [
+                    {"image_url": "https://cdn.example.com/slide-1.jpg"},
+                    {"image_url": "https://cdn.example.com/slide-2.jpg"},
+                ]
+            },
+        )
+        bad = Mock(status_code=400)
+        bad.json.return_value = {"error": {"message": "Invalid child", "code": 100}}
+        with patch.object(publish_instagram_live.requests, "post", side_effect=[bad]):
+            result, _, stderr = self.run_main(["--live"])
+        self.assertEqual(result, 1)
+        self.assertIn("media container creation", stderr)
+
+    def test_carousel_requires_two_items(self) -> None:
+        self.create_pack(post_type="carousel", media={"items": [{"image_url": "https://cdn.example.com/one.jpg"}]})
+        with patch.object(publish_instagram_live.requests, "post") as post:
+            result, _, stderr = self.run_main(["--live"])
+        self.assertEqual(result, 1)
+        post.assert_not_called()
+        self.assertIn("at least 2 items", stderr)
 
 
 if __name__ == "__main__":

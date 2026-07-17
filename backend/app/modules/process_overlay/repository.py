@@ -58,6 +58,18 @@ class ProcessOverlayRepository:
         )
         return self.db.scalar(stmt)
 
+    def get_configuration_by_pipeline(
+        self,
+        tenant_id: uuid.UUID,
+        pipeline_id: uuid.UUID,
+    ) -> TenantProcessConfiguration | None:
+        """Return the tenant's process config for a pipeline, if any (unique pair)."""
+        stmt = select(TenantProcessConfiguration).where(
+            TenantProcessConfiguration.tenant_id == tenant_id,
+            TenantProcessConfiguration.pipeline_id == pipeline_id,
+        )
+        return self.db.scalar(stmt)
+
     def list_configurations(self, tenant_id: uuid.UUID) -> list[TenantProcessConfiguration]:
         stmt = (
             select(TenantProcessConfiguration)

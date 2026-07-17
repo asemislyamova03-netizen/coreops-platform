@@ -131,6 +131,7 @@ class WorkflowService:
             self.custom_fields.upsert_values(ENTITY_WORK_ITEM, item.id, custom_values)
 
         self.db.flush()
+        self._maybe_auto_start_process_run(user=user, work_item=item)
         return self.get_work_item(item.id)
 
     def update_work_item(
@@ -260,6 +261,33 @@ class WorkflowService:
         if not item:
             raise NotFoundError("Work item not found")
         return item
+
+    def _maybe_auto_start_process_run(self, *, user: User, work_item) -> None:
+        """E1b2 opt-in: ACTIVE overlay config → start ProcessRun in the same session.
+
+        Missing / INACTIVE config is a no-op. ACTIVE path calls existing start_run
+        (fail-closed on overlay errors so the route does not commit the WorkItem).
+        Lazy imports avoid workflows ↔ process_overlay import cycles.
+        """
+        from app.modules.process_overlay.enums import ProcessOverlayActivationState
+        from app.modules.process_overlay.repository import ProcessOverlayRepository
+        from app.modules.process_overlay.service.runs import ProcessOverlayRunService
+
+        config = ProcessOverlayRepository(self.db).get_configuration_by_pipeline(
+            self.tenant_id,
+            work_item.pipeline_id,
+        )
+        if config is None:
+            return
+        if config.activation_state != ProcessOverlayActivationState.ACTIVE:
+            return
+
+        ProcessOverlayRunService(self.db).start_run(
+            tenant_id=self.tenant_id,
+            work_item_id=work_item.id,
+            configuration_id=config.id,
+            actor_user_id=user.id,
+        )
 
     def _ensure_party(self, party_id: uuid.UUID) -> None:
         party = self.parties.get_party(self.tenant_id, party_id)

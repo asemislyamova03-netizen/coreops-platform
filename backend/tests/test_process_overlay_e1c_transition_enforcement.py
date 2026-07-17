@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import copy
 import inspect
+import os
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import create_engine, select, text
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import ActivityType, TenantStatus, WorkItemStatus
 from app.core.exceptions import ConflictError, NotFoundError
@@ -32,7 +38,7 @@ from app.modules.process_overlay.service import (
 )
 from app.modules.provider.models import ProviderCompany
 from app.modules.tenants.models import Tenant
-from app.modules.workflows.models import Activity, PipelineStage
+from app.modules.workflows.models import Activity, PipelineStage, WorkItem
 from app.modules.workflows.repository import WorkflowRepository
 from app.modules.workflows.schemas import (
     CloseWorkItemRequest,
@@ -710,5 +716,175 @@ def test_for_update_helpers_present():
     ).upper()
 
 
+def test_lock_order_work_item_then_active_run_identical():
+    """move/update/close/reopen must lock WorkItem before ACTIVE ProcessRun."""
+    for method_name in (
+        "move_stage",
+        "update_work_item",
+        "close_work_item",
+        "reopen_work_item",
+    ):
+        source = inspect.getsource(getattr(WorkflowService, method_name))
+        wi_pos = source.find("_get_work_item_for_update_or_404")
+        guard_pos = source.find("_assert_process_transition")
+        assert wi_pos != -1, f"{method_name} must lock WorkItem via FOR UPDATE helper"
+        assert guard_pos != -1, f"{method_name} must call shared transition guard"
+        assert wi_pos < guard_pos, f"{method_name} lock order must be WorkItem → guard/ProcessRun"
+    guard_src = inspect.getsource(ProcessOverlayTransitionGuard.assert_transition_allowed)
+    assert "get_active_run_for_work_item_for_update" in guard_src
+
+
 def test_guard_export_available():
     assert ProcessOverlayTransitionGuard is not None
+
+
+# --- Postgres concurrent transition race (FOR UPDATE serialization) ---
+
+
+def _postgres_available() -> bool:
+    try:
+        from app.core.config import get_settings
+
+        get_settings.cache_clear()
+        engine = create_engine(get_settings().database_url)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        engine.dispose()
+        return True
+    except OperationalError:
+        return False
+
+
+postgres_required = pytest.mark.skipif(
+    not _postgres_available(),
+    reason="Local Postgres is required for concurrent transition race tests",
+)
+
+
+@postgres_required
+def test_postgres_concurrent_move_stage_one_applied_transition():
+    """True concurrent move_stage on Postgres: FOR UPDATE → one applied transition."""
+    from alembic import command
+    from alembic.config import Config
+
+    from app.core.config import get_settings
+
+    get_settings.cache_clear()
+    database_url = get_settings().database_url
+    if not database_url.startswith("postgresql"):
+        pytest.skip("DATABASE_URL is not PostgreSQL")
+
+    backend_root = Path(__file__).resolve().parents[1]
+    os.environ["DATABASE_URL"] = database_url
+    get_settings.cache_clear()
+    cfg = Config(str(backend_root / "alembic.ini"))
+    cfg.set_main_option("sqlalchemy.url", database_url)
+    command.upgrade(cfg, "head")
+
+    engine = create_engine(database_url, pool_size=5, max_overflow=5)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    setup = SessionLocal()
+    try:
+        from app.modules.industry_templates.service import IndustryTemplateService
+        from app.modules.integrations.service import IntegrationService
+        from app.modules.subscriptions.service import SubscriptionService
+
+        ModuleRegistryService(setup).seed_definitions()
+        SubscriptionService(setup).seed_catalog()
+        IndustryTemplateService(setup).seed_templates()
+        IntegrationService(setup).seed_providers()
+        ProcessOverlayCatalogService(setup).seed_templates()
+        setup.commit()
+
+        slug = f"pg-e1c-race-{uuid.uuid4().hex[:8]}"
+        tenant, pipeline, config_orm, _, work_item, user, started = _setup_active_run(
+            setup, slug
+        )
+        contacted = _get_stage_by_code(setup, pipeline.id, "contacted")
+        assert contacted is not None
+        setup.commit()
+
+        tenant_id = tenant.id
+        work_item_id = work_item.id
+        user_id = user.id
+        contacted_id = contacted.id
+        run_id = started.id
+        new_lead_id = work_item.stage_id
+    finally:
+        setup.close()
+
+    barrier = threading.Barrier(2)
+    results: list[object] = []
+    lock = threading.Lock()
+
+    def _worker() -> None:
+        session = SessionLocal()
+        try:
+            actor = session.get(User, user_id)
+            assert actor is not None
+            barrier.wait(timeout=30)
+            try:
+                moved = WorkflowService(session, tenant_id).move_stage(
+                    actor, work_item_id, MoveStageRequest(stage_id=contacted_id)
+                )
+                session.commit()
+                with lock:
+                    results.append(("ok", moved.stage_id))
+            except ProcessTransitionDeniedError as exc:
+                session.rollback()
+                with lock:
+                    results.append(("denied", exc))
+            except Exception as exc:  # noqa: BLE001 — collect unexpected for assertion
+                session.rollback()
+                with lock:
+                    results.append(("error", exc))
+        finally:
+            session.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(_worker) for _ in range(2)]
+        for fut in futures:
+            fut.result(timeout=60)
+
+    assert all(r[0] == "ok" for r in results), f"Unexpected worker outcomes: {results!r}"
+    assert {r[1] for r in results} == {contacted_id}
+
+    verify = SessionLocal()
+    try:
+        item = verify.get(WorkItem, work_item_id)
+        assert item is not None
+        assert item.stage_id == contacted_id
+        assert item.stage_id != new_lead_id
+
+        stored = ProcessOverlayRepository(verify).get_run(tenant_id, run_id)
+        assert stored is not None
+        assert stored.run_state == ProcessRunState.ACTIVE
+        assert stored.current_stage_code == "contacted"
+
+        stage = verify.get(PipelineStage, item.stage_id)
+        assert stage is not None
+        assert stored.current_stage_code == stage.code
+
+        applied = _applied_audits(verify, run_id)
+        assert len(applied) == 1
+        assert applied[0].changes_json["from_stage_code"] == "new_lead"
+        assert applied[0].changes_json["to_stage_code"] == "contacted"
+        assert applied[0].changes_json["via"] == "move_stage"
+
+        activities = [
+            a
+            for a in _activities_for_item(verify, work_item_id)
+            if a.activity_type == ActivityType.STATUS_CHANGE
+        ]
+        assert len(activities) == 1
+
+        deny_like = [
+            log
+            for log in _audit_events_for_run(verify, run_id)
+            if "denied" in str((log.changes_json or {}).get("event", ""))
+        ]
+        assert deny_like == []
+    finally:
+        verify.close()
+        engine.dispose()

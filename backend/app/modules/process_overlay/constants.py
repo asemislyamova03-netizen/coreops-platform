@@ -1,6 +1,7 @@
 ENTITY_PROCESS_TEMPLATE = "process_template"
 ENTITY_TENANT_PROCESS_CONFIGURATION = "tenant_process_configuration"
 ENTITY_PROCESS_DEFINITION_VERSION = "process_definition_version"
+ENTITY_PROCESS_RUN = "process_run"
 
 MAX_TRANSITIONS = 100
 MAX_STAGE_CODES = 50

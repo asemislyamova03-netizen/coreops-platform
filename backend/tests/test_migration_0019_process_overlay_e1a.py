@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import os
-import uuid
 from pathlib import Path
 
 import pytest
@@ -19,6 +18,7 @@ from app.core.config import get_settings
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = str(BACKEND_ROOT / "alembic.ini")
 REVISION_0019 = "0019_process_overlay_e1a"
+REVISION_0020 = "0020_process_overlay_e1b"
 DOWN_REVISION_0019 = "0015_marketing_cabinet_mvp"
 MIGRATION_FILENAME = "20260717_0019_process_overlay_e1a.py"
 MIGRATION_PATH = BACKEND_ROOT / "alembic" / "versions" / MIGRATION_FILENAME
@@ -64,13 +64,31 @@ def _load_migration_module():
     return module
 
 
+def _revision_is_ancestor(script: ScriptDirectory, ancestor: str, descendant: str) -> bool:
+    """True if ancestor appears in the down_revision walk from descendant."""
+    current = descendant
+    seen: set[str] = set()
+    while current is not None:
+        if current == ancestor:
+            return True
+        if current in seen:
+            return False
+        seen.add(current)
+        rev = script.get_revision(current)
+        if rev is None:
+            return False
+        current = rev.down_revision
+    return False
+
+
 def test_0019_migration_revision_chain():
     script = ScriptDirectory.from_config(Config(ALEMBIC_INI))
     rev = script.get_revision(REVISION_0019)
     assert rev is not None
     assert rev.down_revision == DOWN_REVISION_0019
     assert len(REVISION_0019) <= 32
-    assert script.get_heads() == [REVISION_0019]
+    assert script.get_heads() == [REVISION_0020]
+    assert _revision_is_ancestor(script, REVISION_0019, REVISION_0020)
 
 
 def test_0019_migration_module_importable():

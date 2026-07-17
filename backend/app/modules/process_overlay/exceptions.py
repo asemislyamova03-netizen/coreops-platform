@@ -23,3 +23,11 @@ class ProcessOverlayActivationError(ProcessOverlayError):
 
 class ProcessOverlayTenantIsolationError(PermissionDeniedError):
     """Cross-tenant resource reference rejected."""
+
+
+class ProcessRunConflictError(ConflictError):
+    """Process run conflicts with an existing active run or invariant."""
+
+
+class ProcessRunStateError(ProcessOverlayError):
+    """Process run lifecycle transition is not allowed from the current state."""

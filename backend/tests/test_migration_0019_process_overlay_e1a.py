@@ -83,12 +83,22 @@ def _revision_is_ancestor(script: ScriptDirectory, ancestor: str, descendant: st
 
 def test_0019_migration_revision_chain():
     script = ScriptDirectory.from_config(Config(ALEMBIC_INI))
-    rev = script.get_revision(REVISION_0019)
-    assert rev is not None
-    assert rev.down_revision == DOWN_REVISION_0019
+    rev_0019 = script.get_revision(REVISION_0019)
+    assert rev_0019 is not None
+    assert rev_0019.down_revision == DOWN_REVISION_0019
     assert len(REVISION_0019) <= 32
-    assert script.get_heads() == [REVISION_0020]
-    assert _revision_is_ancestor(script, REVISION_0019, REVISION_0020)
+
+    rev_0020 = script.get_revision(REVISION_0020)
+    assert rev_0020 is not None
+    assert rev_0020.down_revision == REVISION_0019
+    assert len(REVISION_0020) <= 32
+
+    heads = script.get_heads()
+    assert len(heads) == 1
+    head = heads[0]
+    # Extensible: later migrations may advance the head beyond 0020.
+    assert _revision_is_ancestor(script, REVISION_0019, head)
+    assert _revision_is_ancestor(script, REVISION_0020, head)
 
 
 def test_0019_migration_module_importable():

@@ -1,7 +1,7 @@
 """M8-B: tenant-scoped marketing publishing connections.
 
-Revision ID: 0016_mkt_publishing_conn
-Revises: 0015_marketing_cabinet_mvp
+Revision ID: 0021_mkt_publishing_conn
+Revises: 0020_process_overlay_e1b
 Create Date: 2026-07-16
 
 Local/schema readiness only. Do not run against production without separate approval.
@@ -15,8 +15,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0016_mkt_publishing_conn"
-down_revision: Union[str, None] = "0015_marketing_cabinet_mvp"
+revision: str = "0021_mkt_publishing_conn"
+down_revision: Union[str, None] = "0020_process_overlay_e1b"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

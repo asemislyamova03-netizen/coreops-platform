@@ -1,7 +1,7 @@
 """M8-C1a: secret binding fields on marketing publishing connections.
 
-Revision ID: 0017_mkt_secret_binding
-Revises: 0016_mkt_publishing_conn
+Revision ID: 0022_mkt_secret_binding
+Revises: 0021_mkt_publishing_conn
 Create Date: 2026-07-16
 
 Adds secret_version / secret_bound_at and consistency CHECK.
@@ -16,8 +16,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0017_mkt_secret_binding"
-down_revision: Union[str, None] = "0016_mkt_publishing_conn"
+revision: str = "0022_mkt_secret_binding"
+down_revision: Union[str, None] = "0021_mkt_publishing_conn"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

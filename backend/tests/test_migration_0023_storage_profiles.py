@@ -1,4 +1,4 @@
-"""Alembic revision + enum NAME-storage invariants for M8-C2a migration 0018.
+"""Alembic revision + enum NAME-storage invariants for M8-C2a migration 0023.
 
 SQLite create_all / static audits are not PostgreSQL proof.
 Repeated disposable PG smoke remains mandatory before M8-C2a final acceptance.
@@ -24,9 +24,9 @@ from app.modules.marketing.models import MarketingMediaAsset
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = str(BACKEND_ROOT / "alembic.ini")
 
-REVISION_0018 = "0018_mkt_storage_profiles"
-DOWN_REVISION_0018 = "0017_mkt_secret_binding"
-MIGRATION_FILENAME = "20260716_0018_mkt_storage_profiles.py"
+REVISION_0023 = "0023_mkt_storage_profiles"
+DOWN_REVISION_0023 = "0022_mkt_secret_binding"
+MIGRATION_FILENAME = "20260717_0023_mkt_storage_profiles.py"
 MIGRATION_PATH = BACKEND_ROOT / "alembic" / "versions" / MIGRATION_FILENAME
 
 # Canonical SQLAlchemy Enum NAME storage (matches ORM / existing PG convention).
@@ -57,40 +57,40 @@ FORBIDDEN_LOWERCASE_DEFAULTS = (
 
 
 def _load_migration_module():
-    spec = importlib.util.spec_from_file_location("migration_0018", MIGRATION_PATH)
+    spec = importlib.util.spec_from_file_location("migration_0023", MIGRATION_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def test_0018_migration_revision_chain():
+def test_0023_migration_revision_chain():
     script = ScriptDirectory.from_config(Config(ALEMBIC_INI))
-    rev = script.get_revision(REVISION_0018)
+    rev = script.get_revision(REVISION_0023)
     assert rev is not None
-    assert rev.down_revision == DOWN_REVISION_0018
-    assert len(REVISION_0018) <= 32
+    assert rev.down_revision == DOWN_REVISION_0023
+    assert len(REVISION_0023) <= 32
 
     head = script.get_current_head()
-    assert head == REVISION_0018
-    assert script.get_heads() == [REVISION_0018]
+    assert head == REVISION_0023
+    assert script.get_heads() == [REVISION_0023]
 
     # Prior chain intact
-    assert script.get_revision("0017_mkt_secret_binding").down_revision == "0016_mkt_publishing_conn"
-    assert script.get_revision("0016_mkt_publishing_conn").down_revision == "0015_marketing_cabinet_mvp"
+    assert script.get_revision("0022_mkt_secret_binding").down_revision == "0021_mkt_publishing_conn"
+    assert script.get_revision("0021_mkt_publishing_conn").down_revision == "0020_process_overlay_e1b"
 
 
-def test_0018_migration_module_importable():
+def test_0023_migration_module_importable():
     module = _load_migration_module()
-    assert module.revision == REVISION_0018
-    assert module.down_revision == DOWN_REVISION_0018
+    assert module.revision == REVISION_0023
+    assert module.down_revision == DOWN_REVISION_0023
     assert len(module.revision) <= 32
     assert callable(module.upgrade)
     assert callable(module.downgrade)
 
 
-def test_0018_enum_name_storage_invariants_in_migration_source():
-    """All 0018 enum server_defaults / CHECK / index predicates must use NAME storage.
+def test_0023_enum_name_storage_invariants_in_migration_source():
+    """All 0023 enum server_defaults / CHECK / index predicates must use NAME storage.
 
     This catches the PG smoke failure class: lowercase server_default vs uppercase CHECK.
     Not a substitute for disposable PostgreSQL smoke.
@@ -142,8 +142,8 @@ def test_0018_enum_name_storage_invariants_in_migration_source():
     assert "drop_column(\"marketing_media_assets\", \"verified_size_bytes\")" in src
 
 
-def test_0018_sa_enum_constructors_use_member_names():
-    """sa.Enum(...) positional args in 0018 upgrade must be uppercase member names."""
+def test_0023_sa_enum_constructors_use_member_names():
+    """sa.Enum(...) positional args in 0023 upgrade must be uppercase member names."""
     src = MIGRATION_PATH.read_text(encoding="utf-8")
     upgrade_src = src.split("def downgrade", 1)[0]
     blocks = re.findall(r"sa\.Enum\((.*?)\)", upgrade_src, flags=re.DOTALL)
@@ -154,10 +154,10 @@ def test_0018_sa_enum_constructors_use_member_names():
         assert member_tokens, f"sa.Enum block missing NAME tokens: {block[:120]}"
         for token in member_tokens:
             assert token == token.upper(), f"sa.Enum must use NAME not value: {token}"
-            assert token in ENUM_NAMES, f"unexpected enum token in 0018: {token}"
+            assert token in ENUM_NAMES, f"unexpected enum token in 0023: {token}"
 
 
-def test_pre_0018_style_media_row_defaults_to_legacy_unverified(db_session):
+def test_pre_0023_style_media_row_defaults_to_legacy_unverified(db_session):
     """Existing media rows (no validation fields set) get LEGACY_UNVERIFIED + NULL sizes.
 
     Uses create_all schema (SQLite/test). Confirms ORM server_default NAME semantics.
@@ -187,11 +187,11 @@ def test_pre_0018_style_media_row_defaults_to_legacy_unverified(db_session):
         tenant_id=tenant.id,
         pack_id=None,
         role="instagram_feed",
-        file_name="pre0018.png",
+        file_name="pre0023.png",
         mime_type="image/png",
         storage_provider="git_path",
-        storage_key="content/packs/pre0018/feed.png",
-        public_url="https://example.com/pre0018.png",
+        storage_key="content/packs/pre0023/feed.png",
+        public_url="https://example.com/pre0023.png",
         status=MarketingMediaAssetStatus.STORED,
         metadata_json={},
     )
@@ -208,7 +208,7 @@ def test_pre_0018_style_media_row_defaults_to_legacy_unverified(db_session):
     assert asset.resource_mode is None
 
 
-def test_0018_model_columns_include_verified_size_bytes(db_engine):
+def test_0023_model_columns_include_verified_size_bytes(db_engine):
     columns = {col["name"] for col in inspect(db_engine).get_columns("marketing_media_assets")}
     assert "verified_size_bytes" in columns
     assert "declared_size_bytes" in columns

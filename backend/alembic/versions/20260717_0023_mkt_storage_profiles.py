@@ -1,7 +1,7 @@
 """M8-C2a: storage resource profiles + media validation fields.
 
-Revision ID: 0018_mkt_storage_profiles
-Revises: 0017_mkt_secret_binding
+Revision ID: 0023_mkt_storage_profiles
+Revises: 0022_mkt_secret_binding
 Create Date: 2026-07-16
 
 Local/schema readiness only. Do not run against production without separate approval.
@@ -26,8 +26,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0018_mkt_storage_profiles"
-down_revision: Union[str, None] = "0017_mkt_secret_binding"
+revision: str = "0023_mkt_storage_profiles"
+down_revision: Union[str, None] = "0022_mkt_secret_binding"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

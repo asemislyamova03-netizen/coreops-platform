@@ -74,7 +74,9 @@ from app.modules.marketing.models import (  # noqa: F401
     MarketingMediaAsset,
     MarketingPublicationPack,
     MarketingPublicationText,
+    MarketingPublishingConnection,
     MarketingPublishLog,
+    MarketingStorageResourceProfile,
 )
 from app.modules.process_overlay.models import (  # noqa: F401
     ProcessDefinitionVersion,

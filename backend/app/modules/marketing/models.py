@@ -3,7 +3,9 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Enum,
@@ -14,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,9 +27,15 @@ from app.modules.marketing.enums import (
     MarketingAttributionTouchType,
     MarketingChannel,
     MarketingMediaAssetStatus,
+    MarketingMediaValidationStatus,
     MarketingPackStatus,
     MarketingPreflightStatus,
+    MarketingPublishingConnectionStatus,
+    MarketingPublishingProvider,
+    MarketingPublishingTokenStatus,
     MarketingPublishStatus,
+    MarketingStorageProfileStatus,
+    MarketingStorageResourceMode,
     MarketingTextStatus,
     MarketingTopicStatus,
 )
@@ -196,9 +205,113 @@ class MarketingPublicationText(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditU
     )
 
 
+class MarketingStorageResourceProfile(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
+    """Tenant-scoped storage mode + limits. No credentials / config_json."""
+
+    __tablename__ = "marketing_storage_resource_profiles"
+    __table_args__ = (
+        Index("ix_marketing_storage_profiles_tenant", "tenant_id"),
+        Index(
+            "uq_marketing_storage_profile_tenant_mode_active",
+            "tenant_id",
+            "mode",
+            unique=True,
+            sqlite_where=text("status = 'ACTIVE'"),
+            postgresql_where=text("status = 'ACTIVE'"),
+        ),
+        Index(
+            "uq_marketing_storage_profile_tenant_default",
+            "tenant_id",
+            unique=True,
+            sqlite_where=text("is_default IS TRUE"),
+            postgresql_where=text("is_default IS TRUE"),
+        ),
+        CheckConstraint(
+            "mode IN ('FLEXITY_MANAGED','CLIENT_PUBLIC_URL','CLIENT_BUCKET')",
+            name="ck_marketing_storage_profile_mode_values",
+        ),
+        CheckConstraint(
+            "status IN ('ACTIVE','DISABLED')",
+            name="ck_marketing_storage_profile_status_values",
+        ),
+        CheckConstraint(
+            "(is_default IS FALSE) OR (status = 'ACTIVE')",
+            name="ck_marketing_storage_profile_default_requires_active",
+        ),
+        # Portable with SQLAlchemy Enum name storage (ACTIVE/CLIENT_BUCKET names).
+        CheckConstraint(
+            "NOT (status = 'ACTIVE' AND mode = 'CLIENT_BUCKET')",
+            name="ck_marketing_storage_profile_no_active_client_bucket",
+        ),
+        CheckConstraint(
+            "max_upload_bytes IS NULL OR (max_upload_bytes > 0 AND max_upload_bytes <= 52428800)",
+            name="ck_marketing_storage_profile_max_upload_bytes",
+        ),
+        CheckConstraint(
+            "max_url_length IS NULL OR (max_url_length > 0 AND max_url_length <= 2048)",
+            name="ck_marketing_storage_profile_max_url_length",
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mode: Mapped[MarketingStorageResourceMode] = mapped_column(
+        Enum(
+            MarketingStorageResourceMode,
+            name="marketing_storage_resource_mode",
+            native_enum=False,
+        ),
+        nullable=False,
+    )
+    status: Mapped[MarketingStorageProfileStatus] = mapped_column(
+        Enum(
+            MarketingStorageProfileStatus,
+            name="marketing_storage_profile_status",
+            native_enum=False,
+        ),
+        default=MarketingStorageProfileStatus.DISABLED,
+        server_default="DISABLED",
+        nullable=False,
+        index=True,
+    )
+    is_default: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    max_upload_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    max_url_length: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Normalized unique MIME list as JSON array (portable across SQLite/PG).
+    allowed_mime_types: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+
 class MarketingMediaAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
     __tablename__ = "marketing_media_assets"
-    __table_args__ = (Index("ix_marketing_media_tenant_pack", "tenant_id", "pack_id"),)
+    __table_args__ = (
+        Index("ix_marketing_media_tenant_pack", "tenant_id", "pack_id"),
+        CheckConstraint(
+            "validation_status IN ("
+            "'LEGACY_UNVERIFIED','REGISTERED_UNVERIFIED','VALIDATED_METADATA',"
+            "'REJECTED','ARCHIVED')",
+            name="ck_marketing_media_validation_status_values",
+        ),
+        CheckConstraint(
+            "resource_mode IS NULL OR resource_mode IN ("
+            "'FLEXITY_MANAGED','CLIENT_PUBLIC_URL','CLIENT_BUCKET')",
+            name="ck_marketing_media_resource_mode_values",
+        ),
+        CheckConstraint(
+            "declared_size_bytes IS NULL OR declared_size_bytes >= 0",
+            name="ck_marketing_media_declared_size_nonneg",
+        ),
+        CheckConstraint(
+            "verified_size_bytes IS NULL OR verified_size_bytes >= 0",
+            name="ck_marketing_media_verified_size_nonneg",
+        ),
+    )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,
@@ -226,6 +339,36 @@ class MarketingMediaAsset(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMi
         Enum(MarketingMediaAssetStatus, name="marketing_media_status", native_enum=False),
         default=MarketingMediaAssetStatus.PENDING,
         nullable=False,
+    )
+    # M8-C2a: safety track. Existing/legacy rows default to LEGACY_UNVERIFIED —
+    # never treated as malware-safe or publish-ready.
+    validation_status: Mapped[MarketingMediaValidationStatus] = mapped_column(
+        Enum(
+            MarketingMediaValidationStatus,
+            name="marketing_media_validation_status",
+            native_enum=False,
+        ),
+        default=MarketingMediaValidationStatus.LEGACY_UNVERIFIED,
+        server_default="LEGACY_UNVERIFIED",
+        nullable=False,
+    )
+    declared_mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    declared_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    verified_mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    verified_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    storage_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("marketing_storage_resource_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    resource_mode: Mapped[MarketingStorageResourceMode | None] = mapped_column(
+        Enum(
+            MarketingStorageResourceMode,
+            name="marketing_media_resource_mode",
+            native_enum=False,
+        ),
+        nullable=True,
     )
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
@@ -275,6 +418,101 @@ class MarketingPublishLog(Base, UUIDPrimaryKeyMixin):
         back_populates="publish_logs",
         lazy="selectin",
     )
+
+
+class MarketingPublishingConnection(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
+    __tablename__ = "marketing_publishing_connections"
+    __table_args__ = (
+        CheckConstraint(
+            "(status <> 'ACTIVE') OR (account_identifier IS NOT NULL AND trim(account_identifier) <> '')",
+            name="ck_marketing_publishing_conn_active_requires_identifier",
+        ),
+        CheckConstraint(
+            "(token_status NOT IN ('VALID','EXPIRING')) OR (secret_ref IS NOT NULL AND trim(secret_ref) <> '')",
+            name="ck_marketing_publishing_conn_healthy_requires_secret_ref",
+        ),
+        CheckConstraint(
+            "provider IN ('TELEGRAM','INSTAGRAM','THREADS','TIKTOK')",
+            name="ck_marketing_publishing_conn_provider_values",
+        ),
+        CheckConstraint(
+            "status IN ('NOT_CONNECTED','ACTIVE','ERROR','DISABLED','EXPIRED')",
+            name="ck_marketing_publishing_conn_status_values",
+        ),
+        CheckConstraint(
+            "token_status IN ('NOT_CONFIGURED','VALID','EXPIRING','INVALID')",
+            name="ck_marketing_publishing_conn_token_status_values",
+        ),
+        CheckConstraint(
+            "("
+            " (secret_ref IS NULL AND secret_version IS NULL AND secret_bound_at IS NULL)"
+            " OR "
+            " (secret_ref IS NOT NULL AND trim(secret_ref) <> ''"
+            "  AND secret_version IS NOT NULL AND secret_version > 0"
+            "  AND secret_bound_at IS NOT NULL)"
+            ")",
+            name="ck_marketing_publishing_conn_secret_binding_consistent",
+        ),
+        Index(
+            "uq_marketing_publishing_conn_tenant_provider_account",
+            "tenant_id",
+            "provider",
+            "account_identifier",
+            unique=True,
+            postgresql_where=text("account_identifier IS NOT NULL"),
+            sqlite_where=text("account_identifier IS NOT NULL"),
+        ),
+        Index("ix_marketing_publishing_connections_tenant_provider", "tenant_id", "provider"),
+        Index("ix_marketing_publishing_connections_tenant_status", "tenant_id", "status"),
+        Index(
+            "ix_marketing_publishing_connections_tenant_token_status",
+            "tenant_id",
+            "token_status",
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider: Mapped[MarketingPublishingProvider] = mapped_column(
+        Enum(MarketingPublishingProvider, name="marketing_publishing_provider", native_enum=False),
+        nullable=False,
+        index=True,
+    )
+    account_display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    account_identifier: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[MarketingPublishingConnectionStatus] = mapped_column(
+        Enum(
+            MarketingPublishingConnectionStatus,
+            name="marketing_publishing_connection_status",
+            native_enum=False,
+        ),
+        default=MarketingPublishingConnectionStatus.NOT_CONNECTED,
+        nullable=False,
+        index=True,
+    )
+    token_status: Mapped[MarketingPublishingTokenStatus] = mapped_column(
+        Enum(
+            MarketingPublishingTokenStatus,
+            name="marketing_publishing_token_status",
+            native_enum=False,
+        ),
+        default=MarketingPublishingTokenStatus.NOT_CONFIGURED,
+        nullable=False,
+        index=True,
+    )
+    secret_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    secret_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    secret_bound_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    scopes_json: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_error_message_redacted: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
 
 class MarketingLeadAttribution(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):

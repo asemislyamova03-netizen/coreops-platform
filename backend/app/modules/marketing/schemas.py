@@ -8,9 +8,15 @@ from app.modules.marketing.enums import (
     MarketingApprovalStatus,
     MarketingChannel,
     MarketingMediaAssetStatus,
+    MarketingMediaValidationStatus,
     MarketingPackStatus,
     MarketingPreflightStatus,
+    MarketingPublishingConnectionStatus,
+    MarketingPublishingProvider,
+    MarketingPublishingTokenStatus,
     MarketingPublishStatus,
+    MarketingStorageProfileStatus,
+    MarketingStorageResourceMode,
     MarketingTextStatus,
     MarketingTopicStatus,
 )
@@ -183,6 +189,9 @@ class PackMediaAssetResponse(BaseModel):
     height: int | None
     alt_text: str | None
     status: MarketingMediaAssetStatus
+    validation_status: MarketingMediaValidationStatus = (
+        MarketingMediaValidationStatus.LEGACY_UNVERIFIED
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -383,3 +392,76 @@ class HistoricalPublishResponse(BaseModel):
     skipped_existing: int
     needs_review: bool = False
     channel_results: list[HistoricalPublishChannelResult] = Field(default_factory=list)
+
+
+# --- M8-B internal service view (not exposed via HTTP routes) ---
+
+
+class PublishingConnectionView(BaseModel):
+    """Service-layer DTO; never includes secret_ref (has_secret only)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    provider: MarketingPublishingProvider
+    account_display_name: str
+    account_identifier: str | None
+    status: MarketingPublishingConnectionStatus
+    token_status: MarketingPublishingTokenStatus
+    has_secret: bool
+    scopes_json: list[str] = Field(default_factory=list)
+    expires_at: datetime | None = None
+    last_checked_at: datetime | None = None
+    last_error_code: str | None = None
+    last_error_message_redacted: str | None = None
+    metadata_json: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+    created_by_user_id: uuid.UUID | None = None
+    updated_by_user_id: uuid.UUID | None = None
+
+
+# --- M8-C2a storage profiles / managed media (domain DTOs; no HTTP routes) ---
+
+
+class StorageResourceProfileView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    mode: MarketingStorageResourceMode
+    status: MarketingStorageProfileStatus
+    is_default: bool = False
+    display_name: str
+    max_upload_bytes: int | None = None
+    max_url_length: int | None = None
+    allowed_mime_types: list[str] | None = None
+    created_at: datetime
+    updated_at: datetime
+    created_by_user_id: uuid.UUID | None = None
+    updated_by_user_id: uuid.UUID | None = None
+
+
+class ManagedMediaAssetView(BaseModel):
+    """Internal view for Mode A/B lifecycle — never exposes credentials."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    pack_id: uuid.UUID | None = None
+    role: str
+    file_name: str
+    mime_type: str
+    storage_provider: str
+    status: MarketingMediaAssetStatus
+    validation_status: MarketingMediaValidationStatus
+    declared_mime_type: str | None = None
+    declared_size_bytes: int | None = None
+    verified_mime_type: str | None = None
+    verified_size_bytes: int | None = None
+    resource_mode: MarketingStorageResourceMode | None = None
+    storage_profile_id: uuid.UUID | None = None
+    created_at: datetime
+    updated_at: datetime

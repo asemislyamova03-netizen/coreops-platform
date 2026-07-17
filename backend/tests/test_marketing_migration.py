@@ -8,7 +8,9 @@ from app.modules.marketing.models import (
     MarketingMediaAsset,
     MarketingPublicationPack,
     MarketingPublicationText,
+    MarketingPublishingConnection,
     MarketingPublishLog,
+    MarketingStorageResourceProfile,
 )
 
 
@@ -20,6 +22,8 @@ def test_marketing_models_registered_in_metadata(db_engine):
         MarketingMediaAsset.__tablename__,
         MarketingPublishLog.__tablename__,
         MarketingLeadAttribution.__tablename__,
+        MarketingPublishingConnection.__tablename__,
+        MarketingStorageResourceProfile.__tablename__,
     }
     inspector = inspect(db_engine)
     existing = set(inspector.get_table_names())

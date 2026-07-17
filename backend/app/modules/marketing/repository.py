@@ -10,7 +10,16 @@ from app.modules.marketing.models import (
     MarketingMediaAsset,
     MarketingPublicationPack,
     MarketingPublicationText,
+    MarketingPublishingConnection,
     MarketingPublishLog,
+    MarketingStorageResourceProfile,
+)
+from app.modules.marketing.enums import (
+    MarketingPublishingConnectionStatus,
+    MarketingPublishingProvider,
+    MarketingPublishingTokenStatus,
+    MarketingStorageProfileStatus,
+    MarketingStorageResourceMode,
 )
 
 
@@ -288,6 +297,158 @@ class MarketingRepository:
                 if meta.get("published_at_date") == published_at_date:
                     return row
         return None
+
+    # --- Publishing connections (M8-B) ---
+
+    def list_publishing_connections(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        provider: MarketingPublishingProvider | None = None,
+        status: MarketingPublishingConnectionStatus | None = None,
+        token_status: MarketingPublishingTokenStatus | None = None,
+    ) -> list[MarketingPublishingConnection]:
+        stmt = (
+            select(MarketingPublishingConnection)
+            .where(MarketingPublishingConnection.tenant_id == tenant_id)
+            .order_by(MarketingPublishingConnection.created_at.desc())
+        )
+        if provider is not None:
+            stmt = stmt.where(MarketingPublishingConnection.provider == provider)
+        if status is not None:
+            stmt = stmt.where(MarketingPublishingConnection.status == status)
+        if token_status is not None:
+            stmt = stmt.where(MarketingPublishingConnection.token_status == token_status)
+        return list(self.db.scalars(stmt).all())
+
+    def get_publishing_connection(
+        self,
+        tenant_id: uuid.UUID,
+        connection_id: uuid.UUID,
+    ) -> MarketingPublishingConnection | None:
+        stmt = select(MarketingPublishingConnection).where(
+            MarketingPublishingConnection.tenant_id == tenant_id,
+            MarketingPublishingConnection.id == connection_id,
+        )
+        return self.db.scalar(stmt)
+
+    def get_publishing_connection_for_update(
+        self,
+        tenant_id: uuid.UUID,
+        connection_id: uuid.UUID,
+    ) -> MarketingPublishingConnection | None:
+        """Tenant-scoped load with row lock (FOR UPDATE). SQLite may no-op the lock."""
+        stmt = (
+            select(MarketingPublishingConnection)
+            .where(
+                MarketingPublishingConnection.tenant_id == tenant_id,
+                MarketingPublishingConnection.id == connection_id,
+            )
+            .with_for_update()
+        )
+        return self.db.scalar(stmt)
+
+    def create_publishing_connection(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        provider: MarketingPublishingProvider,
+        account_display_name: str,
+        account_identifier: str | None,
+        status: MarketingPublishingConnectionStatus,
+        token_status: MarketingPublishingTokenStatus,
+        scopes_json: list,
+        metadata_json: dict,
+        created_by_user_id: uuid.UUID | None,
+        updated_by_user_id: uuid.UUID | None,
+    ) -> MarketingPublishingConnection:
+        row = MarketingPublishingConnection(
+            tenant_id=tenant_id,
+            provider=provider,
+            account_display_name=account_display_name,
+            account_identifier=account_identifier,
+            status=status,
+            token_status=token_status,
+            scopes_json=scopes_json,
+            metadata_json=metadata_json,
+            created_by_user_id=created_by_user_id,
+            updated_by_user_id=updated_by_user_id,
+        )
+        self.db.add(row)
+        return row
+
+    # --- Storage resource profiles (M8-C2a) ---
+
+    def list_storage_profiles(
+        self, tenant_id: uuid.UUID
+    ) -> list[MarketingStorageResourceProfile]:
+        stmt = (
+            select(MarketingStorageResourceProfile)
+            .where(MarketingStorageResourceProfile.tenant_id == tenant_id)
+            .order_by(MarketingStorageResourceProfile.created_at.desc())
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def get_storage_profile(
+        self,
+        tenant_id: uuid.UUID,
+        profile_id: uuid.UUID,
+    ) -> MarketingStorageResourceProfile | None:
+        stmt = select(MarketingStorageResourceProfile).where(
+            MarketingStorageResourceProfile.tenant_id == tenant_id,
+            MarketingStorageResourceProfile.id == profile_id,
+        )
+        return self.db.scalar(stmt)
+
+    def get_active_storage_profile(
+        self,
+        tenant_id: uuid.UUID,
+        mode: MarketingStorageResourceMode,
+    ) -> MarketingStorageResourceProfile | None:
+        stmt = select(MarketingStorageResourceProfile).where(
+            MarketingStorageResourceProfile.tenant_id == tenant_id,
+            MarketingStorageResourceProfile.mode == mode,
+            MarketingStorageResourceProfile.status == MarketingStorageProfileStatus.ACTIVE,
+        )
+        return self.db.scalar(stmt)
+
+    def get_default_storage_profile(
+        self, tenant_id: uuid.UUID
+    ) -> MarketingStorageResourceProfile | None:
+        stmt = select(MarketingStorageResourceProfile).where(
+            MarketingStorageResourceProfile.tenant_id == tenant_id,
+            MarketingStorageResourceProfile.is_default.is_(True),
+        )
+        return self.db.scalar(stmt)
+
+    def create_storage_profile(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        mode: MarketingStorageResourceMode,
+        status: MarketingStorageProfileStatus,
+        is_default: bool,
+        display_name: str,
+        max_upload_bytes: int | None,
+        max_url_length: int | None,
+        allowed_mime_types: list | None,
+        created_by_user_id: uuid.UUID | None,
+        updated_by_user_id: uuid.UUID | None,
+    ) -> MarketingStorageResourceProfile:
+        row = MarketingStorageResourceProfile(
+            tenant_id=tenant_id,
+            mode=mode,
+            status=status,
+            is_default=is_default,
+            display_name=display_name,
+            max_upload_bytes=max_upload_bytes,
+            max_url_length=max_url_length,
+            allowed_mime_types=allowed_mime_types,
+            created_by_user_id=created_by_user_id,
+            updated_by_user_id=updated_by_user_id,
+        )
+        self.db.add(row)
+        return row
 
 
 # Backward-compatible alias used by topics service

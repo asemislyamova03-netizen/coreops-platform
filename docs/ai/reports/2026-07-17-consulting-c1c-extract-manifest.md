@@ -130,4 +130,3 @@ All shared-file transfers below are **exact dirty working-tree overlays** onto `
 - [x] Tests run — focused **120 passed**; broader **77 passed**
 - [x] `git diff --check` clean; secret scan — only false positive `hashed_password="not-used"` in tests
 - [ ] Local commit(s) if green
-

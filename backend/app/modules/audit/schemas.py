@@ -54,3 +54,29 @@ class SecurityEventResponse(BaseModel):
     details_json: dict
     occurred_at: datetime
     created_at: datetime
+
+
+class ImportBatchEntitySummary(BaseModel):
+    entity: str = Field(min_length=1, max_length=64)
+    source_count: int = Field(ge=0)
+    imported_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    error_count: int = Field(ge=0)
+    review_count: int = Field(ge=0)
+
+
+class ImportBatchSummary(BaseModel):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    created_by_user_id: uuid.UUID | None = None
+    source_system: str = Field(default="consult_app", max_length=64)
+    started_at: datetime
+    finished_at: datetime | None = None
+    total_source_rows: int = Field(ge=0)
+    total_imported_rows: int = Field(ge=0)
+    total_skipped_rows: int = Field(ge=0)
+    total_error_rows: int = Field(ge=0)
+    total_review_rows: int = Field(ge=0)
+    status_mapping_warnings: int = Field(ge=0)
+    entities: list[ImportBatchEntitySummary] = Field(default_factory=list)
+    notes: str | None = None

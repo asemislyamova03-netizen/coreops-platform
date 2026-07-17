@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.enums import AddressType, ContactMethodType, PartyStatus, PartyType
 
@@ -110,3 +110,69 @@ class PartyListParams(BaseModel):
     search: str | None = None
     skip: int = Field(default=0, ge=0)
     limit: int = Field(default=50, ge=1, le=200)
+
+
+class PartyMatchRequest(BaseModel):
+    name: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=320)
+    email: str | None = Field(default=None, max_length=320)
+    telegram_username: str | None = Field(default=None, max_length=320)
+    telegram_user_id: str | None = Field(default=None, max_length=320)
+    whatsapp: str | None = Field(default=None, max_length=320)
+
+    @model_validator(mode="after")
+    def require_at_least_one_field(self) -> "PartyMatchRequest":
+        fields = (
+            self.name,
+            self.phone,
+            self.email,
+            self.telegram_username,
+            self.telegram_user_id,
+            self.whatsapp,
+        )
+        if not any(value is not None and str(value).strip() for value in fields):
+            raise ValueError(
+                "At least one of name, phone, email, telegram_username, "
+                "telegram_user_id, whatsapp is required"
+            )
+        return self
+
+
+class PartyMatchContactPreview(BaseModel):
+    method_type: ContactMethodType
+    value: str
+    label: str | None = None
+    is_primary: bool = False
+
+
+class PartyMatchWorkItemPreview(BaseModel):
+    id: uuid.UUID
+    title: str
+    status: str
+    updated_at: datetime
+
+
+class PartyMatchHit(BaseModel):
+    party_id: uuid.UUID
+    display_name: str
+    party_type: PartyType
+    status: PartyStatus
+    match_type: Literal["exact", "weak"]
+    score: int
+    matched_on: list[str]
+    contact_methods: list[PartyMatchContactPreview] = Field(default_factory=list)
+    recent_work_items: list[PartyMatchWorkItemPreview] = Field(default_factory=list)
+
+
+class PartyMatchNormalizedQuery(BaseModel):
+    name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    telegram_username: str | None = None
+    telegram_user_id: str | None = None
+    whatsapp: str | None = None
+
+
+class PartyMatchResponse(BaseModel):
+    matches: list[PartyMatchHit]
+    query_normalized: PartyMatchNormalizedQuery

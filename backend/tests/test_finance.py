@@ -168,3 +168,93 @@ def test_invoice_and_receivables_status_after_partial_and_full_payment(client):
     receivables_full = client.get("/api/v1/finance/receivables", headers=headers)
     assert receivables_full.status_code == 200
     assert receivables_full.json() == []
+
+
+def test_payment_direction_default_and_explicit(client):
+    headers, _ = _finance_tenant(client)
+    party_id = _create_party(client, headers)
+
+    defaulted = client.post(
+        "/api/v1/finance/payments",
+        headers=headers,
+        json={
+            "party_id": party_id,
+            "amount": "1000",
+            "currency": "RUB",
+            "payment_date": "2026-01-10",
+        },
+    )
+    assert defaulted.status_code == 201
+    assert defaulted.json()["direction"] == "incoming"
+    assert defaulted.json()["status"] == "completed"
+
+    outgoing = client.post(
+        "/api/v1/finance/payments",
+        headers=headers,
+        json={
+            "party_id": party_id,
+            "amount": "500",
+            "currency": "RUB",
+            "payment_date": "2026-01-11",
+            "direction": "outgoing",
+        },
+    )
+    assert outgoing.status_code == 201
+    assert outgoing.json()["direction"] == "outgoing"
+
+    fetched = client.get(
+        f"/api/v1/finance/payments/{outgoing.json()['id']}",
+        headers=headers,
+    )
+    assert fetched.status_code == 200
+    assert fetched.json()["direction"] == "outgoing"
+
+
+def test_payment_legacy_type_maps_direction(client):
+    headers, _ = _finance_tenant(client)
+    party_id = _create_party(client, headers)
+
+    income = client.post(
+        "/api/v1/finance/payments",
+        headers=headers,
+        json={
+            "party_id": party_id,
+            "amount": "2000",
+            "currency": "RUB",
+            "payment_date": "2026-01-12",
+            "legacy_payment_type": "INCOME",
+        },
+    )
+    assert income.status_code == 201
+    assert income.json()["direction"] == "incoming"
+    assert income.json()["status"] == "completed"
+
+    expense = client.post(
+        "/api/v1/finance/payments",
+        headers=headers,
+        json={
+            "party_id": party_id,
+            "amount": "300",
+            "currency": "RUB",
+            "payment_date": "2026-01-13",
+            "legacy_payment_type": "EXPENSE",
+        },
+    )
+    assert expense.status_code == 201
+    assert expense.json()["direction"] == "outgoing"
+    assert expense.json()["status"] == "completed"
+
+    unknown = client.post(
+        "/api/v1/finance/payments",
+        headers=headers,
+        json={
+            "party_id": party_id,
+            "amount": "50",
+            "currency": "RUB",
+            "payment_date": "2026-01-14",
+            "legacy_payment_type": "WEIRD",
+        },
+    )
+    assert unknown.status_code == 201
+    assert unknown.json()["direction"] == "needs_review"
+    assert unknown.json()["status"] == "pending"

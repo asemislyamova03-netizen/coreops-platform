@@ -1,15 +1,18 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
 from app.core.enums import AuditAction, SecurityEventType, TenantRole
 from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.core.permissions import get_provider_staff
+from app.modules.audit.recorder import AuditRecorder
 from app.modules.audit.repository import AuditRepository
 from app.modules.audit.schemas import (
     AuditLogResponse,
     DataAccessLogResponse,
+    ImportBatchEntitySummary,
+    ImportBatchSummary,
     SecurityEventResponse,
 )
 from app.modules.auth.models import User
@@ -85,6 +88,70 @@ class AuditService:
             limit=limit,
         )
         return [SecurityEventResponse.model_validate(event) for event in events]
+
+    def build_import_batch_summary(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        created_by_user_id: uuid.UUID | None,
+        source_system: str,
+        entities: list[ImportBatchEntitySummary],
+        started_at: datetime | None = None,
+        finished_at: datetime | None = None,
+        notes: str | None = None,
+    ) -> ImportBatchSummary:
+        total_source_rows = sum(item.source_count for item in entities)
+        total_imported_rows = sum(item.imported_count for item in entities)
+        total_skipped_rows = sum(item.skipped_count for item in entities)
+        total_error_rows = sum(item.error_count for item in entities)
+        total_review_rows = sum(item.review_count for item in entities)
+
+        if total_imported_rows + total_skipped_rows + total_error_rows > total_source_rows:
+            raise ValueError("Import summary totals exceed source rows")
+
+        return ImportBatchSummary(
+            id=uuid.uuid4(),
+            tenant_id=tenant_id,
+            created_by_user_id=created_by_user_id,
+            source_system=source_system,
+            started_at=started_at or datetime.now(UTC),
+            finished_at=finished_at,
+            total_source_rows=total_source_rows,
+            total_imported_rows=total_imported_rows,
+            total_skipped_rows=total_skipped_rows,
+            total_error_rows=total_error_rows,
+            total_review_rows=total_review_rows,
+            status_mapping_warnings=total_review_rows,
+            entities=entities,
+            notes=notes,
+        )
+
+    def record_import_batch_summary_event(
+        self,
+        *,
+        summary: ImportBatchSummary,
+        user_id: uuid.UUID | None = None,
+    ) -> ImportBatchSummary:
+        """
+        Minimal C1c staging hook: persist summary as a typed audit log event.
+        Does not create a dedicated /audit/import-batches REST API.
+        """
+        AuditRecorder(self.db).audit_log(
+            action=AuditAction.EXECUTE,
+            summary=f"Import batch summary: {summary.source_system}",
+            tenant_id=summary.tenant_id,
+            user_id=user_id or summary.created_by_user_id,
+            entity_type="import_batch_summary",
+            entity_id=summary.id,
+            changes_json=summary.model_dump(mode="json"),
+            metadata_json={
+                "event": "import.batch.summary",
+                "source_system": summary.source_system,
+                "total_source_rows": summary.total_source_rows,
+                "total_review_rows": summary.total_review_rows,
+            },
+        )
+        return summary
 
     def _ensure_tenant_audit_access(self, user: User, tenant_id: uuid.UUID) -> None:
         tenant = self.tenants.get_by_id(tenant_id)

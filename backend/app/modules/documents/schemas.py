@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -100,6 +101,22 @@ class DocumentGenerateRequest(BaseModel):
     work_item_id: uuid.UUID | None = None
 
 
+class DocumentImportCreate(BaseModel):
+    """Minimal legacy contract import payload (no template generate / no files)."""
+
+    title: str = Field(max_length=255)
+    party_id: uuid.UUID | None = None
+    work_item_id: uuid.UUID | None = None
+    legacy_status: str | None = None
+    status: DocumentStatus | None = None
+    amount: Decimal = Decimal("0")
+    external_ref: str | None = Field(default=None, max_length=128)
+    source_system: str = Field(default="consult_app", max_length=64)
+    branch_id: uuid.UUID | None = None
+    rendered_content: str | None = None
+    extra_context: dict[str, str] = Field(default_factory=dict)
+
+
 class DocumentUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=255)
     status: DocumentStatus | None = None
@@ -122,3 +139,57 @@ class DocumentResponse(BaseModel):
     audit_trail: list[DocumentAuditResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+LEGACY_CONTRACT_STATUS_TO_DOCUMENT_STATUS: dict[str, DocumentStatus] = {
+    "SIGNED": DocumentStatus.SIGNED,
+    "COMPLETED": DocumentStatus.ARCHIVED,
+    "ON_REVIEW": DocumentStatus.SENT_FOR_REVIEW,
+    "CANCELLED": DocumentStatus.CANCELLED,
+}
+
+
+def map_legacy_contract_status(status: str | None) -> tuple[DocumentStatus, bool]:
+    if status is None:
+        return DocumentStatus.DRAFT, True
+    mapped = LEGACY_CONTRACT_STATUS_TO_DOCUMENT_STATUS.get(status.strip().upper())
+    if mapped is None:
+        return DocumentStatus.DRAFT, True
+    return mapped, False
+
+
+class LegacyContractImportPolicy(BaseModel):
+    allow_null_work_item_link: bool = True
+    mark_link_review_required: bool = True
+    allow_zero_amount: bool = True
+    mark_zero_amount_review_required: bool = True
+    fallback_status: DocumentStatus = DocumentStatus.DRAFT
+
+
+class LegacyContractImportInput(BaseModel):
+    legacy_status: str | None = None
+    work_item_id: uuid.UUID | None = None
+    amount: Decimal = Decimal("0")
+
+
+class LegacyContractImportAssessment(BaseModel):
+    target_status: DocumentStatus
+    status_needs_review: bool
+    link_needs_review: bool
+    amount_needs_review: bool
+
+
+def assess_legacy_contract_import(
+    payload: LegacyContractImportInput,
+    policy: LegacyContractImportPolicy | None = None,
+) -> LegacyContractImportAssessment:
+    effective_policy = policy or LegacyContractImportPolicy()
+    status, status_needs_review = map_legacy_contract_status(payload.legacy_status)
+    link_needs_review = payload.work_item_id is None and effective_policy.mark_link_review_required
+    amount_needs_review = payload.amount == 0 and effective_policy.mark_zero_amount_review_required
+    return LegacyContractImportAssessment(
+        target_status=status if not status_needs_review else effective_policy.fallback_status,
+        status_needs_review=status_needs_review,
+        link_needs_review=link_needs_review,
+        amount_needs_review=amount_needs_review,
+    )

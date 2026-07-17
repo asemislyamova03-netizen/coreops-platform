@@ -13,6 +13,8 @@ from app.modules.parties.models import ENTITY_PARTY
 from app.modules.parties.schemas import (
     CustomFieldDefinitionResponse,
     PartyCreate,
+    PartyMatchRequest,
+    PartyMatchResponse,
     PartyResponse,
     PartyUpdate,
 )
@@ -23,6 +25,16 @@ router = APIRouter(prefix="/parties", tags=["parties"])
 
 def _service(ctx: TenantContext, db: Session) -> PartyService:
     return PartyService(db, ctx.tenant.id)
+
+
+@router.post("/match", response_model=PartyMatchResponse)
+def match_parties(
+    payload: PartyMatchRequest,
+    ctx: TenantContext = Depends(require_module("parties")),
+    db: Session = Depends(get_db),
+) -> PartyMatchResponse:
+    """Read-only party contact match. Does not create, link, or merge parties."""
+    return _service(ctx, db).match_parties(payload)
 
 
 @router.get("", response_model=list[PartyResponse])

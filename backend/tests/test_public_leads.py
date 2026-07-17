@@ -5,11 +5,23 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.enums import SubscriptionStatus, TenantStatus, WorkItemParticipantRole
+from app.core.enums import (
+    ContactMethodType,
+    PartyStatus,
+    PartyType,
+    SubscriptionStatus,
+    TenantStatus,
+    WorkItemParticipantRole,
+)
 from app.modules.auth.models import User
 from app.modules.module_registry.service import ModuleRegistryService
 from app.modules.parties.models import ContactMethod, Party
+from app.modules.parties.service import PartyService
 from app.modules.provider.models import ProviderCompany
+from app.modules.public_leads.rate_limit import (
+    PUBLIC_LEADS_RATE_LIMIT_MESSAGE,
+    public_leads_rate_limiter,
+)
 from app.modules.subscriptions.repository import SubscriptionRepository
 from app.modules.subscriptions.service import SubscriptionService
 from app.modules.tenants.models import Tenant
@@ -18,6 +30,13 @@ from app.modules.workflows.models import Pipeline, PipelineStage, WorkItem, Work
 
 ENDPOINT = "/api/v1/public/leads"
 ALLOWED_ORIGIN = "https://www.flexity.asia"
+
+
+@pytest.fixture(autouse=True)
+def reset_public_leads_rate_limiter():
+    public_leads_rate_limiter.reset()
+    yield
+    public_leads_rate_limiter.reset()
 
 
 @pytest.fixture
@@ -31,6 +50,11 @@ def public_leads_settings(monkeypatch):
     monkeypatch.setattr(settings, "public_leads_allowed_origins", "")
     monkeypatch.setattr(settings, "public_leads_telegram_bot_token", None)
     monkeypatch.setattr(settings, "public_leads_telegram_chat_id", None)
+    monkeypatch.setattr(settings, "public_leads_rate_limit_enabled", True)
+    monkeypatch.setattr(settings, "public_leads_rate_limit_window_seconds", 600)
+    monkeypatch.setattr(settings, "public_leads_rate_limit_max_requests", 5)
+    monkeypatch.setattr(settings, "public_leads_rate_limit_hour_window_seconds", 3600)
+    monkeypatch.setattr(settings, "public_leads_rate_limit_hour_max_requests", 20)
     return settings
 
 
@@ -126,11 +150,69 @@ def _payload(**overrides):
     return payload
 
 
-def test_public_leads_endpoint_disabled(client, public_leads_settings):
+def _assert_private_response(data: dict) -> None:
+    assert data["status"] == "created"
+    assert data["message"] == "Lead received"
+    assert "party_id" not in data
+    assert "work_item_id" not in data
+    assert "matches" not in data
+    assert "matched_on" not in data
+
+
+def _seed_party(
+    db_session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    display_name: str,
+    email: str | None = None,
+    phone: str | None = None,
+) -> Party:
+    party = Party(
+        tenant_id=tenant_id,
+        party_type=PartyType.PERSON,
+        display_name=display_name,
+        status=PartyStatus.ACTIVE,
+        metadata_json={"party_role": "lead"},
+        created_by_user_id=user_id,
+        updated_by_user_id=user_id,
+    )
+    db_session.add(party)
+    db_session.flush()
+    if email:
+        db_session.add(
+            ContactMethod(
+                tenant_id=tenant_id,
+                party_id=party.id,
+                method_type=ContactMethodType.EMAIL,
+                value=email,
+                is_primary=True,
+            )
+        )
+    if phone:
+        db_session.add(
+            ContactMethod(
+                tenant_id=tenant_id,
+                party_id=party.id,
+                method_type=ContactMethodType.PHONE,
+                value=phone,
+                is_primary=email is None,
+            )
+        )
+    db_session.commit()
+    return party
+
+
+def test_public_leads_endpoint_disabled(client, db_session: Session, public_leads_settings):
+    party_before = db_session.query(Party).count()
+    wi_before = db_session.query(WorkItem).count()
+
     response = client.post(ENDPOINT, json=_payload())
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Public lead capture is disabled"
+    assert db_session.query(Party).count() == party_before
+    assert db_session.query(WorkItem).count() == wi_before
 
 
 @pytest.mark.parametrize(
@@ -181,6 +263,15 @@ def test_public_leads_disallowed_origin_rejected(client, public_leads_settings, 
     assert response.json()["detail"] == "Origin is not allowed"
 
 
+def test_public_leads_missing_origin_rejected_when_allowlist_set(
+    client, public_leads_settings, runtime_targets
+):
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    response = client.post(ENDPOINT, json=_payload())
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Origin is not allowed"
+
+
 def test_public_leads_missing_runtime_config_when_enabled(client, public_leads_settings):
     public_leads_settings.public_leads_enabled = True
     public_leads_settings.public_leads_allowed_origins = ALLOWED_ORIGIN
@@ -198,31 +289,51 @@ def test_public_leads_success_creates_party_and_work_item(
     runtime_targets,
 ):
     _configure_public_leads(public_leads_settings, runtime_targets)
+    party_before = db_session.query(Party).count()
+    wi_before = db_session.query(WorkItem).count()
 
     response = client.post(ENDPOINT, json=_payload(), headers={"Origin": ALLOWED_ORIGIN})
 
     assert response.status_code == 201
     data = response.json()
+    _assert_private_response(data)
 
-    party = db_session.get(Party, uuid.UUID(data["party_id"]))
+    assert db_session.query(Party).count() == party_before + 1
+    assert db_session.query(WorkItem).count() == wi_before + 1
+
+    party = (
+        db_session.query(Party)
+        .filter(Party.tenant_id == runtime_targets["tenant_id"])
+        .order_by(Party.created_at.desc())
+        .first()
+    )
     assert party is not None
-    assert party.tenant_id == runtime_targets["tenant_id"]
     assert party.display_name == "Asem"
-    assert party.metadata_json["source"] == "public_demo_form"
+    assert party.metadata_json["source"] == "website_demo"
+    assert party.metadata_json["form_name"] == "demo"
     assert party.metadata_json["process_area"] == "content operations"
+    assert "consent_accepted_at" in party.metadata_json
 
     methods = db_session.query(ContactMethod).filter(ContactMethod.party_id == party.id).all()
     assert {method.method_type.value for method in methods} == {"email", "phone"}
 
-    work_item = db_session.get(WorkItem, uuid.UUID(data["work_item_id"]))
+    work_item = (
+        db_session.query(WorkItem)
+        .filter(WorkItem.tenant_id == runtime_targets["tenant_id"])
+        .order_by(WorkItem.created_at.desc())
+        .first()
+    )
     assert work_item is not None
-    assert work_item.tenant_id == runtime_targets["tenant_id"]
     assert work_item.pipeline_id == runtime_targets["pipeline_id"]
     assert work_item.stage_id == runtime_targets["stage_id"]
     assert work_item.primary_party_id == party.id
     assert work_item.work_item_type == "demo_request"
-    assert work_item.source == "public_demo_form"
+    assert work_item.source == "website_demo"
     assert work_item.custom_fields_json["utm_campaign"] == "public-demo"
+    assert work_item.custom_fields_json["form_name"] == "demo"
+    assert work_item.custom_fields_json["page_url"] == "https://www.flexity.asia/demo/"
+    assert work_item.custom_fields_json["party_match"] == "none"
+    assert "consent_accepted_at" in work_item.custom_fields_json
 
     participant = (
         db_session.query(WorkItemParticipant)
@@ -231,6 +342,129 @@ def test_public_leads_success_creates_party_and_work_item(
     )
     assert participant.party_id == party.id
     assert participant.role == WorkItemParticipantRole.CLIENT
+
+
+def test_public_leads_exact_email_reuses_party(
+    client,
+    db_session: Session,
+    public_leads_settings,
+    runtime_targets,
+):
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    existing = _seed_party(
+        db_session,
+        tenant_id=runtime_targets["tenant_id"],
+        user_id=runtime_targets["user_id"],
+        display_name="Existing Contact",
+        email="asem@example.com",
+        phone="+77009998877",
+    )
+    party_before = db_session.query(Party).count()
+
+    response = client.post(
+        ENDPOINT,
+        json=_payload(phone="+77001110000", email="asem@example.com", name="Asem New"),
+        headers={"Origin": ALLOWED_ORIGIN},
+    )
+
+    assert response.status_code == 201
+    _assert_private_response(response.json())
+    assert db_session.query(Party).count() == party_before
+
+    work_item = (
+        db_session.query(WorkItem)
+        .filter(WorkItem.tenant_id == runtime_targets["tenant_id"])
+        .order_by(WorkItem.created_at.desc())
+        .first()
+    )
+    assert work_item is not None
+    assert work_item.primary_party_id == existing.id
+    assert work_item.source == "website_demo"
+    assert work_item.custom_fields_json["party_match"] == "exact"
+    assert "email" in work_item.custom_fields_json["matched_on"]
+    assert "matched existing contact" in work_item.description.lower()
+
+
+def test_public_leads_exact_phone_reuses_party(
+    client,
+    db_session: Session,
+    public_leads_settings,
+    runtime_targets,
+):
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    existing = _seed_party(
+        db_session,
+        tenant_id=runtime_targets["tenant_id"],
+        user_id=runtime_targets["user_id"],
+        display_name="Phone Contact",
+        phone="+77001234567",
+    )
+    party_before = db_session.query(Party).count()
+
+    response = client.post(
+        ENDPOINT,
+        json=_payload(email="other@example.com", phone="+7 (700) 123-45-67"),
+        headers={"Origin": ALLOWED_ORIGIN},
+    )
+
+    assert response.status_code == 201
+    _assert_private_response(response.json())
+    assert db_session.query(Party).count() == party_before
+
+    work_item = (
+        db_session.query(WorkItem)
+        .filter(WorkItem.tenant_id == runtime_targets["tenant_id"])
+        .order_by(WorkItem.created_at.desc())
+        .first()
+    )
+    assert work_item is not None
+    assert work_item.primary_party_id == existing.id
+    assert work_item.custom_fields_json["party_match"] == "exact"
+    assert "phone" in work_item.custom_fields_json["matched_on"]
+
+
+def test_public_leads_weak_name_creates_party_with_candidates(
+    client,
+    db_session: Session,
+    public_leads_settings,
+    runtime_targets,
+):
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    existing = _seed_party(
+        db_session,
+        tenant_id=runtime_targets["tenant_id"],
+        user_id=runtime_targets["user_id"],
+        display_name="Asem Weak Candidate",
+        email="other-weak@example.com",
+        phone="+77005554433",
+    )
+    party_before = db_session.query(Party).count()
+
+    response = client.post(
+        ENDPOINT,
+        json=_payload(
+            name="Asem",
+            email="brand-new-weak@example.com",
+            phone="+77006667788",
+        ),
+        headers={"Origin": ALLOWED_ORIGIN},
+    )
+
+    assert response.status_code == 201
+    _assert_private_response(response.json())
+    assert db_session.query(Party).count() == party_before + 1
+
+    work_item = (
+        db_session.query(WorkItem)
+        .filter(WorkItem.tenant_id == runtime_targets["tenant_id"])
+        .order_by(WorkItem.created_at.desc())
+        .first()
+    )
+    assert work_item is not None
+    assert work_item.primary_party_id != existing.id
+    assert work_item.custom_fields_json["party_match"] == "weak_only"
+    assert work_item.custom_fields_json["possible_match_count"] >= 1
+    assert str(existing.id) in work_item.custom_fields_json["possible_match_party_ids"]
 
 
 def test_public_leads_invalid_configured_tenant_fails_closed(
@@ -327,6 +561,7 @@ def test_public_leads_notification_failure_does_not_rollback(
     _configure_public_leads(public_leads_settings, runtime_targets)
     public_leads_settings.public_leads_telegram_bot_token = "token"
     public_leads_settings.public_leads_telegram_chat_id = "chat"
+    wi_before = db_session.query(WorkItem).count()
 
     with patch(
         "app.modules.public_leads.notifications.PublicLeadTelegramNotifier.send",
@@ -335,6 +570,109 @@ def test_public_leads_notification_failure_does_not_rollback(
         response = client.post(ENDPOINT, json=_payload(), headers={"Origin": ALLOWED_ORIGIN})
 
     assert response.status_code == 201
-    data = response.json()
-    assert db_session.get(Party, uuid.UUID(data["party_id"])) is not None
-    assert db_session.get(WorkItem, uuid.UUID(data["work_item_id"])) is not None
+    _assert_private_response(response.json())
+    assert db_session.query(WorkItem).count() == wi_before + 1
+
+
+def test_public_leads_disabled_does_not_increment_rate_limiter(
+    client,
+    db_session: Session,
+    public_leads_settings,
+    runtime_targets,
+):
+    public_leads_settings.public_leads_rate_limit_max_requests = 2
+    public_leads_settings.public_leads_rate_limit_hour_max_requests = 100
+    headers = {"Origin": ALLOWED_ORIGIN}
+
+    # Disabled posts must not consume quota
+    for _ in range(5):
+        response = client.post(ENDPOINT, json=_payload(), headers=headers)
+        assert response.status_code == 403
+
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    party_before = db_session.query(Party).count()
+
+    ok1 = client.post(
+        ENDPOINT,
+        json=_payload(email="rl1@example.com", phone="+77001110001"),
+        headers=headers,
+    )
+    ok2 = client.post(
+        ENDPOINT,
+        json=_payload(email="rl2@example.com", phone="+77001110002"),
+        headers=headers,
+    )
+    assert ok1.status_code == 201
+    assert ok2.status_code == 201
+    assert db_session.query(Party).count() == party_before + 2
+
+
+def test_public_leads_rate_limit_returns_429(
+    client,
+    db_session: Session,
+    public_leads_settings,
+    runtime_targets,
+):
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    public_leads_settings.public_leads_rate_limit_max_requests = 2
+    public_leads_settings.public_leads_rate_limit_hour_max_requests = 100
+    headers = {"Origin": ALLOWED_ORIGIN}
+
+    assert client.post(ENDPOINT, json=_payload(email="a1@example.com", phone="+77002110001"), headers=headers).status_code == 201
+    assert client.post(ENDPOINT, json=_payload(email="a2@example.com", phone="+77002110002"), headers=headers).status_code == 201
+
+    party_before = db_session.query(Party).count()
+    wi_before = db_session.query(WorkItem).count()
+
+    with patch.object(PartyService, "match_parties") as match_mock:
+        blocked = client.post(
+            ENDPOINT,
+            json=_payload(email="a3@example.com", phone="+77002110003"),
+            headers=headers,
+        )
+        match_mock.assert_not_called()
+
+    assert blocked.status_code == 429
+    body = blocked.json()
+    assert body["detail"] == PUBLIC_LEADS_RATE_LIMIT_MESSAGE
+    assert "party_id" not in body
+    assert "matches" not in str(body).lower()
+    assert db_session.query(Party).count() == party_before
+    assert db_session.query(WorkItem).count() == wi_before
+
+
+def test_public_leads_xff_rotation_does_not_bypass_rate_limit(
+    client,
+    db_session: Session,
+    public_leads_settings,
+    runtime_targets,
+):
+    """Spoofed X-Forwarded-For must not create a new rate-limit bucket.
+
+    Rate limiting keys on request.client.host only; forwarded headers are ignored
+    until an explicit trusted-proxy mechanism exists.
+    """
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    public_leads_settings.public_leads_rate_limit_max_requests = 2
+    public_leads_settings.public_leads_rate_limit_hour_max_requests = 100
+
+    for index, spoofed_ip in enumerate(("198.51.100.30", "198.51.100.31", "203.0.113.99")):
+        headers = {
+            "Origin": ALLOWED_ORIGIN,
+            "X-Forwarded-For": spoofed_ip,
+        }
+        response = client.post(
+            ENDPOINT,
+            json=_payload(
+                email=f"xff{index}@example.com",
+                phone=f"+7700311000{index}",
+            ),
+            headers=headers,
+        )
+        if index < 2:
+            assert response.status_code == 201, spoofed_ip
+        else:
+            assert response.status_code == 429, spoofed_ip
+            body = response.json()
+            assert body["detail"] == PUBLIC_LEADS_RATE_LIMIT_MESSAGE
+            assert "party_id" not in body

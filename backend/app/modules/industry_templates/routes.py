@@ -10,6 +10,7 @@ from app.modules.industry_templates.schemas import (
     IndustryTemplateCreate,
     IndustryTemplateResponse,
     IndustryTemplateUpdate,
+    LeadSourceResponse,
 )
 from app.modules.industry_templates.service import IndustryTemplateService
 
@@ -81,3 +82,15 @@ def get_tenant_labels(
     db: Session = Depends(get_db),
 ) -> dict:
     return IndustryTemplateService(db).get_tenant_labels(current_user, tenant_id)
+
+
+@tenant_template_router.get(
+    "/tenants/{tenant_id}/lead-sources",
+    response_model=list[LeadSourceResponse],
+)
+def get_tenant_lead_sources(
+    tenant_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[LeadSourceResponse]:
+    return IndustryTemplateService(db).get_tenant_lead_sources(current_user, tenant_id)

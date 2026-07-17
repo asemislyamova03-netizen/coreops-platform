@@ -1,9 +1,11 @@
 import type {
   Activity,
   ActivityCreate,
+  CloseWorkItemRequest,
   ListWorkItemsParams,
   MoveStageRequest,
   Pipeline,
+  ReopenWorkItemRequest,
   TaskCreate,
   WorkItem,
   WorkItemCreate,
@@ -57,6 +59,26 @@ export function moveWorkItemStage(
   payload: MoveStageRequest,
 ): Promise<WorkItem> {
   return workspaceApiFetch<WorkItem>(`/work-items/${workItemId}/move-stage`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function closeWorkItem(
+  workItemId: string,
+  payload: CloseWorkItemRequest,
+): Promise<WorkItem> {
+  return workspaceApiFetch<WorkItem>(`/work-items/${workItemId}/close`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function reopenWorkItem(
+  workItemId: string,
+  payload: ReopenWorkItemRequest = {},
+): Promise<WorkItem> {
+  return workspaceApiFetch<WorkItem>(`/work-items/${workItemId}/reopen`, {
     method: "POST",
     body: JSON.stringify(payload),
   });

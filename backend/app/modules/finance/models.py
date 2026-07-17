@@ -6,7 +6,7 @@ from sqlalchemy import JSON, Date, DateTime, Enum, ForeignKey, Integer, Numeric,
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-from app.core.enums import InvoiceStatus, PaymentMethod, PaymentStatus
+from app.core.enums import InvoiceStatus, PaymentDirection, PaymentMethod, PaymentStatus
 from app.core.models import AuditUserMixin, TimestampMixin, UUIDPrimaryKeyMixin
 
 
@@ -122,6 +122,12 @@ class Payment(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
     status: Mapped[PaymentStatus] = mapped_column(
         Enum(PaymentStatus, name="payment_status", native_enum=False),
         default=PaymentStatus.COMPLETED,
+        nullable=False,
+        index=True,
+    )
+    direction: Mapped[PaymentDirection] = mapped_column(
+        Enum(PaymentDirection, name="payment_direction", native_enum=False),
+        default=PaymentDirection.INCOMING,
         nullable=False,
         index=True,
     )

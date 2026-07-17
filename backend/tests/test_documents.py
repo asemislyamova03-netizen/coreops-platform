@@ -199,3 +199,75 @@ def test_documents_module_guard(client, storage_path):
 
     blocked = client.get("/api/v1/document-templates", headers=headers)
     assert blocked.status_code == 403
+
+
+def test_document_import_legacy_contract_without_generate(client, storage_path):
+    headers = _documents_tenant(client)
+    provider_headers = {k: v for k, v in headers.items() if k != "X-Tenant-ID"}
+    detail = client.get(f"/api/v1/tenants/{headers['X-Tenant-ID']}", headers=provider_headers)
+    assert detail.status_code == 200
+    branch_id = detail.json()["default_branch_id"]
+    assert branch_id is not None
+
+    party = client.post(
+        "/api/v1/parties",
+        headers=headers,
+        json={
+            "party_type": "organization",
+            "display_name": "Consulting Client LLC",
+            "party_role": "client",
+        },
+    )
+    assert party.status_code == 201
+    party_id = party.json()["id"]
+
+    orphan = client.post(
+        "/api/v1/documents/import",
+        headers=headers,
+        json={
+            "title": "Legacy contract orphan",
+            "party_id": party_id,
+            "work_item_id": None,
+            "legacy_status": "SIGNED",
+            "amount": "0",
+            "external_ref": "legacy_contract:42",
+            "source_system": "consult_app",
+            "branch_id": branch_id,
+        },
+    )
+    assert orphan.status_code == 201
+    body = orphan.json()
+    assert body["status"] == "signed"
+    assert body["template_id"] is None
+    assert body["work_item_id"] is None
+    assert body["files"] == []
+    assert body["context_json"]["external_ref"] == "legacy_contract:42"
+    assert body["context_json"]["amount"] == "0"
+    assert body["context_json"]["link_needs_review"] == "true"
+    assert body["context_json"]["amount_needs_review"] == "true"
+    assert body["context_json"]["source_system"] == "consult_app"
+    assert body["context_json"]["branch_id"] == branch_id
+
+    listed = client.get("/api/v1/documents?status=signed", headers=headers)
+    assert listed.status_code == 200
+    assert any(d["id"] == body["id"] for d in listed.json())
+
+
+def test_document_import_unknown_status_needs_review(client, storage_path):
+    headers = _documents_tenant(client)
+    imported = client.post(
+        "/api/v1/documents/import",
+        headers=headers,
+        json={
+            "title": "Unknown status contract",
+            "legacy_status": "WEIRD",
+            "amount": "1500.50",
+            "external_ref": "legacy_contract:99",
+        },
+    )
+    assert imported.status_code == 201
+    body = imported.json()
+    assert body["status"] == "draft"
+    assert body["context_json"]["status_needs_review"] == "true"
+    assert body["context_json"]["amount_needs_review"] == "false"
+    assert body["context_json"]["amount"] == "1500.50"

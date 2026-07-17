@@ -1,4 +1,3 @@
-import uuid
 from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
@@ -43,6 +42,7 @@ class PublicLeadCreate(BaseModel):
 
 
 class PublicLeadResponse(BaseModel):
+    """Public ack only — no party/work_item/match internals."""
+
     status: str = "created"
-    party_id: uuid.UUID
-    work_item_id: uuid.UUID
+    message: str = "Lead received"

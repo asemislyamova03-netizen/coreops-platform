@@ -1,4 +1,11 @@
-import type { ListPartiesParams, Party, PartyCreate, PartyUpdate } from "../types/party";
+import type {
+  ListPartiesParams,
+  Party,
+  PartyCreate,
+  PartyMatchRequest,
+  PartyMatchResponse,
+  PartyUpdate,
+} from "../types/party";
 import { buildQuery } from "./query";
 import { workspaceApiFetch } from "./workspace";
 
@@ -29,6 +36,14 @@ export function createParty(payload: PartyCreate): Promise<Party> {
 export function updateParty(partyId: string, payload: PartyUpdate): Promise<Party> {
   return workspaceApiFetch<Party>(`/parties/${partyId}`, {
     method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Read-only contact match (E2). Does not create or link parties. */
+export function matchParties(payload: PartyMatchRequest): Promise<PartyMatchResponse> {
+  return workspaceApiFetch<PartyMatchResponse>("/parties/match", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }

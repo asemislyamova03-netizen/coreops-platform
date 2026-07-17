@@ -70,3 +70,11 @@ class ApplyTemplateResponse(BaseModel):
     pipelines_created: list[str]
     custom_fields_created: int
     labels_applied: bool
+
+
+class LeadSourceResponse(BaseModel):
+    code: str
+    label_ru: str
+    channel: str
+    active: bool
+    sort_order: int

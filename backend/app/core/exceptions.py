@@ -40,3 +40,7 @@ class FeatureNotEntitledError(CoreOpsError):
 
 class UsageLimitExceededError(CoreOpsError):
     """Tenant has exceeded a plan usage limit."""
+
+
+class RateLimitExceededError(CoreOpsError):
+    """Client exceeded a request rate limit."""

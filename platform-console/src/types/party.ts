@@ -69,6 +69,7 @@ export interface PartyCreate {
   display_name: string;
   status?: PartyStatus;
   party_role?: string | null;
+  metadata_json?: Record<string, unknown>;
   contact_methods?: ContactMethodCreate[];
   custom_fields?: Record<string, unknown>;
 }
@@ -80,4 +81,55 @@ export interface PartyUpdate {
   party_role?: string | null;
   contact_methods?: ContactMethodCreate[];
   custom_fields?: Record<string, unknown>;
+}
+
+export interface PartyMatchRequest {
+  name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  telegram_username?: string | null;
+  telegram_user_id?: string | null;
+  whatsapp?: string | null;
+}
+
+export type PartyMatchType = "exact" | "weak";
+
+export interface PartyMatchContactPreview {
+  method_type: string;
+  value: string;
+  label: string | null;
+  is_primary: boolean;
+}
+
+export interface PartyMatchWorkItemPreview {
+  id: string;
+  title: string;
+  status: string;
+  updated_at: string;
+}
+
+export interface PartyMatchHit {
+  party_id: string;
+  display_name: string;
+  party_type: PartyType;
+  status: PartyStatus;
+  match_type: PartyMatchType;
+  score: number;
+  matched_on: string[];
+  contact_methods: PartyMatchContactPreview[];
+  recent_work_items: PartyMatchWorkItemPreview[];
+}
+
+export interface PartyMatchNormalizedQuery {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  telegram_username: string | null;
+  telegram_user_id: string | null;
+  whatsapp: string | null;
+}
+
+export interface PartyMatchResponse {
+  matches: PartyMatchHit[];
+  query_normalized: PartyMatchNormalizedQuery;
 }

@@ -1,9 +1,18 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+DispositionCode = Literal[
+    "spam",
+    "off_topic",
+    "duplicate",
+    "test",
+    "no_response",
+    "other",
+]
 
 from app.core.enums import (
     ActivityType,
@@ -99,6 +108,15 @@ class WorkItemUpdate(BaseModel):
 
 class MoveStageRequest(BaseModel):
     stage_id: uuid.UUID
+
+
+class CloseWorkItemRequest(BaseModel):
+    disposition: DispositionCode
+    disposition_note: str | None = Field(default=None, max_length=2000)
+
+
+class ReopenWorkItemRequest(BaseModel):
+    note: str | None = Field(default=None, max_length=2000)
 
 
 class ActivityCreate(BaseModel):

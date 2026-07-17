@@ -25,6 +25,14 @@ export type WorkItemStatus =
   | "cancelled"
   | "archived";
 
+export type DispositionCode =
+  | "spam"
+  | "off_topic"
+  | "duplicate"
+  | "test"
+  | "no_response"
+  | "other";
+
 export interface WorkItemParticipant {
   id: string;
   party_id: string;
@@ -72,10 +80,20 @@ export interface WorkItemUpdate {
   primary_party_id?: string | null;
   source?: string | null;
   stage_id?: string | null;
+  custom_fields?: Record<string, unknown>;
 }
 
 export interface MoveStageRequest {
   stage_id: string;
+}
+
+export interface CloseWorkItemRequest {
+  disposition: DispositionCode;
+  disposition_note?: string | null;
+}
+
+export interface ReopenWorkItemRequest {
+  note?: string | null;
 }
 
 export interface ActivityCreate {

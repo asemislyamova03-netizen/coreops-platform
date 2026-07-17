@@ -10,6 +10,7 @@ from app.core.modules import require_module
 from app.core.tenancy import TenantContext
 from app.modules.documents.schemas import (
     DocumentGenerateRequest,
+    DocumentImportCreate,
     DocumentResponse,
     DocumentTemplateCreate,
     DocumentTemplateResponse,
@@ -91,6 +92,17 @@ def generate_document(
     db: Session = Depends(get_db),
 ) -> DocumentResponse:
     result = _service(ctx, db).generate_document(ctx.user, payload)
+    db.commit()
+    return result
+
+
+@documents_router.post("/import", response_model=DocumentResponse, status_code=201)
+def import_document(
+    payload: DocumentImportCreate,
+    ctx: TenantContext = Depends(require_module("documents")),
+    db: Session = Depends(get_db),
+) -> DocumentResponse:
+    result = _service(ctx, db).import_document(ctx.user, payload)
     db.commit()
     return result
 

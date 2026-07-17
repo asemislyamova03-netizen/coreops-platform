@@ -13,16 +13,57 @@ from app.modules.workflows.repository import WorkflowRepository
 from app.modules.workflows.schemas import (
     ActivityCreate,
     ActivityResponse,
+    CloseWorkItemRequest,
     MoveStageRequest,
     PipelineCreate,
     PipelineResponse,
     PipelineUpdate,
+    ReopenWorkItemRequest,
     TaskCreate,
     TaskResponse,
     WorkItemCreate,
     WorkItemResponse,
     WorkItemUpdate,
 )
+
+DISPOSITION_LABELS: dict[str, str] = {
+    "spam": "Спам",
+    "off_topic": "Не по теме",
+    "duplicate": "Дубль",
+    "test": "Тест",
+    "no_response": "Нет ответа",
+    "other": "Другое",
+}
+
+LEGACY_ORDER_STATUS_TO_WORK_ITEM_STATUS: dict[str, WorkItemStatus] = {
+    "COMPLETED": WorkItemStatus.WON,
+    "IN_PROGRESS": WorkItemStatus.IN_PROGRESS,
+    "CONTRACT_PENDING": WorkItemStatus.OPEN,
+    "CANCELLED": WorkItemStatus.CANCELLED,
+}
+
+LEGACY_STAGE_STATUS_TO_TARGET: dict[str, str] = {
+    "NOT_STARTED": "not_started",
+    "DONE": "done",
+}
+
+
+def map_legacy_order_status(status: str | None) -> tuple[WorkItemStatus, bool]:
+    if status is None:
+        return WorkItemStatus.OPEN, True
+    mapped = LEGACY_ORDER_STATUS_TO_WORK_ITEM_STATUS.get(status.strip().upper())
+    if mapped is None:
+        return WorkItemStatus.OPEN, True
+    return mapped, False
+
+
+def map_legacy_stage_status(status: str | None) -> tuple[str, bool]:
+    if status is None:
+        return "needs_review", True
+    mapped = LEGACY_STAGE_STATUS_TO_TARGET.get(status.strip().upper())
+    if mapped is None:
+        return "needs_review", True
+    return mapped, False
 
 
 class WorkflowService:
@@ -97,8 +138,11 @@ class WorkflowService:
         if payload.primary_party_id:
             self._ensure_party(payload.primary_party_id)
 
+        custom_input = dict(payload.custom_fields or {})
+        source_note_raw = custom_input.pop("source_note", None)
         custom_values = self.custom_fields.validate_and_prepare(
-            ENTITY_WORK_ITEM, payload.custom_fields
+            ENTITY_WORK_ITEM,
+            custom_input or None,
         )
 
         item = self.repo.create_work_item(
@@ -129,6 +173,23 @@ class WorkflowService:
 
         if custom_values:
             self.custom_fields.upsert_values(ENTITY_WORK_ITEM, item.id, custom_values)
+
+        if isinstance(source_note_raw, str) and source_note_raw.strip():
+            source_note = source_note_raw.strip()
+            try:
+                note_values = self.custom_fields.validate_and_prepare(
+                    ENTITY_WORK_ITEM,
+                    {"source_note": source_note},
+                )
+            except ConflictError:
+                note_values = {}
+            if note_values:
+                self.custom_fields.upsert_values(ENTITY_WORK_ITEM, item.id, note_values)
+            else:
+                item.custom_fields_json = {
+                    **(item.custom_fields_json or {}),
+                    "source_note": source_note,
+                }
 
         self.db.flush()
         self._maybe_auto_start_process_run(user=user, work_item=item)
@@ -206,6 +267,112 @@ class WorkflowService:
             activity_type=ActivityType.STATUS_CHANGE,
             title=f"Moved to stage: {stage.name}",
             description=f"stage_id: {old_stage_id} -> {stage.id}",
+            occurred_at=datetime.now(UTC),
+            created_by_user_id=user.id,
+            updated_by_user_id=user.id,
+        )
+
+        self.db.flush()
+        return self.get_work_item(item.id)
+
+    def close_work_item(
+        self,
+        user: User,
+        work_item_id: uuid.UUID,
+        payload: CloseWorkItemRequest,
+    ) -> WorkItemResponse:
+        item = self._get_work_item_or_404(work_item_id)
+        old_stage_id = item.stage_id
+
+        rejected_stage = self.repo.get_stage_by_code(
+            self.tenant_id,
+            item.pipeline_id,
+            "rejected",
+        )
+        if not rejected_stage:
+            raise ConflictError("Pipeline stage 'rejected' not found")
+
+        note = payload.disposition_note.strip() if payload.disposition_note else None
+        custom_values = self.custom_fields.validate_and_prepare(
+            ENTITY_WORK_ITEM,
+            {
+                "disposition": payload.disposition,
+                "disposition_note": note,
+            },
+        )
+        self.custom_fields.upsert_values(ENTITY_WORK_ITEM, item.id, custom_values)
+
+        item.stage_id = rejected_stage.id
+        item.status = WorkItemStatus.LOST
+        item.updated_by_user_id = user.id
+
+        disposition_label = DISPOSITION_LABELS.get(payload.disposition, payload.disposition)
+        self.repo.add_activity(
+            tenant_id=self.tenant_id,
+            work_item_id=item.id,
+            activity_type=ActivityType.STATUS_CHANGE,
+            title=f"Лид закрыт: {disposition_label}",
+            description=(
+                f"disposition={payload.disposition}; "
+                f"note={note or ''}; "
+                f"stage_id: {old_stage_id} -> {rejected_stage.id}"
+            ),
+            occurred_at=datetime.now(UTC),
+            created_by_user_id=user.id,
+            updated_by_user_id=user.id,
+        )
+
+        self.db.flush()
+        return self.get_work_item(item.id)
+
+    def reopen_work_item(
+        self,
+        user: User,
+        work_item_id: uuid.UUID,
+        payload: ReopenWorkItemRequest,
+    ) -> WorkItemResponse:
+        item = self._get_work_item_or_404(work_item_id)
+        old_stage_id = item.stage_id
+
+        current_stage = self.repo.get_stage(self.tenant_id, item.stage_id)
+        if not current_stage or current_stage.code != "rejected":
+            raise ConflictError("Work item is not in 'rejected' stage")
+
+        new_lead_stage = self.repo.get_stage_by_code(
+            self.tenant_id,
+            item.pipeline_id,
+            "new_lead",
+        )
+        if not new_lead_stage:
+            raise ConflictError("Pipeline stage 'new_lead' not found")
+
+        existing_custom = self.custom_fields.get_values_map(ENTITY_WORK_ITEM, item.id)
+        previous_disposition = existing_custom.get("disposition")
+
+        clear_values = self.custom_fields.validate_and_prepare(
+            ENTITY_WORK_ITEM,
+            {
+                "disposition": None,
+                "disposition_note": None,
+            },
+        )
+        self.custom_fields.upsert_values(ENTITY_WORK_ITEM, item.id, clear_values)
+
+        item.stage_id = new_lead_stage.id
+        item.status = WorkItemStatus.IN_PROGRESS
+        item.updated_by_user_id = user.id
+
+        reopen_note = payload.note.strip() if payload.note else None
+        self.repo.add_activity(
+            tenant_id=self.tenant_id,
+            work_item_id=item.id,
+            activity_type=ActivityType.STATUS_CHANGE,
+            title="Лид возвращён в работу",
+            description=(
+                f"previous_disposition={previous_disposition or ''}; "
+                f"note={reopen_note or ''}; "
+                f"stage_id: {old_stage_id} -> {new_lead_stage.id}"
+            ),
             occurred_at=datetime.now(UTC),
             created_by_user_id=user.id,
             updated_by_user_id=user.id,
@@ -296,6 +463,9 @@ class WorkflowService:
 
     def _to_work_item_response(self, item, *, include_related: bool = False) -> WorkItemResponse:
         custom = self.custom_fields.get_values_map(ENTITY_WORK_ITEM, item.id)
+        if item.custom_fields_json:
+            for key, value in item.custom_fields_json.items():
+                custom.setdefault(key, value)
         activities: list[ActivityResponse] = []
         tasks: list[TaskResponse] = []
         if include_related:

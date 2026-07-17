@@ -145,7 +145,7 @@ def test_cli_rejects_live_coreops_target(repo_root: Path, monkeypatch, local_tmp
         "app.modules.imports_dry_run.staging_write_import_runner.assert_path_allowlisted_for_real_source",
         lambda _path: Path(__file__).resolve(),
     )
-    with pytest.raises(StagingWriteImportPreflightError, match="live"):
+    with pytest.raises(StagingWriteImportPreflightError, match="production-like|blocked"):
         validate_staging_write_import_args(
             _base_args(target_db="coreops", dry_run_report=str(masked), output=str(local_tmp / "out.json")),
             repo_root=repo_root,
@@ -597,7 +597,7 @@ def test_sqlalchemy_adapter_run_avoids_nested_begin_on_active_session(db_engine,
 
     _seed_staging_tenant_branch(db_session)
     factory = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
-    adapter = SqlAlchemyStagingWriteAdapter(session_factory=factory)
+    adapter = SqlAlchemyStagingWriteAdapter(session_factory=factory, verify_target_db=False)
     config = _adapter_execute_config(local_tmp)
 
     session_begin_calls: list[bool] = []
@@ -655,7 +655,7 @@ def test_sqlalchemy_adapter_write_transaction_commits_on_success(db_engine, db_s
 
     _seed_staging_tenant_branch(db_session)
     factory = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
-    adapter = SqlAlchemyStagingWriteAdapter(session_factory=factory)
+    adapter = SqlAlchemyStagingWriteAdapter(session_factory=factory, verify_target_db=False)
     config = _adapter_execute_config(local_tmp)
 
     def _fake_execute(db, cfg, _data, _stats):
@@ -698,7 +698,7 @@ def test_sqlalchemy_adapter_write_transaction_rolls_back_on_stage_failure(db_eng
 
     _seed_staging_tenant_branch(db_session)
     factory = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
-    adapter = SqlAlchemyStagingWriteAdapter(session_factory=factory)
+    adapter = SqlAlchemyStagingWriteAdapter(session_factory=factory, verify_target_db=False)
     config = _adapter_execute_config(local_tmp)
 
     def _failing_execute(db, cfg, _data, _stats):
@@ -728,4 +728,252 @@ def test_sqlalchemy_adapter_write_transaction_rolls_back_on_stage_failure(db_eng
             )
         )
         assert count == 0
+
+
+def test_resolve_consulting_staging_url_missing_fails_closed():
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        CONSULTING_STAGING_DATABASE_URL_ENV,
+        resolve_consulting_staging_database_url,
+    )
+
+    with pytest.raises(StagingWriteImportPreflightError, match=CONSULTING_STAGING_DATABASE_URL_ENV):
+        resolve_consulting_staging_database_url(environ={})
+
+
+def test_resolve_consulting_staging_url_ignores_database_url_fallback():
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        CONSULTING_STAGING_DATABASE_URL_ENV,
+        resolve_consulting_staging_database_url,
+    )
+
+    secret = "postgresql+psycopg://user:SuperSecretPass@localhost:5432/coreops"
+    with pytest.raises(StagingWriteImportPreflightError, match=CONSULTING_STAGING_DATABASE_URL_ENV) as exc:
+        resolve_consulting_staging_database_url(
+            environ={"DATABASE_URL": secret},
+        )
+    assert "SuperSecretPass" not in str(exc.value)
+    assert secret not in str(exc.value)
+
+
+def test_redact_database_url_strips_credentials():
+    from app.modules.imports_dry_run.staging_write_import_runner import _redact_database_url
+
+    raw = "postgresql+psycopg://alice:hunter2@db.example:5432/coreops_staging_0013"
+    redacted = _redact_database_url(raw)
+    assert "hunter2" not in redacted
+    assert "alice" not in redacted
+    assert "***" in redacted
+
+
+def test_assert_connected_database_mismatch_fails_closed():
+    from types import SimpleNamespace
+
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        assert_connected_database_matches_target,
+    )
+
+    class _FakeBind:
+        dialect = SimpleNamespace(name="postgresql")
+
+    class _FakeSession:
+        def get_bind(self):
+            return _FakeBind()
+
+        def execute(self, _stmt):
+            return SimpleNamespace(scalar=lambda: "coreops")
+
+    with pytest.raises(StagingWriteImportPreflightError, match="production-like|does not match"):
+        assert_connected_database_matches_target(_FakeSession(), "coreops_staging_0013")
+
+
+def test_assert_connected_database_name_mismatch_message_has_no_url():
+    from types import SimpleNamespace
+
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        assert_connected_database_matches_target,
+    )
+
+    class _FakeBind:
+        dialect = SimpleNamespace(name="postgresql")
+
+    class _FakeSession:
+        def get_bind(self):
+            return _FakeBind()
+
+        def execute(self, _stmt):
+            return SimpleNamespace(scalar=lambda: "coreops_staging_other")
+
+    with pytest.raises(StagingWriteImportPreflightError, match="does not match") as exc:
+        assert_connected_database_matches_target(_FakeSession(), "coreops_staging_0013")
+    message = str(exc.value)
+    assert "postgresql" not in message.lower() or "://" not in message
+    assert "password" not in message.lower()
+    assert "@" not in message
+
+
+def test_execute_mode_without_staging_url_fails_closed(local_tmp: Path, monkeypatch):
+    db_path = build_production_gate_b_sqlite_fixture(local_tmp / "prod_like.sqlite")
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        CONSULTING_STAGING_DATABASE_URL_ENV,
+        StagingWriteImportConfig,
+        run_staging_write_import,
+    )
+
+    monkeypatch.delenv(CONSULTING_STAGING_DATABASE_URL_ENV, raising=False)
+    secret = "postgresql+psycopg://user:LeakMeNot@localhost:5432/coreops"
+    monkeypatch.setenv("DATABASE_URL", secret)
+
+    config = StagingWriteImportConfig(
+        source_db=db_path,
+        backup_id=_BACKUP_ID,
+        tenant_id=UUID(_TENANT_ID),
+        default_branch_id=UUID(_BRANCH_ID),
+        target_db="coreops_staging_0013",
+        dry_run_report=local_tmp / "masked.json",
+        import_batch_id=_BATCH_ID,
+        output=local_tmp / "out.json",
+        mode=STAGING_WRITE_EXECUTE_MODE,
+    )
+    from app.modules.imports_dry_run import sqlite_readonly
+
+    original_guard = sqlite_readonly.assert_path_allowlisted_for_real_source
+    sqlite_readonly.assert_path_allowlisted_for_real_source = lambda _p: Path(db_path)
+    try:
+        with pytest.raises(StagingWriteImportPreflightError, match=CONSULTING_STAGING_DATABASE_URL_ENV) as exc:
+            run_staging_write_import(
+                config,
+                allow_execution=True,
+                environ={"DATABASE_URL": secret},
+            )
+    finally:
+        sqlite_readonly.assert_path_allowlisted_for_real_source = original_guard
+    assert "LeakMeNot" not in str(exc.value)
+
+
+def test_build_staging_engine_rejects_db_name_mismatch(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        CONSULTING_STAGING_DATABASE_URL_ENV,
+        build_consulting_staging_engine,
+    )
+
+    class _Result:
+        def scalar(self):
+            return "coreops"
+
+    class _ConnSession:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def get_bind(self):
+            return SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
+
+        def execute(self, _stmt):
+            return _Result()
+
+    class _Engine:
+        def dispose(self):
+            return None
+
+    monkeypatch.setattr(
+        "app.modules.imports_dry_run.staging_write_import_runner.create_engine",
+        lambda *_a, **_k: _Engine(),
+    )
+    monkeypatch.setattr(
+        "app.modules.imports_dry_run.staging_write_import_runner.Session",
+        lambda _engine: _ConnSession(),
+    )
+    with pytest.raises(StagingWriteImportPreflightError, match="production-like|does not match"):
+        build_consulting_staging_engine(
+            "coreops_staging_0013",
+            environ={
+                CONSULTING_STAGING_DATABASE_URL_ENV: (
+                    "postgresql+psycopg://u:p@localhost:5432/coreops_staging_0013"
+                )
+            },
+        )
+
+
+def test_staging_url_database_name_mismatch_fails_before_connect():
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        CONSULTING_STAGING_DATABASE_URL_ENV,
+        assert_staging_url_database_name_matches_target,
+    )
+
+    secret = "postgresql+psycopg://u:LeakPath@localhost:5432/coreops"
+    with pytest.raises(StagingWriteImportPreflightError, match="production-like|does not match") as exc:
+        assert_staging_url_database_name_matches_target(secret, "coreops_staging_0013")
+    assert "LeakPath" not in str(exc.value)
+    assert CONSULTING_STAGING_DATABASE_URL_ENV in str(exc.value) or "production-like" in str(exc.value)
+
+
+def test_staging_url_path_must_match_target_db():
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        assert_staging_url_database_name_matches_target,
+    )
+
+    ok = assert_staging_url_database_name_matches_target(
+        "postgresql+psycopg://u:p@localhost:5432/coreops_staging_0013",
+        "coreops_staging_0013",
+    )
+    assert ok == "coreops_staging_0013"
+    with pytest.raises(StagingWriteImportPreflightError, match="does not match"):
+        assert_staging_url_database_name_matches_target(
+            "postgresql+psycopg://u:p@localhost:5432/coreops_staging_other",
+            "coreops_staging_0013",
+        )
+
+
+def test_ephemeral_postgres_current_database_gate():
+    """Live current_database() check when local Postgres is reachable."""
+    import os
+
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.exc import OperationalError
+    from sqlalchemy.orm import Session
+
+    from app.core.config import get_settings
+    from app.modules.imports_dry_run.staging_write_import_runner import (
+        CONSULTING_STAGING_DATABASE_URL_ENV,
+        assert_connected_database_matches_target,
+        build_consulting_staging_engine,
+    )
+
+    base_url = os.environ.get(CONSULTING_STAGING_DATABASE_URL_ENV) or get_settings().database_url
+    try:
+        engine = create_engine(base_url, pool_pre_ping=True)
+        with engine.connect() as conn:
+            if conn.dialect.name != "postgresql":
+                pytest.skip("PostgreSQL required for ephemeral current_database gate")
+            current = conn.execute(text("SELECT current_database()")).scalar()
+        engine.dispose()
+    except OperationalError:
+        pytest.skip("Local Postgres is required for ephemeral current_database gate")
+
+    if current == "coreops_staging_0013":
+        built = build_consulting_staging_engine(
+            "coreops_staging_0013",
+            environ={CONSULTING_STAGING_DATABASE_URL_ENV: base_url},
+        )
+        built.dispose()
+        return
+
+    # Connected DB is not the allowed staging name → fail closed.
+    with Session(create_engine(base_url)) as session:
+        with pytest.raises(StagingWriteImportPreflightError, match="production-like|does not match"):
+            assert_connected_database_matches_target(session, "coreops_staging_0013")
+
+
+def test_parser_help_separates_plan_and_execute():
+    parser = build_parser()
+    help_text = parser.format_help()
+    assert "staging-write-import-plan" in help_text
+    assert "staging-write-import-execute" in help_text
+    assert "CONSULTING_STAGING_DATABASE_URL" in help_text
+    assert "DATABASE_URL" in help_text
+    assert "dry-run" in help_text.lower() or "Gate B" in help_text
 

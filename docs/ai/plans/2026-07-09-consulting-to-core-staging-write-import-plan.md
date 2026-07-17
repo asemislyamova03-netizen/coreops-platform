@@ -126,6 +126,10 @@ Technical design requirements for later implementation:
 - Source SQLite access only in read-only mode.
 - Target Core adapter restricted to staging-write path only.
 - Explicit target safety check (for example `--target-db coreops_staging_0013` and fail-closed on mismatch).
+- Staging writes MUST use dedicated env `CONSULTING_STAGING_DATABASE_URL` (never app `DATABASE_URL`).
+- On execute, verify `current_database()` matches `--target-db`; missing URL / mismatch / production-like name → fail closed.
+- Never print database URL or credentials in logs/errors.
+- Clearly separate Gate B dry-run (read-only) from staging write-import plan/execute modes.
 - Mandatory flags:
   - `--tenant-id`
   - `--default-branch-id`
@@ -185,8 +189,9 @@ Required review flags / metadata model for future write-import:
 
 Before any staging write-import execution:
 
-- confirm target DB is `coreops_staging_0013`;
-- confirm target is not live `coreops`;
+- confirm `CONSULTING_STAGING_DATABASE_URL` is set (never fall back to `DATABASE_URL`);
+- confirm target DB is `coreops_staging_0013` via `--target-db` AND `SELECT current_database()`;
+- confirm target is not live `coreops` / other production-like names;
 - confirm Alembic current is `0014_core_branches_baseline`;
 - confirm tenant/default branch exist;
 - confirm source DB opens read-only;

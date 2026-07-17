@@ -1,20 +1,33 @@
-"""Staging write-import planner/runner for Consulting -> Core (execution-gated)."""
+"""Staging write-import planner/runner for Consulting -> Core (execution-gated).
+
+Modes (do not confuse):
+- staging-write-import-plan: read-only planning against the allowlisted source SQLite.
+  Does NOT open or write to Core/Postgres. Equivalent to a write-plan dry-run.
+- staging-write-import-execute: writes ONLY when --allow-execution is set, and ONLY
+  via CONSULTING_STAGING_DATABASE_URL (never the app DATABASE_URL). The connected
+  PostgreSQL database name must match --target-db (fail-closed).
+
+Gate B / imports_dry_run scripts are separate read-only dry-runs; this module is
+the staging write path and must not reuse production DATABASE_URL.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from uuid import UUID
+from urllib.parse import urlparse
 
-from sqlalchemy import inspect, select
+from sqlalchemy import create_engine, inspect, select, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.database import engine
 import app.modules.models  # noqa: F401  # Ensure full ORM registry is loaded in standalone runner process.
 from app.core.enums import (
     AuditAction,
@@ -59,6 +72,18 @@ STAGING_WRITE_EXECUTE_MODE = "staging-write-import-execute"
 STAGING_WRITE_LEGACY_AMBIGUOUS_MODE = "staging-write-import"
 TARGET_DB_ALLOWED = "coreops_staging_0013"
 LIVE_DB_BLOCKED = "coreops"
+# Dedicated staging write DSN — never fall back to app DATABASE_URL.
+CONSULTING_STAGING_DATABASE_URL_ENV = "CONSULTING_STAGING_DATABASE_URL"
+PRODUCTION_LIKE_DB_NAMES = frozenset(
+    {
+        LIVE_DB_BLOCKED,
+        "coreops_production",
+        "production",
+        "prod",
+        "flexity",
+        "flexity_prod",
+    }
+)
 SOURCE_SYSTEM = "legacy_consulting_os"
 UUID_PATTERN = re.compile(
     r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
@@ -158,18 +183,46 @@ class SqlAlchemyStagingWriteAdapter(StagingWriteAdapter):
     }
     SOURCE_REF_ENTITY = "legacy_import_source_ref"
 
-    def __init__(self, session_factory: sessionmaker[Session] | None = None):
-        self._session_factory = session_factory or sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session],
+        *,
+        verify_target_db: bool = True,
+    ):
+        """Bind writes to an explicit session factory.
+
+        Production/CLI path must build the factory via
+        ``build_consulting_staging_session_factory(target_db)`` so the DSN comes
+        from CONSULTING_STAGING_DATABASE_URL and the live DB name is checked.
+        Injected factories (unit tests) may set ``verify_target_db=False`` only
+        when the dialect cannot provide ``current_database()`` (e.g. SQLite).
+        """
+        self._session_factory = session_factory
+        self._verify_target_db = verify_target_db
+
+    @classmethod
+    def from_consulting_staging_env(
+        cls,
+        target_db: str,
+        *,
+        environ: dict[str, str] | None = None,
+    ) -> "SqlAlchemyStagingWriteAdapter":
+        factory = build_consulting_staging_session_factory(target_db, environ=environ)
+        return cls(session_factory=factory, verify_target_db=True)
 
     def run(self, config: StagingWriteImportConfig, data: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
         validate_required_import_sequence(list(REQUIRED_IMPORT_SEQUENCE))
         with self._session_factory() as db:
+            if self._verify_target_db:
+                assert_connected_database_matches_target(db, config.target_db)
             self._assert_schema_ready(db)
             self._assert_tenant_branch_guards(db, config)
             if not self._is_rollback_safe(db):
                 raise ImportBlockedError("BLOCKED_ROLLBACK_NOT_SAFE")
         stats = WriteStats(imported={}, skipped_existing={}, conflicts={}, review_flags={}, source_ref_counts={})
         with self._session_factory.begin() as db:
+            if self._verify_target_db:
+                assert_connected_database_matches_target(db, config.target_db)
             stage_results = self._execute_import_order(db, config, data, stats)
         return self._build_execution_report(config, stats, stage_results)
 
@@ -690,13 +743,156 @@ def _validate_target_db(target_db: str) -> str:
     value = (target_db or "").strip()
     if not value:
         raise StagingWriteImportPreflightError("--target-db is required")
-    if value == LIVE_DB_BLOCKED:
-        raise StagingWriteImportPreflightError("Target DB 'coreops' is blocked (live)")
+    lowered = value.lower()
+    if lowered in PRODUCTION_LIKE_DB_NAMES or value == LIVE_DB_BLOCKED:
+        raise StagingWriteImportPreflightError(
+            "Target DB looks production-like and is blocked"
+        )
     if value != TARGET_DB_ALLOWED:
         raise StagingWriteImportPreflightError(
             f"--target-db must be '{TARGET_DB_ALLOWED}'"
         )
     return value
+
+
+def _redact_database_url(url: str) -> str:
+    """Return a non-secret label for errors/logs (never echo credentials)."""
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname or "unknown-host"
+        db_name = (parsed.path or "").lstrip("/") or "unknown-db"
+        scheme = parsed.scheme or "unknown-scheme"
+        return f"{scheme}://***:***@{host}/***/{db_name}"
+    except Exception:
+        return "<redacted-database-url>"
+
+
+def resolve_consulting_staging_database_url(
+    *,
+    environ: dict[str, str] | None = None,
+) -> str:
+    """Load the dedicated staging write DSN (fail-closed if missing).
+
+    Uses CONSULTING_STAGING_DATABASE_URL only. Never falls back to DATABASE_URL.
+    """
+    env = environ if environ is not None else os.environ
+    raw = (env.get(CONSULTING_STAGING_DATABASE_URL_ENV) or "").strip()
+    if not raw:
+        raise StagingWriteImportPreflightError(
+            f"{CONSULTING_STAGING_DATABASE_URL_ENV} is required for staging write "
+            "execution (writes never use DATABASE_URL)"
+        )
+    return raw
+
+
+def database_name_from_url(url: str) -> str:
+    """Extract database name from a DSN without logging credentials."""
+    try:
+        parsed = urlparse(url)
+        name = (parsed.path or "").lstrip("/").split("?")[0].strip()
+    except Exception as exc:
+        raise StagingWriteImportPreflightError(
+            "Invalid CONSULTING_STAGING_DATABASE_URL (details redacted)"
+        ) from exc
+    if not name:
+        raise StagingWriteImportPreflightError(
+            f"{CONSULTING_STAGING_DATABASE_URL_ENV} must include a database name"
+        )
+    return name
+
+
+def assert_staging_url_database_name_matches_target(url: str, target_db: str) -> str:
+    """Fail-closed pre-connect check: URL path DB name must match --target-db."""
+    expected = _validate_target_db(target_db)
+    name = database_name_from_url(url)
+    if name.lower() in PRODUCTION_LIKE_DB_NAMES:
+        raise StagingWriteImportPreflightError(
+            f"{CONSULTING_STAGING_DATABASE_URL_ENV} points to a production-like "
+            "database name (blocked)"
+        )
+    if name != expected:
+        raise StagingWriteImportPreflightError(
+            f"{CONSULTING_STAGING_DATABASE_URL_ENV} database name {name!r} does not "
+            f"match --target-db {expected!r}"
+        )
+    return name
+
+
+def query_connected_database_name(session: Session) -> str:
+    bind = session.get_bind()
+    dialect = bind.dialect.name
+    if dialect != "postgresql":
+        raise StagingWriteImportPreflightError(
+            "Staging write target must be PostgreSQL "
+            f"(connected dialect={dialect!r})"
+        )
+    try:
+        name = session.execute(text("SELECT current_database()")).scalar()
+    except Exception:
+        raise StagingWriteImportPreflightError(
+            "Failed to query current_database() on staging connection "
+            "(details redacted)"
+        ) from None
+    if not name or not str(name).strip():
+        raise StagingWriteImportPreflightError(
+            "Connected database name is empty (fail-closed)"
+        )
+    return str(name).strip()
+
+
+def assert_connected_database_matches_target(
+    session: Session,
+    target_db: str,
+) -> str:
+    expected = _validate_target_db(target_db)
+    actual = query_connected_database_name(session)
+    if actual.lower() in PRODUCTION_LIKE_DB_NAMES:
+        raise StagingWriteImportPreflightError(
+            "Connected database looks production-like and is blocked"
+        )
+    if actual != expected:
+        raise StagingWriteImportPreflightError(
+            f"Connected database {actual!r} does not match --target-db {expected!r}"
+        )
+    return actual
+
+
+def build_consulting_staging_engine(
+    target_db: str,
+    *,
+    environ: dict[str, str] | None = None,
+) -> Engine:
+    """Create an engine from CONSULTING_STAGING_DATABASE_URL and verify DB name."""
+    expected = _validate_target_db(target_db)
+    url = resolve_consulting_staging_database_url(environ=environ)
+    assert_staging_url_database_name_matches_target(url, expected)
+    try:
+        engine = create_engine(url, pool_pre_ping=True)
+    except Exception:
+        raise StagingWriteImportPreflightError(
+            "Invalid CONSULTING_STAGING_DATABASE_URL (details redacted)"
+        ) from None
+    try:
+        with Session(engine) as session:
+            assert_connected_database_matches_target(session, expected)
+    except StagingWriteImportPreflightError:
+        engine.dispose()
+        raise
+    except Exception:
+        engine.dispose()
+        raise StagingWriteImportPreflightError(
+            "Failed to connect to consulting staging database (details redacted)"
+        ) from None
+    return engine
+
+
+def build_consulting_staging_session_factory(
+    target_db: str,
+    *,
+    environ: dict[str, str] | None = None,
+) -> sessionmaker[Session]:
+    engine = build_consulting_staging_engine(target_db, environ=environ)
+    return sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def _validate_import_batch_id(import_batch_id: str | None) -> str:
@@ -712,28 +908,53 @@ def _validate_import_batch_id(import_batch_id: str | None) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Staging write-import planner/runner for Consulting legacy source."
+        description=(
+            "Consulting staging write-import planner/runner.\n\n"
+            "PLAN (staging-write-import-plan): read-only plan from allowlisted "
+            "source SQLite; no Core/Postgres writes.\n"
+            "EXECUTE (staging-write-import-execute): writes only with "
+            "--allow-execution and only via env "
+            f"{CONSULTING_STAGING_DATABASE_URL_ENV}; connected DB name must "
+            "match --target-db. Never uses app DATABASE_URL.\n"
+            "Gate B dry-run scripts are separate and must not be confused with "
+            "this staging write path."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--mode",
         required=True,
         help=(
-            "Must be 'staging-write-import-plan' or "
-            "'staging-write-import-execute'"
+            "staging-write-import-plan (no writes) or "
+            "staging-write-import-execute (staging writes only, gated)"
         ),
     )
     parser.add_argument("--source-db", required=True, help="Allowlisted source SQLite path")
     parser.add_argument("--backup-id", required=True, help="Validated backup attestation id")
     parser.add_argument("--tenant-id", required=True, help="Staging tenant UUID")
     parser.add_argument("--default-branch-id", required=True, help="Staging default branch UUID")
-    parser.add_argument("--target-db", required=True, help="Must be coreops_staging_0013")
-    parser.add_argument("--dry-run-report", required=True, help="Masked Gate B report path")
+    parser.add_argument(
+        "--target-db",
+        required=True,
+        help=(
+            f"Must be '{TARGET_DB_ALLOWED}'. On execute, verified against "
+            f"current_database() of {CONSULTING_STAGING_DATABASE_URL_ENV}"
+        ),
+    )
+    parser.add_argument(
+        "--dry-run-report",
+        required=True,
+        help="Masked Gate B real-source-readonly report path (preflight input, not a write)",
+    )
     parser.add_argument("--import-batch-id", required=True, help="Write-import batch identifier")
     parser.add_argument("--output", required=True, help="Output report path outside repo")
     parser.add_argument(
         "--allow-execution",
         action="store_true",
-        help="Reserved for explicit future write execution gate (disabled by default)",
+        help=(
+            "Required for execute mode. Still writes only to "
+            f"{CONSULTING_STAGING_DATABASE_URL_ENV} when --target-db matches."
+        ),
     )
     parser.add_argument(
         "--overwrite",
@@ -959,6 +1180,7 @@ def run_staging_write_import(
     *,
     allow_execution: bool = False,
     write_adapter: StagingWriteAdapter | None = None,
+    environ: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     if config.mode == STAGING_WRITE_EXECUTE_MODE:
         if not allow_execution:
@@ -971,8 +1193,15 @@ def run_staging_write_import(
             path_guard="real_source",
         )
         data = source.load()
-        adapter = write_adapter or SqlAlchemyStagingWriteAdapter()
-        return adapter.run(config, data)
+        if write_adapter is None:
+            write_adapter = SqlAlchemyStagingWriteAdapter.from_consulting_staging_env(
+                config.target_db,
+                environ=environ,
+            )
+        else:
+            # Injected adapters must still receive a validated target_db string.
+            _validate_target_db(config.target_db)
+        return write_adapter.run(config, data)
     if allow_execution:
         raise StagingWriteImportPreflightError("Execution flag is blocked in plan mode.")
     source = ReadonlySqliteSourceAdapter(
@@ -1013,8 +1242,11 @@ def main(argv: list[str] | None = None) -> int:
     ) as exc:
         print(str(exc), file=sys.stderr)
         return EXIT_PREFLIGHT_FAIL
-    except Exception as exc:  # pragma: no cover
-        print(f"Staging write-import run failed: {exc}", file=sys.stderr)
+    except Exception:  # pragma: no cover
+        print(
+            "Staging write-import run failed (details redacted)",
+            file=sys.stderr,
+        )
         return EXIT_PREFLIGHT_FAIL
 
     print(f"Staging write-import report written: {config.output}")

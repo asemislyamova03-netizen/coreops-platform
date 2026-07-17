@@ -22,7 +22,6 @@ from app.core.enums import (
 from app.core.exceptions import CoreOpsError, PermissionDeniedError
 from app.core.modules import ModuleGuard
 from app.modules.audit.recorder import AuditRecorder
-from app.modules.audit.request_meta import client_ip
 from app.modules.auth.models import User
 from app.modules.parties.models import Party
 from app.modules.parties.repository import PartyRepository
@@ -35,6 +34,7 @@ from app.modules.public_leads.notifications import (
 from app.modules.public_leads.rate_limit import (
     RateLimitRule,
     public_leads_rate_limiter,
+    rate_limit_client_ip,
 )
 from app.modules.public_leads.schemas import PublicLeadCreate, PublicLeadResponse
 from app.modules.tenants.models import Tenant
@@ -139,7 +139,8 @@ class PublicLeadService:
     def _assert_rate_limit(self, request: Request | None) -> None:
         if not self.settings.public_leads_rate_limit_enabled:
             return
-        ip = client_ip(request) or "unknown"
+        # Peer IP only — never trust client X-Forwarded-For for rate keys.
+        ip = rate_limit_client_ip(request)
         rules = [
             RateLimitRule(
                 window_seconds=self.settings.public_leads_rate_limit_window_seconds,
@@ -153,10 +154,14 @@ class PublicLeadService:
         public_leads_rate_limiter.check_and_increment(ip, rules)
 
     def _assert_origin_allowed(self, origin: str | None) -> None:
-        if not origin:
-            return
-        normalized = origin.rstrip("/")
         allowed = self.settings.public_leads_allowed_origin_list
+        if not allowed:
+            # Empty allowlist: do not enforce Origin (dev / unset config).
+            return
+        if not origin:
+            # Non-empty allowlist must not be bypassed by omitting Origin.
+            raise PermissionDeniedError("Origin is not allowed")
+        normalized = origin.rstrip("/")
         if normalized not in allowed:
             raise PermissionDeniedError("Origin is not allowed")
 

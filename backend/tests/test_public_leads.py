@@ -263,6 +263,15 @@ def test_public_leads_disallowed_origin_rejected(client, public_leads_settings, 
     assert response.json()["detail"] == "Origin is not allowed"
 
 
+def test_public_leads_missing_origin_rejected_when_allowlist_set(
+    client, public_leads_settings, runtime_targets
+):
+    _configure_public_leads(public_leads_settings, runtime_targets)
+    response = client.post(ENDPOINT, json=_payload())
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Origin is not allowed"
+
+
 def test_public_leads_missing_runtime_config_when_enabled(client, public_leads_settings):
     public_leads_settings.public_leads_enabled = True
     public_leads_settings.public_leads_allowed_origins = ALLOWED_ORIGIN
@@ -573,14 +582,11 @@ def test_public_leads_disabled_does_not_increment_rate_limiter(
 ):
     public_leads_settings.public_leads_rate_limit_max_requests = 2
     public_leads_settings.public_leads_rate_limit_hour_max_requests = 100
+    headers = {"Origin": ALLOWED_ORIGIN}
 
     # Disabled posts must not consume quota
     for _ in range(5):
-        response = client.post(
-            ENDPOINT,
-            json=_payload(),
-            headers={"Origin": ALLOWED_ORIGIN, "X-Forwarded-For": "203.0.113.10"},
-        )
+        response = client.post(ENDPOINT, json=_payload(), headers=headers)
         assert response.status_code == 403
 
     _configure_public_leads(public_leads_settings, runtime_targets)
@@ -589,12 +595,12 @@ def test_public_leads_disabled_does_not_increment_rate_limiter(
     ok1 = client.post(
         ENDPOINT,
         json=_payload(email="rl1@example.com", phone="+77001110001"),
-        headers={"Origin": ALLOWED_ORIGIN, "X-Forwarded-For": "203.0.113.10"},
+        headers=headers,
     )
     ok2 = client.post(
         ENDPOINT,
         json=_payload(email="rl2@example.com", phone="+77001110002"),
-        headers={"Origin": ALLOWED_ORIGIN, "X-Forwarded-For": "203.0.113.10"},
+        headers=headers,
     )
     assert ok1.status_code == 201
     assert ok2.status_code == 201
@@ -610,7 +616,7 @@ def test_public_leads_rate_limit_returns_429(
     _configure_public_leads(public_leads_settings, runtime_targets)
     public_leads_settings.public_leads_rate_limit_max_requests = 2
     public_leads_settings.public_leads_rate_limit_hour_max_requests = 100
-    headers = {"Origin": ALLOWED_ORIGIN, "X-Forwarded-For": "198.51.100.20"}
+    headers = {"Origin": ALLOWED_ORIGIN}
 
     assert client.post(ENDPOINT, json=_payload(email="a1@example.com", phone="+77002110001"), headers=headers).status_code == 201
     assert client.post(ENDPOINT, json=_payload(email="a2@example.com", phone="+77002110002"), headers=headers).status_code == 201
@@ -635,39 +641,38 @@ def test_public_leads_rate_limit_returns_429(
     assert db_session.query(WorkItem).count() == wi_before
 
 
-def test_public_leads_rate_limit_separate_ips(
+def test_public_leads_xff_rotation_does_not_bypass_rate_limit(
     client,
+    db_session: Session,
     public_leads_settings,
     runtime_targets,
 ):
+    """Spoofed X-Forwarded-For must not create a new rate-limit bucket.
+
+    Rate limiting keys on request.client.host only; forwarded headers are ignored
+    until an explicit trusted-proxy mechanism exists.
+    """
     _configure_public_leads(public_leads_settings, runtime_targets)
-    public_leads_settings.public_leads_rate_limit_max_requests = 1
+    public_leads_settings.public_leads_rate_limit_max_requests = 2
     public_leads_settings.public_leads_rate_limit_hour_max_requests = 100
 
-    ip_a = {"Origin": ALLOWED_ORIGIN, "X-Forwarded-For": "198.51.100.30"}
-    ip_b = {"Origin": ALLOWED_ORIGIN, "X-Forwarded-For": "198.51.100.31"}
-
-    assert (
-        client.post(
+    for index, spoofed_ip in enumerate(("198.51.100.30", "198.51.100.31", "203.0.113.99")):
+        headers = {
+            "Origin": ALLOWED_ORIGIN,
+            "X-Forwarded-For": spoofed_ip,
+        }
+        response = client.post(
             ENDPOINT,
-            json=_payload(email="ip-a@example.com", phone="+77003110001"),
-            headers=ip_a,
-        ).status_code
-        == 201
-    )
-    assert (
-        client.post(
-            ENDPOINT,
-            json=_payload(email="ip-a2@example.com", phone="+77003110002"),
-            headers=ip_a,
-        ).status_code
-        == 429
-    )
-    assert (
-        client.post(
-            ENDPOINT,
-            json=_payload(email="ip-b@example.com", phone="+77003110003"),
-            headers=ip_b,
-        ).status_code
-        == 201
-    )
+            json=_payload(
+                email=f"xff{index}@example.com",
+                phone=f"+7700311000{index}",
+            ),
+            headers=headers,
+        )
+        if index < 2:
+            assert response.status_code == 201, spoofed_ip
+        else:
+            assert response.status_code == 429, spoofed_ip
+            body = response.json()
+            assert body["detail"] == PUBLIC_LEADS_RATE_LIMIT_MESSAGE
+            assert "party_id" not in body

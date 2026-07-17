@@ -13,6 +13,11 @@ from app.modules.industry_templates.schemas import (
     ApplyTemplateResponse,
     IndustryTemplateCreate,
     IndustryTemplateUpdate,
+    LeadSourceResponse,
+)
+from app.modules.industry_templates.lead_sources import (
+    active_lead_sources,
+    extract_lead_sources_from_settings_schema,
 )
 from app.modules.industry_templates.seed import INDUSTRY_TEMPLATES
 from app.modules.ai.service import AIService
@@ -91,6 +96,7 @@ class IndustryTemplateService:
             "default_dashboards": template.default_dashboards,
             "default_ai_agents": template.default_ai_agents,
             "settings_schema": template.settings_schema,
+            "lead_sources": extract_lead_sources_from_settings_schema(template.settings_schema),
         }
 
         pipelines_created = self._apply_pipelines(tenant_id, template.default_pipelines)
@@ -131,6 +137,32 @@ class IndustryTemplateService:
         if not settings:
             return {}
         return settings.labels_config
+
+    def get_tenant_lead_sources(
+        self,
+        user: User,
+        tenant_id: uuid.UUID,
+    ) -> list[LeadSourceResponse]:
+        self._ensure_tenant_read_access(user, tenant_id)
+        raw_sources = self._resolve_tenant_lead_sources_raw(tenant_id)
+        return [
+            LeadSourceResponse.model_validate(item)
+            for item in active_lead_sources(raw_sources)
+        ]
+
+    def _resolve_tenant_lead_sources_raw(self, tenant_id: uuid.UUID) -> list:
+        settings = self.templates.get_tenant_settings(tenant_id)
+        if settings and settings.industry_config_json:
+            tenant_sources = settings.industry_config_json.get("lead_sources")
+            if isinstance(tenant_sources, list) and tenant_sources:
+                return tenant_sources
+
+        tenant = self.tenants.get_by_id(tenant_id)
+        if tenant and tenant.industry_template_id:
+            template = self.templates.get_by_id(tenant.industry_template_id)
+            if template:
+                return extract_lead_sources_from_settings_schema(template.settings_schema)
+        return []
 
     def _apply_pipelines(self, tenant_id: uuid.UUID, pipelines: list) -> list[str]:
         created_codes: list[str] = []

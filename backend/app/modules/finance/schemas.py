@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.core.enums import InvoiceStatus, PaymentMethod, PaymentStatus
+from app.core.enums import InvoiceStatus, PaymentDirection, PaymentMethod, PaymentStatus
 
 
 class InvoiceLineCreate(BaseModel):
@@ -89,8 +89,14 @@ class PaymentCreate(BaseModel):
     payment_date: date
     method: PaymentMethod = PaymentMethod.BANK_TRANSFER
     status: PaymentStatus = PaymentStatus.COMPLETED
+    direction: PaymentDirection = PaymentDirection.INCOMING
     reference_number: str | None = Field(default=None, max_length=128)
     notes: str | None = None
+    legacy_payment_type: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Optional legacy consult_app payments.type; maps to direction when set",
+    )
 
 
 class PaymentAllocationItem(BaseModel):
@@ -127,6 +133,7 @@ class PaymentResponse(BaseModel):
     payment_date: date
     method: PaymentMethod
     status: PaymentStatus
+    direction: PaymentDirection
     reference_number: str | None
     notes: str | None
     allocations: list[PaymentAllocationResponse] = Field(default_factory=list)
@@ -155,3 +162,18 @@ class FinanceSummaryResponse(BaseModel):
     open_invoices_count: int
     overdue_invoices_count: int
     overdue_amount: Decimal
+
+
+# Backward-compatible alias used by C1/C2a mapping helpers and tests.
+LegacyPaymentDirection = PaymentDirection
+
+
+def map_legacy_payment_type(value: str | None) -> tuple[PaymentDirection, PaymentStatus, bool]:
+    if value is None:
+        return PaymentDirection.NEEDS_REVIEW, PaymentStatus.PENDING, True
+    normalized = value.strip().upper()
+    if normalized == "INCOME":
+        return PaymentDirection.INCOMING, PaymentStatus.COMPLETED, False
+    if normalized == "EXPENSE":
+        return PaymentDirection.OUTGOING, PaymentStatus.COMPLETED, False
+    return PaymentDirection.NEEDS_REVIEW, PaymentStatus.PENDING, True

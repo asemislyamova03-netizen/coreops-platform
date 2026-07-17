@@ -11,10 +11,12 @@ from app.core.tenancy import TenantContext
 from app.modules.workflows.schemas import (
     ActivityCreate,
     ActivityResponse,
+    CloseWorkItemRequest,
     MoveStageRequest,
     PipelineCreate,
     PipelineResponse,
     PipelineUpdate,
+    ReopenWorkItemRequest,
     TaskCreate,
     TaskResponse,
     WorkItemCreate,
@@ -146,6 +148,30 @@ def move_work_item_stage(
     db: Session = Depends(get_db),
 ) -> WorkItemResponse:
     result = _service(ctx, db).move_stage(ctx.user, work_item_id, payload)
+    db.commit()
+    return result
+
+
+@work_items_router.post("/{work_item_id}/close", response_model=WorkItemResponse)
+def close_work_item(
+    work_item_id: uuid.UUID,
+    payload: CloseWorkItemRequest,
+    ctx: TenantContext = Depends(require_module("crm")),
+    db: Session = Depends(get_db),
+) -> WorkItemResponse:
+    result = _service(ctx, db).close_work_item(ctx.user, work_item_id, payload)
+    db.commit()
+    return result
+
+
+@work_items_router.post("/{work_item_id}/reopen", response_model=WorkItemResponse)
+def reopen_work_item(
+    work_item_id: uuid.UUID,
+    payload: ReopenWorkItemRequest = ReopenWorkItemRequest(),
+    ctx: TenantContext = Depends(require_module("crm")),
+    db: Session = Depends(get_db),
+) -> WorkItemResponse:
+    result = _service(ctx, db).reopen_work_item(ctx.user, work_item_id, payload)
     db.commit()
     return result
 

@@ -1,5 +1,7 @@
 """Industry template seed data — configuration only, no industry-specific code paths."""
 
+from app.modules.industry_templates.lead_sources import FLEXITY_SALES_LEAD_SOURCES
+
 KINDERGARTEN_BASIC = {
     "code": "kindergarten_basic",
     "name": "Детский сад (базовый)",
@@ -271,7 +273,42 @@ FLEXITY_SALES_BASIC = {
     "default_statuses": {
         "work_item": ["open", "in_progress", "won", "lost"],
     },
-    "default_custom_fields": [],
+    "default_custom_fields": [
+        {
+            "entity_type": "work_item",
+            "field_key": "source_note",
+            "field_type": "text",
+            "label": "Детали источника",
+            "is_required": False,
+            "sort_order": 100,
+        },
+        {
+            "entity_type": "work_item",
+            "field_key": "disposition",
+            "field_type": "select",
+            "label": "Причина закрытия",
+            "is_required": False,
+            "sort_order": 200,
+            "options_json": {
+                "choices": [
+                    "spam",
+                    "off_topic",
+                    "duplicate",
+                    "test",
+                    "no_response",
+                    "other",
+                ],
+            },
+        },
+        {
+            "entity_type": "work_item",
+            "field_key": "disposition_note",
+            "field_type": "text",
+            "label": "Пояснение к закрытию",
+            "is_required": False,
+            "sort_order": 210,
+        },
+    ],
     "default_document_templates": [],
     "default_catalog_items": [],
     "default_dashboards": [],
@@ -293,6 +330,7 @@ FLEXITY_SALES_BASIC = {
     "settings_schema": {
         "type": "object",
         "properties": {},
+        "lead_sources": FLEXITY_SALES_LEAD_SOURCES,
     },
     "is_active": True,
 }

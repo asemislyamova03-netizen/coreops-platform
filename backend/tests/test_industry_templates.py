@@ -5,6 +5,7 @@ from app.modules.industry_templates.seed import (
     INDUSTRY_TEMPLATES,
     KINDERGARTEN_BASIC,
 )
+from app.modules.industry_templates.lead_sources import FLEXITY_SALES_LEAD_SOURCES
 
 FLEXITY_SALES_STAGE_CODES = [
     "new_lead",
@@ -76,6 +77,29 @@ def test_flexity_sales_basic_seed_structure():
     assert terminal_codes == {"rejected", "converted_to_tenant"}
 
 
+def test_flexity_sales_basic_has_lead_sources_dictionary():
+    lead_sources = FLEXITY_SALES_BASIC["settings_schema"]["lead_sources"]
+    assert len(lead_sources) == 9
+    assert lead_sources == FLEXITY_SALES_LEAD_SOURCES
+    assert FLEXITY_SALES_BASIC["default_custom_fields"][0]["field_key"] == "source_note"
+
+
+def test_flexity_sales_basic_has_disposition_custom_fields():
+    fields = {item["field_key"]: item for item in FLEXITY_SALES_BASIC["default_custom_fields"]}
+    assert "disposition" in fields
+    assert "disposition_note" in fields
+    assert fields["disposition"]["field_type"] == "select"
+    assert fields["disposition"]["options_json"]["choices"] == [
+        "spam",
+        "off_topic",
+        "duplicate",
+        "test",
+        "no_response",
+        "other",
+    ]
+    assert fields["disposition_note"]["field_type"] == "text"
+
+
 def test_pipelines_after_flexity_sales_template_apply(client):
     headers = _auth(client)
     tenant_id = client.post(
@@ -100,6 +124,30 @@ def test_pipelines_after_flexity_sales_template_apply(client):
     labels = client.get(f"/api/v1/tenants/{tenant_id}/labels", headers=headers)
     assert labels.status_code == 200
     assert labels.json()["entities"]["work_item"] == "Лид"
+
+    lead_sources = client.get(f"/api/v1/tenants/{tenant_id}/lead-sources", headers=headers)
+    assert lead_sources.status_code == 200
+    codes = [item["code"] for item in lead_sources.json()]
+    assert "manual" in codes
+    assert "website_demo" in codes
+    assert len(codes) == 9
+
+
+def test_kindergarten_tenant_has_no_lead_sources(client):
+    headers = _auth(client)
+    tenant_id = client.post(
+        "/api/v1/tenants",
+        json={
+            "name": "Garden",
+            "slug": "garden-lead-sources",
+            "industry_template_code": "kindergarten_basic",
+        },
+        headers=headers,
+    ).json()["id"]
+
+    lead_sources = client.get(f"/api/v1/tenants/{tenant_id}/lead-sources", headers=headers)
+    assert lead_sources.status_code == 200
+    assert lead_sources.json() == []
 
 
 def test_apply_template_to_tenant(client):

@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core.entitlements import EntitlementService
-from app.core.enums import AuditAction, InvoiceStatus, PaymentStatus
+from app.core.enums import AuditAction, InvoiceStatus, PaymentDirection, PaymentStatus
 from app.modules.audit.recorder import AuditRecorder
 from app.core.exceptions import ConflictError, NotFoundError
 from app.modules.auth.models import User
@@ -22,6 +22,7 @@ from app.modules.finance.schemas import (
     PaymentCreate,
     PaymentResponse,
     ReceivableResponse,
+    map_legacy_payment_type,
 )
 from app.modules.parties.repository import PartyRepository
 
@@ -192,6 +193,16 @@ class FinanceService:
         if payload.party_id and not self.parties.get_party(self.tenant_id, payload.party_id):
             raise NotFoundError("Party not found")
 
+        direction = payload.direction
+        status = payload.status
+        if payload.legacy_payment_type is not None:
+            direction, mapped_status, _needs_review = map_legacy_payment_type(
+                payload.legacy_payment_type
+            )
+            # Legacy type drives direction + recommended status; explicit status kept
+            # only when caller did not rely on default completed for unknown types.
+            status = mapped_status
+
         payment = self.repo.create_payment(
             tenant_id=self.tenant_id,
             party_id=payload.party_id,
@@ -200,7 +211,8 @@ class FinanceService:
             currency=payload.currency,
             payment_date=payload.payment_date,
             method=payload.method,
-            status=payload.status,
+            status=status,
+            direction=direction,
             reference_number=payload.reference_number,
             notes=payload.notes,
             created_by_user_id=user.id,
@@ -396,6 +408,7 @@ class FinanceService:
             payment_date=payment.payment_date,
             method=payment.method,
             status=payment.status,
+            direction=getattr(payment, "direction", PaymentDirection.INCOMING),
             reference_number=payment.reference_number,
             notes=payment.notes,
             allocations=allocations,

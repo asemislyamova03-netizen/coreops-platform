@@ -62,6 +62,23 @@ class WorkflowRepository:
         )
         return self.db.scalar(stmt)
 
+    def get_stage_by_code(
+        self,
+        tenant_id: uuid.UUID,
+        pipeline_id: uuid.UUID,
+        code: str,
+    ) -> PipelineStage | None:
+        stmt = (
+            select(PipelineStage)
+            .join(Pipeline)
+            .where(
+                Pipeline.tenant_id == tenant_id,
+                PipelineStage.pipeline_id == pipeline_id,
+                PipelineStage.code == code,
+            )
+        )
+        return self.db.scalar(stmt)
+
     def list_work_items(
         self,
         tenant_id: uuid.UUID,

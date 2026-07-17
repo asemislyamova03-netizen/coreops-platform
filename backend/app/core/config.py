@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     public_leads_allowed_origins: str = ""
     public_leads_telegram_bot_token: str | None = None
     public_leads_telegram_chat_id: str | None = None
+    # Public leads rate limit (in-memory MVP; env overrides optional)
+    public_leads_rate_limit_enabled: bool = True
+    public_leads_rate_limit_window_seconds: int = 600
+    public_leads_rate_limit_max_requests: int = 5
+    public_leads_rate_limit_hour_window_seconds: int = 3600
+    public_leads_rate_limit_hour_max_requests: int = 20
 
     @property
     def public_leads_allowed_origin_list(self) -> list[str]:

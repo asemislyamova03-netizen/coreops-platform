@@ -17,6 +17,7 @@ htmlcov/
 coverage.xml
 storage/
 tests/_test_storage/
+tests/_c2b_tmp/
 *.log
 .idea/
 .vscode/

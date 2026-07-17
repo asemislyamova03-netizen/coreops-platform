@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import Request
 from sqlalchemy.orm import Session
@@ -20,12 +22,19 @@ from app.core.enums import (
 from app.core.exceptions import CoreOpsError, PermissionDeniedError
 from app.core.modules import ModuleGuard
 from app.modules.audit.recorder import AuditRecorder
+from app.modules.audit.request_meta import client_ip
 from app.modules.auth.models import User
 from app.modules.parties.models import Party
 from app.modules.parties.repository import PartyRepository
+from app.modules.parties.schemas import PartyMatchRequest
+from app.modules.parties.service import PartyService
 from app.modules.public_leads.notifications import (
     PublicLeadTelegramConfig,
     PublicLeadTelegramNotifier,
+)
+from app.modules.public_leads.rate_limit import (
+    RateLimitRule,
+    public_leads_rate_limiter,
 )
 from app.modules.public_leads.schemas import PublicLeadCreate, PublicLeadResponse
 from app.modules.tenants.models import Tenant
@@ -33,6 +42,10 @@ from app.modules.workflows.models import Pipeline, PipelineStage
 from app.modules.workflows.repository import WorkflowRepository
 
 logger = logging.getLogger(__name__)
+
+PUBLIC_LEAD_SOURCE = "website_demo"
+PUBLIC_LEAD_FORM_NAME = "demo"
+PUBLIC_MATCH_NOTE = "Public demo form matched existing contact"
 
 
 class PublicLeadConfigError(CoreOpsError):
@@ -65,14 +78,22 @@ class PublicLeadService:
         origin: str | None,
         request: Request | None = None,
     ) -> PublicLeadResponse:
+        # Order: disabled → 403 (no limiter side effects) → origin → rate limit → create
         self._assert_enabled()
         self._assert_origin_allowed(origin)
+        self._assert_rate_limit(request)
         tenant_id, pipeline_id, stage_id, user_id = self._required_ids()
         user = self._assert_runtime_targets(tenant_id, pipeline_id, stage_id, user_id)
         self._assert_modules_and_features(tenant_id)
 
         try:
-            party = self._create_party(payload, tenant_id=tenant_id, user_id=user.id)
+            matched_party, match_meta = self._resolve_party_match(payload, tenant_id)
+            party_reused = matched_party is not None
+            if matched_party is not None:
+                party = matched_party
+            else:
+                party = self._create_party(payload, tenant_id=tenant_id, user_id=user.id)
+
             work_item = self._create_work_item(
                 payload,
                 tenant_id=tenant_id,
@@ -80,6 +101,7 @@ class PublicLeadService:
                 stage_id=stage_id,
                 user_id=user.id,
                 party_id=party.id,
+                match_meta=match_meta,
             )
             AuditRecorder(self.db).audit_log(
                 action=AuditAction.CREATE,
@@ -89,7 +111,14 @@ class PublicLeadService:
                 entity_type="work_item",
                 entity_id=work_item.id,
                 request=request,
-                metadata_json={"source": "public_demo_form", "party_id": str(party.id)},
+                metadata_json={
+                    "source": PUBLIC_LEAD_SOURCE,
+                    "form_name": PUBLIC_LEAD_FORM_NAME,
+                    "party_id": str(party.id),
+                    "party_reused": party_reused,
+                    "party_match": match_meta.get("party_match"),
+                    "matched_on": match_meta.get("matched_on"),
+                },
             )
             self.db.commit()
         except Exception:
@@ -101,11 +130,27 @@ class PublicLeadService:
         except Exception:
             logger.exception("Public lead Telegram notification failed")
 
-        return PublicLeadResponse(party_id=party.id, work_item_id=work_item.id)
+        return PublicLeadResponse()
 
     def _assert_enabled(self) -> None:
         if not self.settings.public_leads_enabled:
             raise PermissionDeniedError("Public lead capture is disabled")
+
+    def _assert_rate_limit(self, request: Request | None) -> None:
+        if not self.settings.public_leads_rate_limit_enabled:
+            return
+        ip = client_ip(request) or "unknown"
+        rules = [
+            RateLimitRule(
+                window_seconds=self.settings.public_leads_rate_limit_window_seconds,
+                max_requests=self.settings.public_leads_rate_limit_max_requests,
+            ),
+            RateLimitRule(
+                window_seconds=self.settings.public_leads_rate_limit_hour_window_seconds,
+                max_requests=self.settings.public_leads_rate_limit_hour_max_requests,
+            ),
+        ]
+        public_leads_rate_limiter.check_and_increment(ip, rules)
 
     def _assert_origin_allowed(self, origin: str | None) -> None:
         if not origin:
@@ -159,6 +204,53 @@ class PublicLeadService:
         guard.assert_enabled("crm")
         EntitlementService(self.db, tenant_id).assert_feature("crm.work_items.create")
 
+    def _resolve_party_match(
+        self,
+        payload: PublicLeadCreate,
+        tenant_id: uuid.UUID,
+    ) -> tuple[Party | None, dict[str, Any]]:
+        """Reuse E2 PartyService.match_parties. Exact → reuse; weak → metadata only."""
+        party_service = PartyService(self.db, tenant_id)
+        match_response = party_service.match_parties(
+            PartyMatchRequest(
+                name=payload.name,
+                phone=payload.phone,
+                email=str(payload.email) if payload.email else None,
+            )
+        )
+        exact_hits = [hit for hit in match_response.matches if hit.match_type == "exact"]
+        weak_hits = [hit for hit in match_response.matches if hit.match_type == "weak"]
+
+        if exact_hits:
+            best = exact_hits[0]
+            party = self.parties.get_party(tenant_id, best.party_id)
+            if party is None:
+                logger.warning(
+                    "Exact match party %s missing for tenant %s; falling back to create",
+                    best.party_id,
+                    tenant_id,
+                )
+            else:
+                meta: dict[str, Any] = {
+                    "party_match": "exact",
+                    "matched_on": list(best.matched_on),
+                    "match_note": PUBLIC_MATCH_NOTE,
+                }
+                if len(exact_hits) > 1:
+                    meta["exact_match_ambiguous"] = True
+                    meta["exact_match_party_ids"] = [str(hit.party_id) for hit in exact_hits]
+                    meta["exact_match_count"] = len(exact_hits)
+                return party, meta
+
+        if weak_hits:
+            return None, {
+                "party_match": "weak_only",
+                "possible_match_party_ids": [str(hit.party_id) for hit in weak_hits],
+                "possible_match_count": len(weak_hits),
+            }
+
+        return None, {"party_match": "none"}
+
     def _create_party(
         self,
         payload: PublicLeadCreate,
@@ -168,7 +260,8 @@ class PublicLeadService:
     ) -> Party:
         metadata = {
             "party_role": "lead",
-            "source": "public_demo_form",
+            "source": PUBLIC_LEAD_SOURCE,
+            "form_name": PUBLIC_LEAD_FORM_NAME,
             "source_page": payload.source_page,
             "company": payload.company,
             "preferred_channel": payload.preferred_channel,
@@ -181,6 +274,7 @@ class PublicLeadService:
             "utm_term": payload.utm_term,
             "referrer": payload.referrer,
             "consent_accepted": payload.consent_accepted,
+            "consent_accepted_at": datetime.now(timezone.utc).isoformat(),
         }
         party = self.parties.create_party(
             tenant_id=tenant_id,
@@ -222,6 +316,7 @@ class PublicLeadService:
         stage_id: uuid.UUID,
         user_id: uuid.UUID,
         party_id: uuid.UUID,
+        match_meta: dict[str, Any],
     ):
         item = self.workflows.create_work_item(
             tenant_id=tenant_id,
@@ -229,11 +324,11 @@ class PublicLeadService:
             stage_id=stage_id,
             work_item_type="demo_request",
             title=f"Demo request: {payload.name}",
-            description=self._build_description(payload),
+            description=self._build_description(payload, match_meta=match_meta),
             primary_party_id=party_id,
             status=WorkItemStatus.OPEN,
-            source="public_demo_form",
-            custom_fields_json=self._custom_fields(payload),
+            source=PUBLIC_LEAD_SOURCE,
+            custom_fields_json=self._custom_fields(payload, match_meta=match_meta),
             created_by_user_id=user_id,
             updated_by_user_id=user_id,
         )
@@ -245,31 +340,56 @@ class PublicLeadService:
         )
         return item
 
-    def _build_description(self, payload: PublicLeadCreate) -> str:
+    def _build_description(
+        self,
+        payload: PublicLeadCreate,
+        *,
+        match_meta: dict[str, Any],
+    ) -> str:
         lines = [
             f"Source page: {payload.source_page}",
             f"Preferred channel: {payload.preferred_channel or ''}",
             f"Process area: {payload.process_area or ''}",
-            "",
-            payload.message or "",
         ]
+        if match_meta.get("party_match") == "exact":
+            matched_on = ", ".join(match_meta.get("matched_on") or [])
+            lines.append(f"{PUBLIC_MATCH_NOTE} ({matched_on})")
+            if match_meta.get("exact_match_ambiguous"):
+                lines.append(
+                    f"Ambiguous exact matches: {match_meta.get('exact_match_count')}"
+                )
+        lines.extend(["", payload.message or ""])
         return "\n".join(lines).strip()
 
-    def _custom_fields(self, payload: PublicLeadCreate) -> dict:
-        return {
-            key: value
-            for key, value in {
-                "source_page": payload.source_page,
-                "utm_source": payload.utm_source,
-                "utm_medium": payload.utm_medium,
-                "utm_campaign": payload.utm_campaign,
-                "utm_content": payload.utm_content,
-                "utm_term": payload.utm_term,
-                "referrer": payload.referrer,
-                "preferred_channel": payload.preferred_channel,
-                "process_area": payload.process_area,
-                "company": payload.company,
-                "message": payload.message,
-            }.items()
-            if value not in (None, "")
+    def _custom_fields(
+        self,
+        payload: PublicLeadCreate,
+        *,
+        match_meta: dict[str, Any],
+    ) -> dict:
+        fields: dict[str, Any] = {
+            "source_page": payload.source_page,
+            "page_url": payload.source_page,
+            "form_name": PUBLIC_LEAD_FORM_NAME,
+            "utm_source": payload.utm_source,
+            "utm_medium": payload.utm_medium,
+            "utm_campaign": payload.utm_campaign,
+            "utm_content": payload.utm_content,
+            "utm_term": payload.utm_term,
+            "referrer": payload.referrer,
+            "preferred_channel": payload.preferred_channel,
+            "process_area": payload.process_area,
+            "company": payload.company,
+            "message": payload.message,
+            "consent_accepted": payload.consent_accepted,
+            "consent_accepted_at": datetime.now(timezone.utc).isoformat(),
+            "party_match": match_meta.get("party_match"),
+            "matched_on": match_meta.get("matched_on"),
+            "match_note": match_meta.get("match_note"),
+            "possible_match_party_ids": match_meta.get("possible_match_party_ids"),
+            "possible_match_count": match_meta.get("possible_match_count"),
+            "exact_match_ambiguous": match_meta.get("exact_match_ambiguous"),
+            "exact_match_party_ids": match_meta.get("exact_match_party_ids"),
+            "exact_match_count": match_meta.get("exact_match_count"),
         }
+        return {key: value for key, value in fields.items() if value not in (None, "", [])}

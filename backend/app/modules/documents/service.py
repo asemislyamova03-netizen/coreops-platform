@@ -11,11 +11,14 @@ from app.modules.documents.models import DocumentTemplate
 from app.modules.documents.repository import DocumentRepository
 from app.modules.documents.schemas import (
     DocumentGenerateRequest,
+    DocumentImportCreate,
     DocumentResponse,
     DocumentTemplateCreate,
     DocumentTemplateResponse,
     DocumentTemplateUpdate,
     DocumentUpdate,
+    LegacyContractImportInput,
+    assess_legacy_contract_import,
 )
 from app.modules.documents import storage as file_storage
 from app.modules.documents.template_engine import extract_placeholders, render_template
@@ -191,6 +194,82 @@ class DocumentService:
             metadata_json={"template_code": template.code},
         )
 
+        self.db.refresh(doc)
+        return DocumentResponse.model_validate(doc)
+
+    def import_document(
+        self,
+        user: User,
+        payload: DocumentImportCreate,
+    ) -> DocumentResponse:
+        """
+        Create a historical document/contract instance without template generation.
+        Amount, external_ref and review flags live in context_json (no migration).
+        """
+        assessment = assess_legacy_contract_import(
+            LegacyContractImportInput(
+                legacy_status=payload.legacy_status,
+                work_item_id=payload.work_item_id,
+                amount=payload.amount,
+            )
+        )
+        status = payload.status or assessment.target_status
+
+        context: dict[str, str] = {
+            "import_mode": "legacy_contract",
+            "source_system": payload.source_system,
+            "amount": str(payload.amount),
+            "status_needs_review": str(assessment.status_needs_review).lower(),
+            "link_needs_review": str(assessment.link_needs_review).lower(),
+            "amount_needs_review": str(assessment.amount_needs_review).lower(),
+        }
+        if payload.external_ref:
+            context["external_ref"] = payload.external_ref
+            context["external_legacy_id"] = payload.external_ref
+        if payload.legacy_status is not None:
+            context["legacy_status"] = payload.legacy_status
+        if payload.branch_id is not None:
+            context["branch_id"] = str(payload.branch_id)
+        context.update({k: str(v) for k, v in payload.extra_context.items()})
+
+        doc = self.repo.create_document(
+            tenant_id=self.tenant_id,
+            template_id=None,
+            title=payload.title,
+            status=status,
+            rendered_content=payload.rendered_content,
+            context_json=context,
+            party_id=payload.party_id,
+            work_item_id=payload.work_item_id,
+            created_by_user_id=user.id,
+            updated_by_user_id=user.id,
+        )
+        self._audit(
+            doc.id,
+            user.id,
+            "imported",
+            {
+                "source_system": payload.source_system,
+                "external_ref": payload.external_ref,
+                "amount": str(payload.amount),
+                "link_needs_review": assessment.link_needs_review,
+                "amount_needs_review": assessment.amount_needs_review,
+                "status_needs_review": assessment.status_needs_review,
+            },
+        )
+        AuditRecorder(self.db).audit_log(
+            action=AuditAction.CREATE,
+            summary=f"Document imported: {doc.title}",
+            tenant_id=self.tenant_id,
+            user_id=user.id,
+            entity_type="document_instance",
+            entity_id=doc.id,
+            metadata_json={
+                "import_mode": "legacy_contract",
+                "source_system": payload.source_system,
+                "external_ref": payload.external_ref,
+            },
+        )
         self.db.refresh(doc)
         return DocumentResponse.model_validate(doc)
 

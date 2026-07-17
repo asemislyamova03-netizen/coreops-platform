@@ -172,6 +172,12 @@ class PaymentMethod(str, enum.Enum):
     OTHER = "other"
 
 
+class PaymentDirection(str, enum.Enum):
+    INCOMING = "incoming"
+    OUTGOING = "outgoing"
+    NEEDS_REVIEW = "needs_review"
+
+
 class AuditAction(str, enum.Enum):
     CREATE = "create"
     UPDATE = "update"

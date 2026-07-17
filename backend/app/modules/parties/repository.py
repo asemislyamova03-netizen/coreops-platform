@@ -3,8 +3,9 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.enums import PartyStatus, PartyType
+from app.core.enums import ContactMethodType, PartyStatus, PartyType
 from app.modules.parties.models import Address, ContactMethod, Party
+from app.modules.workflows.models import WorkItem
 
 
 class PartyRepository:
@@ -53,6 +54,79 @@ class PartyRepository:
             )
         )
         return self.db.scalar(stmt)
+
+    def list_parties_by_ids(
+        self,
+        tenant_id: uuid.UUID,
+        party_ids: list[uuid.UUID],
+    ) -> list[Party]:
+        if not party_ids:
+            return []
+        stmt = (
+            select(Party)
+            .where(Party.tenant_id == tenant_id, Party.id.in_(party_ids))
+            .options(
+                selectinload(Party.contact_methods),
+                selectinload(Party.addresses),
+            )
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def list_contact_methods_by_types(
+        self,
+        tenant_id: uuid.UUID,
+        method_types: list[ContactMethodType],
+    ) -> list[ContactMethod]:
+        if not method_types:
+            return []
+        stmt = (
+            select(ContactMethod)
+            .where(
+                ContactMethod.tenant_id == tenant_id,
+                ContactMethod.method_type.in_(method_types),
+            )
+            .options(selectinload(ContactMethod.party))
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def list_parties_with_telegram_metadata(self, tenant_id: uuid.UUID) -> list[Party]:
+        """Candidates that may store telegram.user_id in metadata_json (not indexed)."""
+        stmt = (
+            select(Party)
+            .where(Party.tenant_id == tenant_id)
+            .options(
+                selectinload(Party.contact_methods),
+                selectinload(Party.addresses),
+            )
+        )
+        parties = list(self.db.scalars(stmt).all())
+        return [
+            party
+            for party in parties
+            if isinstance(party.metadata_json, dict)
+            and (
+                isinstance(party.metadata_json.get("telegram"), dict)
+                or party.metadata_json.get("telegram_user_id") is not None
+            )
+        ]
+
+    def list_recent_work_items_for_party(
+        self,
+        tenant_id: uuid.UUID,
+        party_id: uuid.UUID,
+        *,
+        limit: int = 3,
+    ) -> list[WorkItem]:
+        stmt = (
+            select(WorkItem)
+            .where(
+                WorkItem.tenant_id == tenant_id,
+                WorkItem.primary_party_id == party_id,
+            )
+            .order_by(WorkItem.updated_at.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt).all())
 
     def create_party(self, **kwargs) -> Party:
         party = Party(**kwargs)

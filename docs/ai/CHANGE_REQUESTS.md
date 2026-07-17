@@ -233,3 +233,116 @@ Flexity needs a public marketing and content funnel connected to the single-prod
 
 - [2026-06-19-site-marketing-content-plan.md](plans/2026-06-19-site-marketing-content-plan.md)
 - [landing/README.md](../../landing/README.md)
+
+---
+
+## CR-2026-07-02-001: Flexity Booking Industry Package
+
+### Status
+
+**E2b complete.** Domain layer ready for API. Next: E3a internal/admin API slice.
+
+### Type
+
+Industry package / internal product module.
+
+### Summary
+
+Flexity Booking — внутренний industry package для бронирования территорий и объектов внутри платформы Flexity. Не отдельный продукт и не зависимость от внешнего клиента.
+
+### Implementation phases
+
+| Phase | Status |
+|-------|--------|
+| E1 — data layer | ✅ Complete (`0012_booking_e1`) |
+| E1b — platform enablement | ✅ Complete |
+| E2a — timezone + availability | ✅ Complete |
+| E2b — hold + status machine + race protection | ✅ Complete |
+| E3a — internal/admin API slice | ⏸ Planned (next) |
+| E3b+ — public page, payment, UI | ❌ Not started |
+
+### Closeout reports
+
+- [FLEXITY_BOOKING_E1B_CLOSEOUT_REPORT.md](../FLEXITY_BOOKING_E1B_CLOSEOUT_REPORT.md)
+- [FLEXITY_BOOKING_E2B_CLOSEOUT_REPORT.md](../FLEXITY_BOOKING_E2B_CLOSEOUT_REPORT.md)
+
+### E3a recommended scope (do not start without approval)
+
+- internal/admin route for `create_hold`
+- `GET order`
+- status transition routes
+- HTTP-level `require_module` / `require_feature`
+- basic API tests
+
+### Out of scope for E3a
+
+- public booking page
+- frontend / admin UI
+- payment provider
+- Telegram
+- public checkout
+- scheduler
+- PostgreSQL exclusion constraint without separate approval
+
+### Related docs
+
+- [docs/booking/README.md](../booking/README.md)
+- [FLEXITY_BOOKING_E2_IMPLEMENTATION_PLAN.md](../FLEXITY_BOOKING_E2_IMPLEMENTATION_PLAN.md)
+- [FLEXITY_BOOKING_MVP_AUDIT_AND_PLAN.md](../FLEXITY_BOOKING_MVP_AUDIT_AND_PLAN.md)
+
+---
+
+## CR-2026-07-02-001: Flexity Booking Industry Package
+
+### Status
+
+**E2b complete.** Domain layer ready for API. Next: E3a internal/admin API slice.
+
+### Type
+
+Industry package / internal product module.
+
+### Summary
+
+Flexity Booking — внутренний industry package для бронирования территорий и объектов внутри платформы Flexity. Не отдельный продукт и не зависимость от внешнего клиента.
+
+### Implementation phases
+
+| Phase | Status |
+|-------|--------|
+| E1 — data layer | ✅ Complete (`0012_booking_e1`) |
+| E1b — platform enablement | ✅ Complete |
+| E2a — timezone + availability | ✅ Complete |
+| E2b — hold + status machine + race protection | ✅ Complete |
+| E3a — internal/admin API slice | ⏸ Planned (next) |
+| E3b+ — public page, payment, UI | ❌ Not started |
+
+### Closeout reports
+
+- [FLEXITY_BOOKING_E1B_CLOSEOUT_REPORT.md](../FLEXITY_BOOKING_E1B_CLOSEOUT_REPORT.md)
+- [FLEXITY_BOOKING_E2B_CLOSEOUT_REPORT.md](../FLEXITY_BOOKING_E2B_CLOSEOUT_REPORT.md)
+
+### E3a recommended scope (do not start without approval)
+
+- internal/admin route for `create_hold`
+- `GET order`
+- status transition routes
+- HTTP-level `require_module` / `require_feature`
+- basic API tests
+
+### Out of scope for E3a
+
+- public booking page
+- frontend / admin UI
+- payment provider
+- Telegram
+- public checkout
+- scheduler
+- PostgreSQL exclusion constraint without separate approval
+
+### Related docs
+
+- [docs/booking/README.md](../booking/README.md)
+- [FLEXITY_BOOKING_E2_IMPLEMENTATION_PLAN.md](../FLEXITY_BOOKING_E2_IMPLEMENTATION_PLAN.md)
+- [FLEXITY_BOOKING_MVP_AUDIT_AND_PLAN.md](../FLEXITY_BOOKING_MVP_AUDIT_AND_PLAN.md)
+

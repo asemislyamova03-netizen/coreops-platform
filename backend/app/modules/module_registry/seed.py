@@ -58,6 +58,16 @@ MODULE_DEFINITIONS = [
         "dependencies_json": {"required": [], "recommended": []},
     },
     {
+        "code": "booking",
+        "name": "Booking",
+        "description": "Territory and object reservations, holds and multi-object orders",
+        "default_mode": "internal",
+        "dependencies_json": {
+            "required": ["parties"],
+            "recommended": ["finance", "documents", "integrations"],
+        },
+    },
+    {
         "code": "marketing",
         "name": "Marketing Cabinet",
         "description": "Content topics, packs, publish workflow",

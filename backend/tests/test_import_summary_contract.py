@@ -112,4 +112,3 @@ def test_record_import_batch_summary_event_writes_audit_log(db_session):
     assert len(rows) == 1
     assert rows[0].metadata_json["event"] == "import.batch.summary"
     assert rows[0].changes_json["total_source_rows"] == 3
-

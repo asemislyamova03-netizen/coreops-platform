@@ -1251,4 +1251,3 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Staging write-import report written: {config.output}")
     return 0
-

@@ -976,4 +976,3 @@ def test_parser_help_separates_plan_and_execute():
     assert "CONSULTING_STAGING_DATABASE_URL" in help_text
     assert "DATABASE_URL" in help_text
     assert "dry-run" in help_text.lower() or "Gate B" in help_text
-

@@ -68,4 +68,3 @@ def build_consulting_synthetic_fixture() -> dict[str, list[dict]]:
             {"id": "p-3", "order_id": "o-z", "client_id": "c-2", "type": "UNKNOWN_TYPE", "amount": Decimal("1500")},
         ],
     }
-

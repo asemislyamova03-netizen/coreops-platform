@@ -542,4 +542,3 @@ class SyntheticDryRunPipeline:
             row_ref=row_ref,
             message=message,
         )
-

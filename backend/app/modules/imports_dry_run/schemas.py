@@ -93,4 +93,3 @@ def build_batch_summary(
         entities=entities,
         notes=notes,
     )
-

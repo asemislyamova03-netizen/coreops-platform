@@ -34,9 +34,12 @@
 /solutions/kindergarten.html
 /solutions/trailers.html
 /insights/                 → индекс статей
+/insights/ai-vs-kod.html   → AI vs код
 /cases/                    → placeholder кейсов
 /calculators/              → индекс калькуляторов
 /demo/                     → демо и контакты (статика)
+/privacy/                  → Privacy Policy (Publisher / TikTok)
+/terms/                    → Terms of Service (Publisher / TikTok)
 ```
 
 **Не в scope landing repo:** `/console/*` (Platform Console), `/api/v1/*` (Flexity backend).
@@ -61,6 +64,11 @@ landing/
       kindergarten.html
       trailers.html
     insights/
+      index.html
+      ai-vs-kod.html
+    privacy/
+      index.html
+    terms/
       index.html
     cases/
       index.html

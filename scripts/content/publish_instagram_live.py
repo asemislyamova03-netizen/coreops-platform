@@ -19,9 +19,15 @@ ROOT = Path(__file__).resolve().parents[2]
 CONTENT_PACKS_DIR = ROOT / "landing" / "content" / "content-packs"
 GRAPH_API_VERSION = "v21.0"
 GRAPH_API_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
-MVP_TYPE = "feed_image"
+SUPPORTED_TYPES = {"feed_image", "carousel", "reels"}
 MVP_CAPTION_SOURCE = "instagram.md"
-TOKEN_REDACT_PATTERN = re.compile(r"access_token=[^&\s]+", re.IGNORECASE)
+EXPERIMENTAL_REELS_LIVE_ENV = "FLEXITY_ALLOW_EXPERIMENTAL_REELS_LIVE"
+# Redact common token leak shapes from provider/error text before logging or printing.
+_TOKEN_REDACT_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"(?i)bearer\s+\S+"), "Bearer [REDACTED]"),
+    (re.compile(r"(?i)authorization\s*[:=]\s*\S+"), "Authorization: [REDACTED]"),
+    (re.compile(r"(?i)access_token=[^&\s]+"), "access_token=[REDACTED]"),
+)
 
 
 def now_iso() -> str:
@@ -66,7 +72,18 @@ def append_log(pack_dir: Path, event: dict[str, Any]) -> None:
 
 
 def sanitize_error(message: str) -> str:
-    return TOKEN_REDACT_PATTERN.sub("access_token=[REDACTED]", message)
+    sanitized = message
+    for pattern, replacement in _TOKEN_REDACT_PATTERNS:
+        sanitized = pattern.sub(replacement, sanitized)
+    return sanitized
+
+
+def experimental_reels_live_allowed(
+    environment: Mapping[str, str], *, allow_experimental_live: bool
+) -> bool:
+    if allow_experimental_live:
+        return True
+    return str(environment.get(EXPERIMENTAL_REELS_LIVE_ENV, "")).strip() == "1"
 
 
 def pack_eligibility(pack: dict[str, Any]) -> tuple[bool, str]:
@@ -100,22 +117,10 @@ def should_publish(
     return instagram_eligibility(config, now)
 
 
-def validate_feed_image_mvp(
-    pack_dir: Path, config: dict[str, Any]
-) -> tuple[str, str]:
-    if config.get("type") != MVP_TYPE:
-        raise ValueError(f"type must be {MVP_TYPE} for live publisher MVP")
-
+def _validate_caption_source(pack_dir: Path, config: dict[str, Any]) -> str:
     media = config.get("media")
     if not isinstance(media, dict):
         raise ValueError("media must be a YAML mapping")
-
-    image_url = media.get("image_url")
-    if not isinstance(image_url, str) or not image_url.strip():
-        raise ValueError("media.image_url is required")
-    normalized = image_url.strip()
-    if not normalized.startswith("https://"):
-        raise ValueError("media.image_url must start with https://")
 
     source = config.get("caption_source")
     if not isinstance(source, str) or not source.strip():
@@ -123,8 +128,64 @@ def validate_feed_image_mvp(
     if source.strip() != MVP_CAPTION_SOURCE:
         raise ValueError(f"caption_source must be {MVP_CAPTION_SOURCE} for live publisher MVP")
 
-    caption = read_caption(pack_dir, config)
-    return normalized, caption
+    return read_caption(pack_dir, config)
+
+
+def _validate_https_url(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} is required")
+    normalized = value.strip()
+    if not normalized.startswith("https://"):
+        raise ValueError(f"{field} must start with https://")
+    return normalized
+
+
+def validate_instagram_media_mvp(
+    pack_dir: Path, config: dict[str, Any]
+) -> tuple[str, str, list[dict[str, str]]]:
+    post_type = str(config.get("type") or "").strip()
+    if post_type not in SUPPORTED_TYPES:
+        raise ValueError(f"type must be one of {sorted(SUPPORTED_TYPES)}")
+
+    media = config.get("media")
+    if not isinstance(media, dict):
+        raise ValueError("media must be a YAML mapping")
+    caption = _validate_caption_source(pack_dir, config)
+
+    if post_type == "feed_image":
+        image_url = _validate_https_url(media.get("image_url"), "media.image_url")
+        return post_type, caption, [{"image_url": image_url}]
+
+    if post_type == "reels":
+        video_url = _validate_https_url(media.get("video_url"), "media.video_url")
+        return post_type, caption, [{"video_url": video_url}]
+
+    items = media.get("items")
+    if not isinstance(items, list) or len(items) < 2:
+        raise ValueError("media.items must be a non-empty list with at least 2 items for carousel")
+    normalized_items: list[dict[str, str]] = []
+    for idx, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise ValueError(f"media.items[{idx}] must be a mapping")
+        if item.get("image_url"):
+            normalized_items.append(
+                {
+                    "image_url": _validate_https_url(
+                        item.get("image_url"), f"media.items[{idx}].image_url"
+                    )
+                }
+            )
+        elif item.get("video_url"):
+            normalized_items.append(
+                {
+                    "video_url": _validate_https_url(
+                        item.get("video_url"), f"media.items[{idx}].video_url"
+                    )
+                }
+            )
+        else:
+            raise ValueError(f"media.items[{idx}] requires image_url or video_url")
+    return post_type, caption, normalized_items
 
 
 def check_secrets(environment: Mapping[str, str]) -> str | None:
@@ -169,16 +230,12 @@ def parse_graph_response(response: requests.Response, step: str) -> dict[str, An
 
 
 def create_media_container(
-    user_id: str, token: str, image_url: str, caption: str
+    user_id: str, token: str, payload: dict[str, Any]
 ) -> str:
     try:
         response = requests.post(
             f"{GRAPH_API_BASE}/{user_id}/media",
-            data={
-                "image_url": image_url,
-                "caption": caption,
-                "access_token": token,
-            },
+            data={**payload, "access_token": token},
             timeout=30,
         )
     except requests.RequestException as exc:
@@ -224,12 +281,45 @@ def publish_media_container(user_id: str, token: str, creation_id: str) -> str:
 def publish_pack(
     pack_dir: Path,
     config: dict[str, Any],
-    image_url: str,
+    post_type: str,
+    media_items: list[dict[str, str]],
     caption: str,
     user_id: str,
     token: str,
 ) -> str:
-    creation_id = create_media_container(user_id, token, image_url, caption)
+    if post_type == "feed_image":
+        creation_id = create_media_container(
+            user_id, token, {"image_url": media_items[0]["image_url"], "caption": caption}
+        )
+    elif post_type == "reels":
+        creation_id = create_media_container(
+            user_id,
+            token,
+            {
+                "media_type": "REELS",
+                "video_url": media_items[0]["video_url"],
+                "caption": caption,
+            },
+        )
+    else:
+        child_ids: list[str] = []
+        for item in media_items:
+            child_payload: dict[str, Any] = {"is_carousel_item": "true"}
+            if "image_url" in item:
+                child_payload["image_url"] = item["image_url"]
+            else:
+                child_payload["video_url"] = item["video_url"]
+                child_payload["media_type"] = "VIDEO"
+            child_ids.append(create_media_container(user_id, token, child_payload))
+        creation_id = create_media_container(
+            user_id,
+            token,
+            {
+                "media_type": "CAROUSEL",
+                "children": ",".join(child_ids),
+                "caption": caption,
+            },
+        )
     external_id = publish_media_container(user_id, token, creation_id)
 
     published_at = now_iso()
@@ -255,6 +345,7 @@ def run_scan(
     now: datetime,
     live: bool,
     environment: Mapping[str, str],
+    allow_experimental_live: bool = False,
 ) -> int:
     if live:
         missing = check_secrets(environment)
@@ -268,6 +359,9 @@ def run_scan(
 
     user_id = environment.get("INSTAGRAM_USER_ID", "")
     token = environment.get("INSTAGRAM_ACCESS_TOKEN", "")
+    reels_live_allowed = experimental_reels_live_allowed(
+        environment, allow_experimental_live=allow_experimental_live
+    )
 
     preview_count = 0
     published_count = 0
@@ -282,7 +376,7 @@ def run_scan(
         except (OSError, ValueError, yaml.YAMLError) as exc:
             error_count += 1
             print(
-                f"ERROR {pack_dir.name}: cannot read pack.yml: {exc}",
+                f"ERROR {pack_dir.name}: cannot read pack.yml: {sanitize_error(str(exc))}",
                 file=sys.stderr,
             )
             continue
@@ -292,7 +386,7 @@ def run_scan(
             allowed, reason, publish_at = should_publish(pack, config, now)
         except (OSError, ValueError, yaml.YAMLError) as exc:
             error_count += 1
-            print(f"ERROR {pack_dir.name}: {exc}", file=sys.stderr)
+            print(f"ERROR {pack_dir.name}: {sanitize_error(str(exc))}", file=sys.stderr)
             continue
 
         if not allowed:
@@ -300,27 +394,48 @@ def run_scan(
             continue
 
         try:
-            image_url, caption = validate_feed_image_mvp(pack_dir, config)
+            post_type, caption, media_items = validate_instagram_media_mvp(pack_dir, config)
         except (OSError, UnicodeError, ValueError) as exc:
             error_count += 1
-            print(f"ERROR {pack_dir.name}: {exc}", file=sys.stderr)
+            print(f"ERROR {pack_dir.name}: {sanitize_error(str(exc))}", file=sys.stderr)
             continue
 
         if not live:
+            media_preview: str
+            if post_type == "carousel":
+                media_preview = ",".join(
+                    item.get("image_url") or item.get("video_url") or ""
+                    for item in media_items
+                )
+            elif post_type == "reels":
+                media_preview = media_items[0]["video_url"]
+            else:
+                media_preview = media_items[0]["image_url"]
             print(
                 f"WOULD_PUBLISH pack={pack_dir.name} "
-                f"type={MVP_TYPE} "
+                f"type={post_type} "
                 f"caption_length={len(caption)} "
-                f"image_url={image_url} "
+                f"media_url={media_preview} "
                 f"publish_at={publish_at.isoformat()} "
                 "would_publish=true"
             )
             preview_count += 1
             continue
 
+        if post_type == "reels" and not reels_live_allowed:
+            error_count += 1
+            print(
+                f"ERROR {pack_dir.name}: Instagram Reels live publishing is experimental "
+                "and fail-closed by default. Production live publishing is NOT supported yet. "
+                f"Pass --allow-experimental-live or set {EXPERIMENTAL_REELS_LIVE_ENV}=1 "
+                "to unlock the unsafe experimental Reels path. Prefer dry-run (default).",
+                file=sys.stderr,
+            )
+            continue
+
         try:
             external_id = publish_pack(
-                pack_dir, config, image_url, caption, user_id, token
+                pack_dir, config, post_type, media_items, caption, user_id, token
             )
         except (OSError, ValueError, RuntimeError, yaml.YAMLError) as exc:
             error_count += 1
@@ -355,12 +470,29 @@ def run_scan(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Publish approved Instagram feed_image content packs."
+        description=(
+            "Instagram content-pack publisher for feed_image/carousel/reels (dry-run default). "
+            "Production live publishing is NOT supported yet."
+        )
     )
     parser.add_argument(
         "--live",
         action="store_true",
-        help="Publish eligible packs via Meta API. Default is dry-run.",
+        help=(
+            "Attempt Meta API publish for eligible packs. "
+            "Production live publishing is NOT supported yet. "
+            "Reels live additionally requires --allow-experimental-live or "
+            f"{EXPERIMENTAL_REELS_LIVE_ENV}=1. Default is dry-run."
+        ),
+    )
+    parser.add_argument(
+        "--allow-experimental-live",
+        action="store_true",
+        help=(
+            "Explicitly unlock the unsafe experimental Reels --live path. "
+            f"Alternative: {EXPERIMENTAL_REELS_LIVE_ENV}=1. Not for production. "
+            "Follow-up still required: Reels status poll + atomic idempotency."
+        ),
     )
     return parser
 
@@ -382,6 +514,7 @@ def main(
         now=current,
         live=args.live,
         environment=environment,
+        allow_experimental_live=args.allow_experimental_live,
     )
 
 

@@ -112,16 +112,17 @@ media:
 - Telegram и Instagram publishers не должны читать `tiktok.yml`.
 - Approval TikTok не должен менять Telegram или Instagram statuses.
 
-## Explicit out of scope (now)
+## Explicit out of scope / current limits
 
-- нет TikTok API integration;
-- нет TikTok publisher script;
+- production live publishing **NOT supported yet** (see `docs/content/tiktok-publishing.md`);
+- prep script `scripts/content/publish_tiktok_live.py` is dry-run by default;
+- `--live` is fail-closed unless `--allow-experimental-live` or `FLEXITY_ALLOW_EXPERIMENTAL_TIKTOK_LIVE=1`;
 - нет TikTok GitHub Actions workflow;
-- нет GitHub Secrets для TikTok;
-- нет live publishing;
+- нет production GitHub Secrets для TikTok;
+- нет полного status poll / atomic idempotency (follow-up);
 - нет автогенерации `.mp4` в репозитории.
 
-Реализация — только после account setup, format spec и отдельного approved implementation plan.
+Реализация production path — только через M8-D core после отдельного approved plan.
 
 ## Checklist перед будущим approval
 

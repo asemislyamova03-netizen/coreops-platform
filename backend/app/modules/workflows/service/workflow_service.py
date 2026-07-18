@@ -491,6 +491,8 @@ class WorkflowService:
             status=payload.status,
             due_at=payload.due_at,
             assigned_to_user_id=payload.assigned_to_user_id,
+            process_run_id=payload.process_run_id,
+            automation_key=payload.automation_key,
             created_by_user_id=user.id,
             updated_by_user_id=user.id,
         )

@@ -71,9 +71,25 @@ def test_0023_migration_revision_chain():
     assert rev.down_revision == DOWN_REVISION_0023
     assert len(REVISION_0023) <= 32
 
-    head = script.get_current_head()
-    assert head == REVISION_0023
-    assert script.get_heads() == [REVISION_0023]
+    heads = script.get_heads()
+    assert len(heads) == 1
+    head = heads[0]
+    # Extensible: later migrations (e.g. 0024) may advance the head beyond 0023.
+    current = head
+    seen: set[str] = set()
+    found = False
+    while current is not None:
+        if current == REVISION_0023:
+            found = True
+            break
+        if current in seen:
+            break
+        seen.add(current)
+        rev_obj = script.get_revision(current)
+        if rev_obj is None:
+            break
+        current = rev_obj.down_revision
+    assert found, f"{REVISION_0023} must be an ancestor of head {head}"
 
     # Prior chain intact
     assert script.get_revision("0022_mkt_secret_binding").down_revision == "0021_mkt_publishing_conn"

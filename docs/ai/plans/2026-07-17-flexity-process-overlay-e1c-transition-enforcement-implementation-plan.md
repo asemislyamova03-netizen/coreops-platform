@@ -1,17 +1,17 @@
 # Implementation Plan: Process Overlay E1c — Transition Enforcement
 
-**Date:** 2026-07-17 (corrected 2026-07-18)  
-**Type:** implementation plan  
-**Project:** Flexity  
-**Category:** platform_core (thin Process Overlay)  
-**Studied baseline:** `origin/main` @ `abbde60` (post E1b2 + Booking + C1c; merge PR #113)  
-**Worktree:** `.worktrees/process-overlay-e1c-transition-enforcement`  
-**Branch:** `feature/process-overlay-e1c-transition-enforcement`  
-**Parent architecture:** `docs/ai/plans/2026-07-17-flexity-process-overlay-e1-architecture-plan.md`  
-**Parent E1a / E1b / E1b2 plans:** same `docs/ai/plans/` tree  
-**Status:** **APPROVED** (HQ locked decisions below) — local implementation allowed; **no push/merge/deploy**  
-**Depends on:** E1a (`0019`) + E1b (`0020`) + E1b2 auto-start already on `origin/main`  
-**Proposed migration:** **none**  
+**Date:** 2026-07-17 (corrected 2026-07-18)
+**Type:** implementation plan
+**Project:** Flexity
+**Category:** platform_core (thin Process Overlay)
+**Studied baseline:** `origin/main` @ `abbde60` (post E1b2 + Booking + C1c; merge PR #113)
+**Worktree:** `.worktrees/process-overlay-e1c-transition-enforcement`
+**Branch:** `feature/process-overlay-e1c-transition-enforcement`
+**Parent architecture:** `docs/ai/plans/2026-07-17-flexity-process-overlay-e1-architecture-plan.md`
+**Parent E1a / E1b / E1b2 plans:** same `docs/ai/plans/` tree
+**Status:** **APPROVED** (HQ locked decisions below) — local implementation allowed; **no push/merge/deploy**
+**Depends on:** E1a (`0019`) + E1b (`0020`) + E1b2 auto-start already on `origin/main`
+**Proposed migration:** **none**
 **Git:** two local commits (plan, then code); **no push**
 
 ---
@@ -33,10 +33,10 @@
 
 Deliver **E1c transition enforcement**: when a WorkItem has an **ACTIVE** `ProcessRun`, any CRM stage **transition** must pass a **single** server-side guard that evaluates **allowed edges only** against the run’s **pinned** `ProcessDefinitionVersion.policy_snapshot_json`.
 
-- **ACTIVE ProcessRun** → enforce transitions from pinned policy (fail-closed on invalid/missing policy or stages).  
-- **No ACTIVE / COMPLETED / CANCELLED only** → prior CRM behavior **unchanged** (no block).  
-- **Four writers, one guard, no bypass:** `move_stage`, `update_work_item` (when stage changes), `close_work_item`, `reopen_work_item`.  
-- E1c does **not** evaluate required fields / roles / tasks / documents / approvals.  
+- **ACTIVE ProcessRun** → enforce transitions from pinned policy (fail-closed on invalid/missing policy or stages).
+- **No ACTIVE / COMPLETED / CANCELLED only** → prior CRM behavior **unchanged** (no block).
+- **Four writers, one guard, no bypass:** `move_stage`, `update_work_item` (when stage changes), `close_work_item`, `reopen_work_item`.
+- E1c does **not** evaluate required fields / roles / tasks / documents / approvals.
 - ProcessRun auto-completion is **out** (E1c2 later).
 
 ---
@@ -98,11 +98,11 @@ These supersede any earlier “optional / recommend” wording in draft plans.
 
 ### Gaps for E1c
 
-1. No transition evaluation service / guard.  
-2. Four stage writers ignore ACTIVE ProcessRun.  
-3. No `process_transition.applied` audit.  
-4. No `SELECT FOR UPDATE` helpers for WorkItem + ACTIVE run on these paths.  
-5. No `update_run_current_stage_code` helper.  
+1. No transition evaluation service / guard.
+2. Four stage writers ignore ACTIVE ProcessRun.
+3. No `process_transition.applied` audit.
+4. No `SELECT FOR UPDATE` helpers for WorkItem + ACTIVE run on these paths.
+5. No `update_run_current_stage_code` helper.
 6. T14 / A10 encode “no enforcement”.
 
 ---
@@ -121,7 +121,7 @@ Config `activation_state` is **not** re-checked: deactivated config + still-ACTI
 
 ### D2 — Policy source = pinned version only (L2)
 
-Always load `run.process_definition_version_id` → immutable `policy_snapshot_json`.  
+Always load `run.process_definition_version_id` → immutable `policy_snapshot_json`.
 Never live `config.active_definition_version_id`, template blueprint, or request payload.
 
 ### D3 — Single shared guard, four callers (L3)
@@ -134,10 +134,10 @@ ProcessOverlayTransitionGuard.apply_or_bypass(
 
 **Callers (all required):**
 
-1. `WorkflowService.move_stage`  
-2. `WorkflowService.update_work_item` — only when `payload.stage_id` differs from current  
-3. `WorkflowService.close_work_item` — target `rejected`  
-4. `WorkflowService.reopen_work_item` — target `new_lead`  
+1. `WorkflowService.move_stage`
+2. `WorkflowService.update_work_item` — only when `payload.stage_id` differs from current
+3. `WorkflowService.close_work_item` — target `rejected`
+4. `WorkflowService.reopen_work_item` — target `new_lead`
 
 ### D4 — Edge-only evaluation
 
@@ -155,11 +155,11 @@ Deny (typed error, no stage mutation) when: missing pinned version, tenant/confi
 
 Order inside each writer:
 
-1. Load/lock WorkItem (`FOR UPDATE`).  
-2. Existing CRM tenant/pipeline/stage checks (`ConflictError` / `NotFoundError`).  
-3. Resolve from/to stage codes from DB.  
-4. Overlay guard (lock ACTIVE run if any; evaluate).  
-5. Apply CRM mutation + side-effects.  
+1. Load/lock WorkItem (`FOR UPDATE`).
+2. Existing CRM tenant/pipeline/stage checks (`ConflictError` / `NotFoundError`).
+3. Resolve from/to stage codes from DB.
+4. Overlay guard (lock ACTIVE run if any; evaluate).
+5. Apply CRM mutation + side-effects.
 6. If applied under enforcement: sync `current_stage_code` + `process_transition.applied` once.
 
 ### D8 — close / reopen through same guard (L3)
@@ -189,8 +189,8 @@ Keys for applied: `work_item_id`, `process_run_id`, `definition_version_id`, `fr
 
 Required:
 
-1. Lock **WorkItem** with `SELECT … FOR UPDATE` before stage mutation.  
-2. If ACTIVE run exists, lock that **ProcessRun** with `SELECT … FOR UPDATE` before evaluate/apply.  
+1. Lock **WorkItem** with `SELECT … FOR UPDATE` before stage mutation.
+2. If ACTIVE run exists, lock that **ProcessRun** with `SELECT … FOR UPDATE` before evaluate/apply.
 
 SQLite may no-op `FOR UPDATE`; PostgreSQL enforces. Prefer ephemeral PostgreSQL for concurrency/race tests.
 
@@ -260,7 +260,7 @@ def evaluate_and_prepare(...):
 
 ## Test plan
 
-New: `backend/tests/test_process_overlay_e1c_transition_enforcement.py`  
+New: `backend/tests/test_process_overlay_e1c_transition_enforcement.py`
 Rewrite: E1b T14, E1b2 A10.
 
 | ID | Scenario | Assertion |
@@ -330,13 +330,13 @@ Dirty root; Alembic; routes/OpenAPI/UI; `runs.py` lifecycle; `policy_schema.py` 
 
 ## Implementation steps
 
-1. Plan commit (this file).  
-2. Exceptions + constants.  
-3. Repository lock / stage-code helpers.  
-4. `transitions.py` guard (edge-only, applied audit, fail-closed, no deny audit).  
-5. Wire four WorkflowService paths (CRM before overlay).  
-6. E1c tests + rewrite T14/A10.  
-7. Green checks → code commit.  
+1. Plan commit (this file).
+2. Exceptions + constants.
+3. Repository lock / stage-code helpers.
+4. `transitions.py` guard (edge-only, applied audit, fail-closed, no deny audit).
+5. Wire four WorkflowService paths (CRM before overlay).
+6. E1c tests + rewrite T14/A10.
+7. Green checks → code commit.
 8. Stop — no E1c2 / evidence / API.
 
 ---
@@ -385,9 +385,9 @@ Revert the code commit (and plan commit if needed). No schema. Operational escap
 
 ## Finish block (plan correction)
 
-1. **Files changed:** this plan (corrected to locked decisions).  
-2. **Files intentionally not touched:** application code (until code commit); dirty root; Alembic; remote.  
-3. **Tests/checks:** documentation-only for plan commit.  
-4. **Risks:** see above.  
-5. **Next safe step:** implement guard + wiring + tests; local code commit after green checks.  
+1. **Files changed:** this plan (corrected to locked decisions).
+2. **Files intentionally not touched:** application code (until code commit); dirty root; Alembic; remote.
+3. **Tests/checks:** documentation-only for plan commit.
+4. **Risks:** see above.
+5. **Next safe step:** implement guard + wiring + tests; local code commit after green checks.
 6. **Handoff:** after code verification.

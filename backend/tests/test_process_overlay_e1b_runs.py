@@ -8,7 +8,7 @@ import uuid
 
 import pytest
 from sqlalchemy import create_engine, select, text
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError
 
 from app.core.enums import TenantStatus, WorkItemStatus
 from app.core.exceptions import NotFoundError
@@ -363,15 +363,40 @@ def test_second_active_run_rejected(db_session):
 
 
 def _postgres_available() -> bool:
+    """Prefer pg_isready, then a short SQL probe; skip cleanly if either fails."""
+    import shutil
+    import subprocess
+    from urllib.parse import urlparse
+
     try:
         from app.core.config import get_settings
 
-        engine = create_engine(get_settings().database_url)
+        database_url = get_settings().database_url
+        if not database_url.startswith("postgresql"):
+            return False
+
+        parsed = urlparse(database_url.replace("postgresql+psycopg://", "postgresql://"))
+        host = parsed.hostname or "localhost"
+        port = str(parsed.port or 5432)
+        user = parsed.username or "postgres"
+
+        pg_isready = shutil.which("pg_isready")
+        if pg_isready:
+            ready = subprocess.run(
+                [pg_isready, "-h", host, "-p", port, "-U", user],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            if ready.returncode != 0:
+                return False
+
+        engine = create_engine(database_url)
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         engine.dispose()
         return True
-    except OperationalError:
+    except Exception:
         return False
 
 

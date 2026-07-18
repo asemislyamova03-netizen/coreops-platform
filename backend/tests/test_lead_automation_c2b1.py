@@ -800,32 +800,41 @@ def test_postgres_concurrent_automation_one_task():
     cfg.set_main_option("sqlalchemy.url", database_url)
 
     # Reconcile stale alembic_version when 0021–0023 DDL already applied.
+    # Fresh empty DBs have no alembic_version yet — skip stamp and upgrade.
     engine_probe = create_engine(database_url)
     try:
         with engine_probe.connect() as conn:
-            version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            has_0023 = conn.execute(
-                text("SELECT to_regclass('public.marketing_storage_resource_profiles')")
+            has_alembic = conn.execute(
+                text("SELECT to_regclass('public.alembic_version')")
             ).scalar()
-            has_0024 = False
-            if conn.execute(text("SELECT to_regclass('public.tasks')")).scalar():
-                cols = {
-                    row[0]
-                    for row in conn.execute(
-                        text(
-                            "SELECT column_name FROM information_schema.columns "
-                            "WHERE table_name = 'tasks'"
-                        )
+            if has_alembic:
+                version = conn.execute(
+                    text("SELECT version_num FROM alembic_version")
+                ).scalar()
+                has_0023 = conn.execute(
+                    text(
+                        "SELECT to_regclass('public.marketing_storage_resource_profiles')"
                     )
-                }
-                has_0024 = "process_run_id" in cols
-        if has_0024 and version != "0024_task_run_automation_key":
-            command.stamp(cfg, "0024_task_run_automation_key")
-        elif has_0023 and version not in {
-            "0023_mkt_storage_profiles",
-            "0024_task_run_automation_key",
-        }:
-            command.stamp(cfg, "0023_mkt_storage_profiles")
+                ).scalar()
+                has_0024 = False
+                if conn.execute(text("SELECT to_regclass('public.tasks')")).scalar():
+                    cols = {
+                        row[0]
+                        for row in conn.execute(
+                            text(
+                                "SELECT column_name FROM information_schema.columns "
+                                "WHERE table_name = 'tasks'"
+                            )
+                        )
+                    }
+                    has_0024 = "process_run_id" in cols
+                if has_0024 and version != "0024_task_run_automation_key":
+                    command.stamp(cfg, "0024_task_run_automation_key")
+                elif has_0023 and version not in {
+                    "0023_mkt_storage_profiles",
+                    "0024_task_run_automation_key",
+                }:
+                    command.stamp(cfg, "0023_mkt_storage_profiles")
     finally:
         engine_probe.dispose()
 

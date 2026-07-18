@@ -60,10 +60,17 @@ def _reconcile_stale_alembic_version(cfg: Config) -> None:
 
     If storage-profile tables exist but version is older than 0023, stamp to 0023
     so 0024 up/down/up can run without replaying already-applied DDL.
+
+    Fresh empty databases (no alembic_version yet) are a no-op — caller upgrades.
     """
     engine = create_engine(_database_url())
     try:
         with engine.connect() as conn:
+            has_alembic = conn.execute(
+                text("SELECT to_regclass('public.alembic_version')")
+            ).scalar()
+            if not has_alembic:
+                return
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
             has_0023 = conn.execute(
                 text("SELECT to_regclass('public.marketing_storage_resource_profiles')")

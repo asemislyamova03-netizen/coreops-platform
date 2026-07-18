@@ -412,10 +412,11 @@ def test_a9_create_work_item_source_calls_overlay_hook(db_session):
     assert "get_configuration_by_pipeline" in hook
 
 
-# --- A10 move_stage still unbound (no E1c) ---
+# --- A10 move_stage with auto-started run: E1c enforces allowed edge + pin freeze ---
 
 
 def test_a10_move_stage_still_works_with_auto_started_run(db_session):
+    """E1c rewrite of E1b2 A10: allowed move works; pin preserved; run stays ACTIVE."""
     tenant, pipeline, config, actor = _setup_configuration(db_session, "e1b2-a10")
     _activate_overlay(db_session, tenant, config, actor)
     user = _make_user(db_session, "e1b2-a10@test.com")
@@ -442,6 +443,7 @@ def test_a10_move_stage_still_works_with_auto_started_run(db_session):
     assert stored is not None
     assert stored.run_state == ProcessRunState.ACTIVE
     assert stored.process_definition_version_id == pinned
+    assert stored.current_stage_code == "contacted"
 
 
 # --- A11 no retrospective runs on activation ---

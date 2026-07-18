@@ -201,13 +201,35 @@ class WorkflowService:
         work_item_id: uuid.UUID,
         payload: WorkItemUpdate,
     ) -> WorkItemResponse:
-        item = self._get_work_item_or_404(work_item_id)
+        stage_changing = payload.stage_id is not None
+        item = (
+            self._get_work_item_for_update_or_404(work_item_id)
+            if stage_changing
+            else self._get_work_item_or_404(work_item_id)
+        )
 
         if payload.stage_id is not None:
             stage = self.repo.get_stage(self.tenant_id, payload.stage_id)
             if not stage or stage.pipeline_id != item.pipeline_id:
                 raise ConflictError("Stage does not belong to the work item pipeline")
-            item.stage_id = payload.stage_id
+            if stage.id != item.stage_id:
+                old_stage = self.repo.get_stage(self.tenant_id, item.stage_id)
+                guard_result = self._assert_process_transition(
+                    user=user,
+                    work_item=item,
+                    from_stage_code=old_stage.code if old_stage else None,
+                    to_stage_code=stage.code,
+                    via="update_work_item",
+                )
+                item.stage_id = stage.id
+                self._record_process_transition_applied(
+                    user=user,
+                    work_item_id=item.id,
+                    from_stage_code=old_stage.code if old_stage else "",
+                    to_stage_code=stage.code,
+                    via="update_work_item",
+                    result=guard_result,
+                )
 
         if payload.work_item_type is not None:
             item.work_item_type = payload.work_item_type
@@ -243,12 +265,25 @@ class WorkflowService:
         work_item_id: uuid.UUID,
         payload: MoveStageRequest,
     ) -> WorkItemResponse:
-        item = self._get_work_item_or_404(work_item_id)
+        item = self._get_work_item_for_update_or_404(work_item_id)
         old_stage_id = item.stage_id
 
         stage = self.repo.get_stage(self.tenant_id, payload.stage_id)
         if not stage or stage.pipeline_id != item.pipeline_id:
             raise ConflictError("Stage does not belong to the work item pipeline")
+
+        old_stage = self.repo.get_stage(self.tenant_id, old_stage_id)
+        if old_stage is not None and old_stage.id == stage.id:
+            # Same-stage is not a transition: keep response stable, no Activity spam.
+            return self.get_work_item(item.id)
+
+        guard_result = self._assert_process_transition(
+            user=user,
+            work_item=item,
+            from_stage_code=old_stage.code if old_stage else None,
+            to_stage_code=stage.code,
+            via="move_stage",
+        )
 
         item.stage_id = stage.id
         if stage.is_terminal:
@@ -272,6 +307,15 @@ class WorkflowService:
             updated_by_user_id=user.id,
         )
 
+        self._record_process_transition_applied(
+            user=user,
+            work_item_id=item.id,
+            from_stage_code=old_stage.code if old_stage else "",
+            to_stage_code=stage.code,
+            via="move_stage",
+            result=guard_result,
+        )
+
         self.db.flush()
         return self.get_work_item(item.id)
 
@@ -281,7 +325,7 @@ class WorkflowService:
         work_item_id: uuid.UUID,
         payload: CloseWorkItemRequest,
     ) -> WorkItemResponse:
-        item = self._get_work_item_or_404(work_item_id)
+        item = self._get_work_item_for_update_or_404(work_item_id)
         old_stage_id = item.stage_id
 
         rejected_stage = self.repo.get_stage_by_code(
@@ -291,6 +335,15 @@ class WorkflowService:
         )
         if not rejected_stage:
             raise ConflictError("Pipeline stage 'rejected' not found")
+
+        old_stage = self.repo.get_stage(self.tenant_id, old_stage_id)
+        guard_result = self._assert_process_transition(
+            user=user,
+            work_item=item,
+            from_stage_code=old_stage.code if old_stage else None,
+            to_stage_code=rejected_stage.code,
+            via="close",
+        )
 
         note = payload.disposition_note.strip() if payload.disposition_note else None
         custom_values = self.custom_fields.validate_and_prepare(
@@ -322,6 +375,15 @@ class WorkflowService:
             updated_by_user_id=user.id,
         )
 
+        self._record_process_transition_applied(
+            user=user,
+            work_item_id=item.id,
+            from_stage_code=old_stage.code if old_stage else "",
+            to_stage_code=rejected_stage.code,
+            via="close",
+            result=guard_result,
+        )
+
         self.db.flush()
         return self.get_work_item(item.id)
 
@@ -331,7 +393,7 @@ class WorkflowService:
         work_item_id: uuid.UUID,
         payload: ReopenWorkItemRequest,
     ) -> WorkItemResponse:
-        item = self._get_work_item_or_404(work_item_id)
+        item = self._get_work_item_for_update_or_404(work_item_id)
         old_stage_id = item.stage_id
 
         current_stage = self.repo.get_stage(self.tenant_id, item.stage_id)
@@ -345,6 +407,14 @@ class WorkflowService:
         )
         if not new_lead_stage:
             raise ConflictError("Pipeline stage 'new_lead' not found")
+
+        guard_result = self._assert_process_transition(
+            user=user,
+            work_item=item,
+            from_stage_code=current_stage.code,
+            to_stage_code=new_lead_stage.code,
+            via="reopen",
+        )
 
         existing_custom = self.custom_fields.get_values_map(ENTITY_WORK_ITEM, item.id)
         previous_disposition = existing_custom.get("disposition")
@@ -376,6 +446,15 @@ class WorkflowService:
             occurred_at=datetime.now(UTC),
             created_by_user_id=user.id,
             updated_by_user_id=user.id,
+        )
+
+        self._record_process_transition_applied(
+            user=user,
+            work_item_id=item.id,
+            from_stage_code=current_stage.code,
+            to_stage_code=new_lead_stage.code,
+            via="reopen",
+            result=guard_result,
         )
 
         self.db.flush()
@@ -428,6 +507,55 @@ class WorkflowService:
         if not item:
             raise NotFoundError("Work item not found")
         return item
+
+    def _get_work_item_for_update_or_404(self, work_item_id: uuid.UUID):
+        item = self.repo.get_work_item_for_update(self.tenant_id, work_item_id)
+        if not item:
+            raise NotFoundError("Work item not found")
+        return item
+
+    def _assert_process_transition(
+        self,
+        *,
+        user: User,
+        work_item,
+        from_stage_code: str | None,
+        to_stage_code: str | None,
+        via: str,
+    ):
+        """E1c: CRM checks already done; evaluate pinned overlay policy (no bypass)."""
+        from app.modules.process_overlay.service.transitions import ProcessOverlayTransitionGuard
+
+        return ProcessOverlayTransitionGuard(self.db).assert_transition_allowed(
+            self.tenant_id,
+            work_item,
+            from_stage_code=from_stage_code,
+            to_stage_code=to_stage_code,
+            actor_user_id=user.id,
+            via=via,
+        )
+
+    def _record_process_transition_applied(
+        self,
+        *,
+        user: User,
+        work_item_id: uuid.UUID,
+        from_stage_code: str,
+        to_stage_code: str,
+        via: str,
+        result,
+    ) -> None:
+        from app.modules.process_overlay.service.transitions import ProcessOverlayTransitionGuard
+
+        ProcessOverlayTransitionGuard(self.db).record_applied_transition(
+            tenant_id=self.tenant_id,
+            actor_user_id=user.id,
+            result=result,
+            work_item_id=work_item_id,
+            from_stage_code=from_stage_code,
+            to_stage_code=to_stage_code,
+            via=via,
+        )
 
     def _maybe_auto_start_process_run(self, *, user: User, work_item) -> None:
         """E1b2 opt-in: ACTIVE overlay config → start ProcessRun in the same session.

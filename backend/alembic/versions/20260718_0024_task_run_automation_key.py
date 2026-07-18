@@ -8,9 +8,11 @@ Local/schema readiness only. Do not run against production without separate appr
 Revision ID kept <= 32 chars for alembic_version.version_num (VARCHAR(32)).
 
 Adds nullable process_run_id + automation_key on tasks with:
+- unique on process_runs (tenant_id, id) for composite FK target
+- composite FK (tenant_id, process_run_id) → process_runs(tenant_id, id) ON DELETE RESTRICT
 - CHECK pair: both NULL or both NOT NULL
+- CHECK automation_key nonempty when set (btrim)
 - partial unique (tenant_id, process_run_id, automation_key) WHERE both NOT NULL
-- FK process_run_id → process_runs.id ON DELETE RESTRICT
 - index ix_tasks_process_run_id
 """
 
@@ -28,14 +30,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.create_unique_constraint(
+        "uq_process_runs_tenant_id_id",
+        "process_runs",
+        ["tenant_id", "id"],
+    )
     op.add_column("tasks", sa.Column("process_run_id", sa.Uuid(), nullable=True))
     op.add_column("tasks", sa.Column("automation_key", sa.String(length=64), nullable=True))
     op.create_foreign_key(
-        "fk_tasks_process_run_id",
+        "fk_tasks_tenant_process_run",
         "tasks",
         "process_runs",
-        ["process_run_id"],
-        ["id"],
+        ["tenant_id", "process_run_id"],
+        ["tenant_id", "id"],
         ondelete="RESTRICT",
     )
     op.create_index(op.f("ix_tasks_process_run_id"), "tasks", ["process_run_id"], unique=False)
@@ -47,6 +54,11 @@ def upgrade() -> None:
         " OR "
         " (process_run_id IS NOT NULL AND automation_key IS NOT NULL)"
         ")",
+    )
+    op.create_check_constraint(
+        "ck_tasks_automation_key_nonempty",
+        "tasks",
+        "automation_key IS NULL OR length(btrim(automation_key)) > 0",
     )
     op.create_index(
         "uq_tasks_tenant_process_run_automation_key",
@@ -68,11 +80,21 @@ def downgrade() -> None:
         table_name="tasks",
     )
     op.drop_constraint(
+        "ck_tasks_automation_key_nonempty",
+        "tasks",
+        type_="check",
+    )
+    op.drop_constraint(
         "ck_tasks_process_run_automation_key_pair",
         "tasks",
         type_="check",
     )
     op.drop_index(op.f("ix_tasks_process_run_id"), table_name="tasks")
-    op.drop_constraint("fk_tasks_process_run_id", "tasks", type_="foreignkey")
+    op.drop_constraint("fk_tasks_tenant_process_run", "tasks", type_="foreignkey")
     op.drop_column("tasks", "automation_key")
     op.drop_column("tasks", "process_run_id")
+    op.drop_constraint(
+        "uq_process_runs_tenant_id_id",
+        "process_runs",
+        type_="unique",
+    )

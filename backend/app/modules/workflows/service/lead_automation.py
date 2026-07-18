@@ -23,6 +23,7 @@ from app.modules.tenants.models import TenantSettings, UserTenantMembership
 from app.modules.workflows.models import Activity, Task
 
 DEFAULT_SLA_MINUTES = 240
+MAX_SLA_MINUTES = 10080  # 7 days
 DEFAULT_TASK_TEMPLATE_CODE = "consulting_first_contact"
 DEFAULT_CREATE_ACTIVITY = True
 TASK_TITLE = "Связаться с лидом"
@@ -95,9 +96,10 @@ def load_lead_automation_config(
         raise LeadAutomationConfigError(
             "lead_automation.first_contact_sla_minutes must be an integer"
         ) from exc
-    if sla_minutes <= 0:
+    if sla_minutes < 1 or sla_minutes > MAX_SLA_MINUTES:
         raise LeadAutomationConfigError(
-            "lead_automation.first_contact_sla_minutes must be positive"
+            "lead_automation.first_contact_sla_minutes must be an integer "
+            f"between 1 and {MAX_SLA_MINUTES} inclusive"
         )
 
     template = raw.get("task_template_code", DEFAULT_TASK_TEMPLATE_CODE)
@@ -256,6 +258,7 @@ def maybe_create_process_run_first_contact_task(
 __all__ = [
     "DEFAULT_CREATE_ACTIVITY",
     "DEFAULT_SLA_MINUTES",
+    "MAX_SLA_MINUTES",
     "DEFAULT_TASK_TEMPLATE_CODE",
     "TASK_TITLE",
     "LeadAutomationConfig",

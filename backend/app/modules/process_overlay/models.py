@@ -178,6 +178,11 @@ class ProcessRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __tablename__ = "process_runs"
     __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "id",
+            name="uq_process_runs_tenant_id_id",
+        ),
         # Ownership guard (E1a active-version style): config+version must pair via
         # uq_process_def_version_config_id. No separate single-column FKs to config/version.
         ForeignKeyConstraint(

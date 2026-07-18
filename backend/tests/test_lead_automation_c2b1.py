@@ -12,6 +12,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 from urllib.parse import urlparse
 
 import pytest
@@ -44,8 +46,10 @@ from app.modules.workflows.service import WorkflowService
 from app.modules.workflows.service.lead_automation import (
     DEFAULT_SLA_MINUTES,
     DEFAULT_TASK_TEMPLATE_CODE,
+    MAX_SLA_MINUTES,
     TASK_TITLE,
     LeadAutomationConfigError,
+    load_lead_automation_config,
     maybe_create_process_run_first_contact_task,
 )
 
@@ -270,6 +274,126 @@ def _setup_active_with_assignee(db_session, slug: str):
     return tenant, pipeline, config_orm, actor_user, assignee
 
 
+def _postgres_available() -> bool:
+    try:
+        from app.core.config import get_settings
+
+        get_settings.cache_clear()
+        database_url = get_settings().database_url
+        if not database_url.startswith("postgresql"):
+            return False
+
+        parsed = urlparse(database_url.replace("postgresql+psycopg://", "postgresql://"))
+        host = parsed.hostname or "127.0.0.1"
+        port = str(parsed.port or 5432)
+        user = parsed.username or "postgres"
+
+        pg_isready = shutil.which("pg_isready")
+        if pg_isready:
+            ready = subprocess.run(
+                [pg_isready, "-h", host, "-p", port, "-U", user],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            if ready.returncode != 0:
+                return False
+
+        engine = create_engine(database_url)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        engine.dispose()
+        return True
+    except Exception:
+        return False
+
+
+postgres_required = pytest.mark.skipif(
+    not _postgres_available(),
+    reason="Local Postgres is required for C2b1 Postgres-backed tests",
+)
+
+
+@pytest.fixture(autouse=True)
+def seed_catalog(request):
+    """Override global autouse seed: only seed when db_session is requested."""
+    if "db_session" not in request.fixturenames and "client" not in request.fixturenames:
+        yield
+        return
+
+    from app.modules.industry_templates.service import IndustryTemplateService
+    from app.modules.integrations.service import IntegrationService
+    from app.modules.module_registry.service import ModuleRegistryService
+    from app.modules.process_overlay.service import ProcessOverlayCatalogService
+    from app.modules.subscriptions.service import SubscriptionService
+
+    db_session = request.getfixturevalue("db_session")
+    ModuleRegistryService(db_session).seed_definitions()
+    SubscriptionService(db_session).seed_catalog()
+    IndustryTemplateService(db_session).seed_templates()
+    IntegrationService(db_session).seed_providers()
+    ProcessOverlayCatalogService(db_session).seed_templates()
+    yield
+
+
+@pytest.fixture
+def postgres_db_session():
+    if not _postgres_available():
+        pytest.skip("Local Postgres is required")
+
+    from alembic import command
+    from alembic.config import Config
+
+    from app.core.config import get_settings
+    from app.modules.industry_templates.service import IndustryTemplateService
+    from app.modules.integrations.service import IntegrationService
+    from app.modules.module_registry.service import ModuleRegistryService
+    from app.modules.process_overlay.service import ProcessOverlayCatalogService
+    from app.modules.subscriptions.service import SubscriptionService
+
+    backend_root = Path(__file__).resolve().parents[1]
+    database_url = get_settings().database_url
+    os.environ["DATABASE_URL"] = database_url
+    get_settings.cache_clear()
+    cfg = Config(str(backend_root / "alembic.ini"))
+    cfg.set_main_option("sqlalchemy.url", database_url)
+    command.upgrade(cfg, "head")
+
+    engine = create_engine(database_url, pool_pre_ping=True)
+    session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = session_factory()
+    try:
+        ModuleRegistryService(session).seed_definitions()
+        SubscriptionService(session).seed_catalog()
+        IndustryTemplateService(session).seed_templates()
+        IntegrationService(session).seed_providers()
+        ProcessOverlayCatalogService(session).seed_templates()
+        session.commit()
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
+
+
+def _lead_automation_settings(
+    tenant_id: uuid.UUID,
+    config: dict,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        tenant_id=tenant_id,
+        industry_config_json={"consulting": {"lead_automation": config}},
+    )
+
+
+def _mock_db_with_lead_automation(
+    tenant_id: uuid.UUID,
+    config: dict,
+) -> MagicMock:
+    db = MagicMock()
+    db.scalar.return_value = _lead_automation_settings(tenant_id, config)
+    return db
+
+
 # --- Config / no-op ---
 
 
@@ -384,6 +508,86 @@ def test_create_activity_false_skips_activity(db_session):
     run = db_session.scalar(select(ProcessRun).where(ProcessRun.work_item_id == created.id))
     assert _count_tasks(db_session, tenant_id=tenant.id, process_run_id=run.id) == 1
     assert _count_activities(db_session, work_item_id=created.id) == 0
+
+
+# --- SLA bounds ---
+
+
+@pytest.mark.parametrize("sla_minutes", [0, -1, -60, 10081, MAX_SLA_MINUTES + 1])
+def test_sla_out_of_range_fail_closed(sla_minutes):
+    tenant_id = uuid.uuid4()
+    assignee_id = uuid.uuid4()
+    db = _mock_db_with_lead_automation(
+        tenant_id,
+        {
+            "enabled": True,
+            "default_assignee_user_id": str(assignee_id),
+            "first_contact_sla_minutes": sla_minutes,
+        },
+    )
+    with pytest.raises(LeadAutomationConfigError, match="first_contact_sla_minutes"):
+        load_lead_automation_config(db, tenant_id)
+
+
+@pytest.mark.parametrize("sla_minutes", [1, MAX_SLA_MINUTES])
+def test_sla_boundary_config_load(sla_minutes):
+    tenant_id = uuid.uuid4()
+    assignee_id = uuid.uuid4()
+    db = _mock_db_with_lead_automation(
+        tenant_id,
+        {
+            "enabled": True,
+            "default_assignee_user_id": str(assignee_id),
+            "first_contact_sla_minutes": sla_minutes,
+        },
+    )
+    config = load_lead_automation_config(db, tenant_id)
+    assert config is not None
+    assert config.first_contact_sla_minutes == sla_minutes
+
+
+@postgres_required
+@pytest.mark.parametrize("sla_minutes", [1, MAX_SLA_MINUTES])
+def test_sla_boundary_create_path(postgres_db_session, sla_minutes):
+    tenant, pipeline, config_orm, actor_user, assignee = _setup_active_with_assignee(
+        postgres_db_session, f"c2b1-sla-ok-{sla_minutes}"
+    )
+    _set_lead_automation(
+        postgres_db_session,
+        tenant.id,
+        {
+            "enabled": True,
+            "default_assignee_user_id": str(assignee.id),
+            "first_contact_sla_minutes": sla_minutes,
+        },
+    )
+    config = load_lead_automation_config(postgres_db_session, tenant.id)
+    assert config is not None
+    assert config.first_contact_sla_minutes == sla_minutes
+
+    before = datetime.now(UTC)
+    created = _create_work_item(postgres_db_session, tenant, pipeline, actor_user)
+    after = datetime.now(UTC)
+    run = postgres_db_session.scalar(select(ProcessRun).where(ProcessRun.work_item_id == created.id))
+    task = postgres_db_session.scalar(select(Task).where(Task.process_run_id == run.id))
+    assert task is not None
+    due = task.due_at if task.due_at.tzinfo is not None else task.due_at.replace(tzinfo=UTC)
+    assert before + timedelta(minutes=sla_minutes) <= due <= after + timedelta(minutes=sla_minutes)
+
+
+def test_sla_non_integer_fail_closed():
+    tenant_id = uuid.uuid4()
+    assignee_id = uuid.uuid4()
+    db = _mock_db_with_lead_automation(
+        tenant_id,
+        {
+            "enabled": True,
+            "default_assignee_user_id": str(assignee_id),
+            "first_contact_sla_minutes": "not-an-int",
+        },
+    )
+    with pytest.raises(LeadAutomationConfigError, match="must be an integer"):
+        load_lead_automation_config(db, tenant_id)
 
 
 # --- Fail-closed assignee ---
@@ -549,6 +753,57 @@ def test_new_process_run_may_reuse_automation_key(db_session):
     assert task1 is not None and task2 is not None
     assert task1.automation_key == task2.automation_key == DEFAULT_TASK_TEMPLATE_CODE
     assert task1.id != task2.id
+
+
+@postgres_required
+def test_nested_integrity_error_does_not_break_outer_session(postgres_db_session):
+    """begin_nested rollback after duplicate insert must leave outer session usable."""
+    tenant, pipeline, config_orm, actor_user, assignee = _setup_active_with_assignee(
+        postgres_db_session, "c2b1-nested-txn"
+    )
+    _set_lead_automation(
+        postgres_db_session,
+        tenant.id,
+        {"enabled": True, "default_assignee_user_id": str(assignee.id)},
+    )
+    created = _create_work_item(postgres_db_session, tenant, pipeline, actor_user)
+    run = postgres_db_session.scalar(select(ProcessRun).where(ProcessRun.work_item_id == created.id))
+    assert run is not None
+
+    first = maybe_create_process_run_first_contact_task(
+        postgres_db_session,
+        tenant_id=tenant.id,
+        process_run_id=run.id,
+        work_item_id=created.id,
+        actor_user_id=actor_user.id,
+    )
+    assert first is not None
+
+    second = maybe_create_process_run_first_contact_task(
+        postgres_db_session,
+        tenant_id=tenant.id,
+        process_run_id=run.id,
+        work_item_id=created.id,
+        actor_user_id=actor_user.id,
+    )
+    assert second is not None
+    assert second.id == first.id
+    assert _count_tasks(postgres_db_session, tenant_id=tenant.id, process_run_id=run.id) == 1
+
+    postgres_db_session.add(
+        Activity(
+            tenant_id=tenant.id,
+            work_item_id=created.id,
+            activity_type=ActivityType.NOTE,
+            title="Post-recovery probe",
+            description="outer session still works",
+            occurred_at=datetime.now(UTC),
+            created_by_user_id=actor_user.id,
+            updated_by_user_id=actor_user.id,
+        )
+    )
+    postgres_db_session.flush()
+    assert _count_activities(postgres_db_session, work_item_id=created.id) >= 2
 
 
 # --- CRM without config unchanged ---
@@ -735,46 +990,6 @@ def test_public_lead_e2e_with_overlay_and_config(
 
 
 # --- Postgres race ---
-
-
-def _postgres_available() -> bool:
-    try:
-        from app.core.config import get_settings
-
-        get_settings.cache_clear()
-        database_url = get_settings().database_url
-        if not database_url.startswith("postgresql"):
-            return False
-
-        parsed = urlparse(database_url.replace("postgresql+psycopg://", "postgresql://"))
-        host = parsed.hostname or "127.0.0.1"
-        port = str(parsed.port or 5432)
-        user = parsed.username or "postgres"
-
-        pg_isready = shutil.which("pg_isready")
-        if pg_isready:
-            ready = subprocess.run(
-                [pg_isready, "-h", host, "-p", port, "-U", user],
-                capture_output=True,
-                timeout=5,
-                check=False,
-            )
-            if ready.returncode != 0:
-                return False
-
-        engine = create_engine(database_url)
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        engine.dispose()
-        return True
-    except Exception:
-        return False
-
-
-postgres_required = pytest.mark.skipif(
-    not _postgres_available(),
-    reason="Local Postgres is required for concurrent automation race tests",
-)
 
 
 @postgres_required

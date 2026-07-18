@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -222,6 +223,12 @@ class Note(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
 class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
     __tablename__ = "tasks"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "process_run_id"],
+            ["process_runs.tenant_id", "process_runs.id"],
+            name="fk_tasks_tenant_process_run",
+            ondelete="RESTRICT",
+        ),
         CheckConstraint(
             "("
             " (process_run_id IS NULL AND automation_key IS NULL)"
@@ -229,6 +236,11 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
             " (process_run_id IS NOT NULL AND automation_key IS NOT NULL)"
             ")",
             name="ck_tasks_process_run_automation_key_pair",
+        ),
+        # trim() works on SQLite + PostgreSQL; migration 0024 uses btrim() on Postgres.
+        CheckConstraint(
+            "automation_key IS NULL OR length(trim(automation_key)) > 0",
+            name="ck_tasks_automation_key_nonempty",
         ),
         Index(
             "uq_tasks_tenant_process_run_automation_key",
@@ -259,7 +271,6 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
     )
     process_run_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
-        ForeignKey("process_runs.id", ondelete="RESTRICT"),
         nullable=True,
         index=True,
     )

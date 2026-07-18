@@ -26,6 +26,10 @@ from app.modules.subscriptions.repository import SubscriptionRepository
 from app.modules.subscriptions.service import SubscriptionService
 from app.modules.tenants.models import Tenant
 from app.modules.workflows.models import Pipeline, PipelineStage, WorkItem, WorkItemParticipant
+from app.modules.process_overlay.enums import ProcessRunState
+from app.modules.process_overlay.models import ProcessRun
+from app.modules.process_overlay.service import ProcessOverlayBootstrapService
+from app.modules.workflows.repository import WorkflowRepository
 
 
 ENDPOINT = "/api/v1/public/leads"
@@ -676,3 +680,191 @@ def test_public_leads_xff_rotation_does_not_bypass_rate_limit(
             body = response.json()
             assert body["detail"] == PUBLIC_LEADS_RATE_LIMIT_MESSAGE
             assert "party_id" not in body
+
+
+def _flexity_sales_runtime(db_session: Session):
+    """Tenant + flexity_sales pipeline (full stages) for C2a overlay tests."""
+    provider = ProviderCompany(name="Flexity", slug=f"flexity-{uuid.uuid4().hex[:8]}")
+    user = User(
+        email=f"sales-owner-{uuid.uuid4().hex[:8]}@example.com",
+        hashed_password="not-used",
+        full_name="Sales Owner",
+    )
+    db_session.add_all([provider, user])
+    db_session.flush()
+
+    tenant = Tenant(
+        provider_company_id=provider.id,
+        name="Flexity Sales",
+        slug=f"flexity-sales-{uuid.uuid4().hex[:8]}",
+        status=TenantStatus.TRIAL,
+    )
+    db_session.add(tenant)
+    db_session.flush()
+
+    ModuleRegistryService(db_session).enable_modules_ordered(
+        tenant.id,
+        ["parties", "crm"],
+        as_trial=True,
+    )
+    SubscriptionService(db_session).seed_catalog()
+    subscription_repo = SubscriptionRepository(db_session)
+    plan = subscription_repo.get_plan_by_code("starter")
+    assert plan is not None
+    subscription_repo.upsert_subscription(
+        tenant_id=tenant.id,
+        plan_id=plan.id,
+        status=SubscriptionStatus.TRIAL,
+    )
+
+    repo = WorkflowRepository(db_session)
+    pipeline = repo.create_pipeline(
+        tenant_id=tenant.id,
+        code="flexity_sales",
+        name="Flexity Sales",
+        entity_type="work_item",
+        is_default=True,
+    )
+    stages = [
+        ("new_lead", 10, False),
+        ("contacted", 20, False),
+        ("diagnosis", 30, False),
+        ("proposal_prepared", 40, False),
+        ("proposal_sent", 50, False),
+        ("negotiation", 60, False),
+        ("accepted", 70, False),
+        ("rejected", 80, True),
+    ]
+    stage_ids = {}
+    for code, order, terminal in stages:
+        stage = repo.create_stage(
+            pipeline_id=pipeline.id,
+            code=code,
+            name=code,
+            sort_order=order,
+            is_terminal=terminal,
+        )
+        stage_ids[code] = stage.id
+    db_session.commit()
+
+    return {
+        "tenant_id": tenant.id,
+        "pipeline_id": pipeline.id,
+        "stage_id": stage_ids["new_lead"],
+        "user_id": user.id,
+    }
+
+
+def test_public_leads_active_overlay_starts_process_run(
+    client,
+    db_session: Session,
+    public_leads_settings,
+):
+    targets = _flexity_sales_runtime(db_session)
+    ProcessOverlayBootstrapService(db_session).bootstrap_flexity_sales_intake(
+        tenant_id=targets["tenant_id"],
+        actor_user_id=targets["user_id"],
+    )
+    db_session.commit()
+    _configure_public_leads(public_leads_settings, targets)
+
+    wi_before = db_session.query(WorkItem).count()
+    runs_before = db_session.query(ProcessRun).count()
+
+    response = client.post(ENDPOINT, json=_payload(), headers={"Origin": ALLOWED_ORIGIN})
+    assert response.status_code == 201
+    _assert_private_response(response.json())
+
+    assert db_session.query(WorkItem).count() == wi_before + 1
+    assert db_session.query(ProcessRun).count() == runs_before + 1
+
+    work_item = (
+        db_session.query(WorkItem)
+        .filter(WorkItem.tenant_id == targets["tenant_id"])
+        .order_by(WorkItem.created_at.desc())
+        .first()
+    )
+    assert work_item is not None
+    assert work_item.custom_fields_json["utm_campaign"] == "public-demo"
+    assert work_item.custom_fields_json["form_name"] == "demo"
+    assert work_item.custom_fields_json["party_match"] == "none"
+
+    run = (
+        db_session.query(ProcessRun)
+        .filter(ProcessRun.tenant_id == targets["tenant_id"])
+        .one()
+    )
+    assert run.work_item_id == work_item.id
+    assert run.run_state == ProcessRunState.ACTIVE
+    assert run.current_stage_code == "new_lead"
+
+
+def test_public_leads_without_overlay_no_process_run(
+    client,
+    db_session: Session,
+    public_leads_settings,
+):
+    targets = _flexity_sales_runtime(db_session)
+    _configure_public_leads(public_leads_settings, targets)
+
+    wi_before = db_session.query(WorkItem).count()
+    runs_before = db_session.query(ProcessRun).count()
+
+    response = client.post(ENDPOINT, json=_payload(), headers={"Origin": ALLOWED_ORIGIN})
+    assert response.status_code == 201
+
+    assert db_session.query(WorkItem).count() == wi_before + 1
+    assert db_session.query(ProcessRun).count() == runs_before
+
+    work_item = (
+        db_session.query(WorkItem)
+        .filter(WorkItem.tenant_id == targets["tenant_id"])
+        .order_by(WorkItem.created_at.desc())
+        .first()
+    )
+    assert work_item is not None
+    assert work_item.custom_fields_json["utm_source"] == "insights"
+    assert work_item.custom_fields_json["form_name"] == "demo"
+
+
+def test_public_leads_overlay_preserves_party_reuse(
+    client,
+    db_session: Session,
+    public_leads_settings,
+):
+    targets = _flexity_sales_runtime(db_session)
+    ProcessOverlayBootstrapService(db_session).bootstrap_flexity_sales_intake(
+        tenant_id=targets["tenant_id"],
+        actor_user_id=targets["user_id"],
+    )
+    db_session.commit()
+    _configure_public_leads(public_leads_settings, targets)
+
+    existing = _seed_party(
+        db_session,
+        tenant_id=targets["tenant_id"],
+        user_id=targets["user_id"],
+        display_name="Existing Contact",
+        email="asem@example.com",
+        phone="+77009998877",
+    )
+    party_before = db_session.query(Party).count()
+
+    response = client.post(
+        ENDPOINT,
+        json=_payload(email="asem@example.com", name="Asem Reuse"),
+        headers={"Origin": ALLOWED_ORIGIN},
+    )
+    assert response.status_code == 201
+    assert db_session.query(Party).count() == party_before
+
+    work_item = (
+        db_session.query(WorkItem)
+        .filter(WorkItem.tenant_id == targets["tenant_id"])
+        .order_by(WorkItem.created_at.desc())
+        .first()
+    )
+    assert work_item is not None
+    assert work_item.primary_party_id == existing.id
+    assert work_item.custom_fields_json["party_match"] == "exact"
+    assert db_session.query(ProcessRun).filter(ProcessRun.tenant_id == targets["tenant_id"]).count() == 1

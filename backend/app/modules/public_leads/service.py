@@ -40,6 +40,8 @@ from app.modules.public_leads.schemas import PublicLeadCreate, PublicLeadRespons
 from app.modules.tenants.models import Tenant
 from app.modules.workflows.models import Pipeline, PipelineStage
 from app.modules.workflows.repository import WorkflowRepository
+from app.modules.workflows.schemas import WorkItemCreate, WorkItemParticipantCreate
+from app.modules.workflows.service import WorkflowService
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +101,7 @@ class PublicLeadService:
                 tenant_id=tenant_id,
                 pipeline_id=pipeline_id,
                 stage_id=stage_id,
-                user_id=user.id,
+                user=user,
                 party_id=party.id,
                 match_meta=match_meta,
             )
@@ -319,30 +321,41 @@ class PublicLeadService:
         tenant_id: uuid.UUID,
         pipeline_id: uuid.UUID,
         stage_id: uuid.UUID,
-        user_id: uuid.UUID,
+        user: User,
         party_id: uuid.UUID,
         match_meta: dict[str, Any],
     ):
-        item = self.workflows.create_work_item(
-            tenant_id=tenant_id,
-            pipeline_id=pipeline_id,
-            stage_id=stage_id,
-            work_item_type="demo_request",
-            title=f"Demo request: {payload.name}",
-            description=self._build_description(payload, match_meta=match_meta),
-            primary_party_id=party_id,
-            status=WorkItemStatus.OPEN,
-            source=PUBLIC_LEAD_SOURCE,
-            custom_fields_json=self._custom_fields(payload, match_meta=match_meta),
-            created_by_user_id=user_id,
-            updated_by_user_id=user_id,
+        # Route through WorkflowService so E1b2 `_maybe_auto_start_process_run`
+        # applies when overlay is ACTIVE (no-op if missing/INACTIVE).
+        # Keep custom_fields={} here: free-form inbound keys (utm_*, form_name,
+        # party_match, …) are not registered CustomFieldDefinitions and would
+        # raise ConflictError under CustomFieldService validation.
+        created = WorkflowService(self.db, tenant_id).create_work_item(
+            user,
+            WorkItemCreate(
+                pipeline_id=pipeline_id,
+                stage_id=stage_id,
+                work_item_type="demo_request",
+                title=f"Demo request: {payload.name}",
+                description=self._build_description(payload, match_meta=match_meta),
+                primary_party_id=party_id,
+                status=WorkItemStatus.OPEN,
+                source=PUBLIC_LEAD_SOURCE,
+                participants=[
+                    WorkItemParticipantCreate(
+                        party_id=party_id,
+                        role=WorkItemParticipantRole.CLIENT,
+                    )
+                ],
+                custom_fields={},
+            ),
         )
-        self.workflows.add_participant(
-            tenant_id=tenant_id,
-            work_item_id=item.id,
-            party_id=party_id,
-            role=WorkItemParticipantRole.CLIENT,
-        )
+        item = self.workflows.get_work_item(tenant_id, created.id)
+        if item is None:
+            raise PublicLeadConfigError("Public lead work item was not persisted")
+        freeform = self._custom_fields(payload, match_meta=match_meta)
+        item.custom_fields_json = {**(item.custom_fields_json or {}), **freeform}
+        self.db.flush()
         return item
 
     def _build_description(

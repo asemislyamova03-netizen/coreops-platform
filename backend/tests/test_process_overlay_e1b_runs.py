@@ -73,6 +73,8 @@ def _create_flexity_sales_pipeline(db_session, tenant_id: uuid.UUID):
         ("contacted", 20, False),
         ("diagnosis", 30, False),
         ("proposal_prepared", 40, False),
+        ("proposal_sent", 50, False),
+        ("negotiation", 60, False),
         ("accepted", 70, False),
         ("rejected", 80, True),
     ]

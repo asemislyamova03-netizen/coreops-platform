@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, select, text
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from app.core.enums import ActivityType, TenantStatus, WorkItemStatus
@@ -81,6 +80,8 @@ def _create_flexity_sales_pipeline(db_session, tenant_id: uuid.UUID):
         ("contacted", 20, False),
         ("diagnosis", 30, False),
         ("proposal_prepared", 40, False),
+        ("proposal_sent", 50, False),
+        ("negotiation", 60, False),
         ("accepted", 70, False),
         ("rejected", 80, True),
     ]
@@ -630,17 +631,23 @@ def test_c14_close_and_reopen_through_guard(db_session):
     assert work_item.stage_id == rejected.id
 
 
-def test_c14b_close_denied_without_edge(db_session):
+def test_c14b_close_allowed_new_lead_to_rejected(db_session):
+    """Full graph includes new_lead→rejected; close_work_item must succeed."""
     tenant, pipeline, _, _, work_item, user, started = _setup_active_run(
         db_session, "e1c-c14b"
     )
     _seed_disposition_fields(db_session, tenant.id)
-    # new_lead → rejected is not an edge
-    with pytest.raises(ProcessTransitionDeniedError):
-        WorkflowService(db_session, tenant.id).close_work_item(
-            user, work_item.id, CloseWorkItemRequest(disposition="spam")
-        )
-    assert _applied_audits(db_session, started.id) == []
+    closed = WorkflowService(db_session, tenant.id).close_work_item(
+        user, work_item.id, CloseWorkItemRequest(disposition="spam")
+    )
+    rejected = _get_stage_by_code(db_session, pipeline.id, "rejected")
+    assert rejected is not None
+    assert closed.stage_id == rejected.id
+    stored = ProcessOverlayRepository(db_session).get_run(tenant.id, started.id)
+    assert stored is not None
+    assert stored.current_stage_code == "rejected"
+    assert len(_applied_audits(db_session, started.id)) == 1
+    assert _applied_audits(db_session, started.id)[0].changes_json["via"] == "close"
 
 
 # --- C15 source contract ---
@@ -665,12 +672,62 @@ def test_c15_source_contract_shared_guard():
 
 def test_c16_no_auto_complete_on_terminal(db_session):
     tenant, pipeline, _, _, work_item, user, started = _setup_active_run(db_session, "e1c-c16")
+    # Legal full path under C2a graph (diagnosis→accepted is gone).
     _move_along_path(
-        db_session, tenant, pipeline, work_item, user, "contacted", "diagnosis", "accepted"
+        db_session,
+        tenant,
+        pipeline,
+        work_item,
+        user,
+        "contacted",
+        "diagnosis",
+        "proposal_prepared",
+        "proposal_sent",
+        "negotiation",
+        "accepted",
     )
     stored = ProcessOverlayRepository(db_session).get_run(tenant.id, started.id)
     assert stored is not None
     assert stored.run_state == ProcessRunState.ACTIVE
+    assert stored.current_stage_code == "accepted"
+
+
+def test_c2a_full_graph_allows_contacted_and_denies_illegal_jump(db_session):
+    """C2a: allow new_lead→contacted; deny diagnosis→accepted; allow path to accepted."""
+    tenant, pipeline, _, _, work_item, user, started = _setup_active_run(
+        db_session, "e1c-c2a-graph"
+    )
+    contacted = _get_stage_by_code(db_session, pipeline.id, "contacted")
+    assert contacted is not None
+    WorkflowService(db_session, tenant.id).move_stage(
+        user, work_item.id, MoveStageRequest(stage_id=contacted.id)
+    )
+    stored = ProcessOverlayRepository(db_session).get_run(tenant.id, started.id)
+    assert stored is not None
+    assert stored.current_stage_code == "contacted"
+
+    _move_along_path(db_session, tenant, pipeline, work_item, user, "diagnosis")
+    accepted = _get_stage_by_code(db_session, pipeline.id, "accepted")
+    assert accepted is not None
+    with pytest.raises(ProcessTransitionDeniedError) as exc_info:
+        WorkflowService(db_session, tenant.id).move_stage(
+            user, work_item.id, MoveStageRequest(stage_id=accepted.id)
+        )
+    assert exc_info.value.from_stage_code == "diagnosis"
+    assert exc_info.value.to_stage_code == "accepted"
+
+    _move_along_path(
+        db_session,
+        tenant,
+        pipeline,
+        work_item,
+        user,
+        "proposal_prepared",
+        "proposal_sent",
+        "accepted",
+    )
+    stored = ProcessOverlayRepository(db_session).get_run(tenant.id, started.id)
+    assert stored is not None
     assert stored.current_stage_code == "accepted"
 
 
@@ -742,16 +799,41 @@ def test_guard_export_available():
 
 
 def _postgres_available() -> bool:
+    """Prefer pg_isready, then a short SQL probe; skip cleanly if either fails."""
+    import shutil
+    import subprocess
+    from urllib.parse import urlparse
+
     try:
         from app.core.config import get_settings
 
         get_settings.cache_clear()
-        engine = create_engine(get_settings().database_url)
+        database_url = get_settings().database_url
+        if not database_url.startswith("postgresql"):
+            return False
+
+        parsed = urlparse(database_url.replace("postgresql+psycopg://", "postgresql://"))
+        host = parsed.hostname or "localhost"
+        port = str(parsed.port or 5432)
+        user = parsed.username or "postgres"
+
+        pg_isready = shutil.which("pg_isready")
+        if pg_isready:
+            ready = subprocess.run(
+                [pg_isready, "-h", host, "-p", port, "-U", user],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            if ready.returncode != 0:
+                return False
+
+        engine = create_engine(database_url)
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         engine.dispose()
         return True
-    except OperationalError:
+    except Exception:
         return False
 
 

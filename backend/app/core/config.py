@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     public_leads_rate_limit_hour_window_seconds: int = 3600
     public_leads_rate_limit_hour_max_requests: int = 20
 
+    # Process Overlay LOCAL/ops bootstrap — disabled by default; never enable in production
+    process_overlay_bootstrap_enabled: bool = False
+
     @property
     def public_leads_allowed_origin_list(self) -> list[str]:
         return [

@@ -146,6 +146,22 @@ class ProcessOverlayRepository:
         value = self.db.scalar(stmt)
         return int(value or 0)
 
+    def get_latest_definition_version(
+        self,
+        tenant_id: uuid.UUID,
+        configuration_id: uuid.UUID,
+    ) -> ProcessDefinitionVersion | None:
+        stmt = (
+            select(ProcessDefinitionVersion)
+            .where(
+                ProcessDefinitionVersion.tenant_id == tenant_id,
+                ProcessDefinitionVersion.tenant_process_configuration_id == configuration_id,
+            )
+            .order_by(ProcessDefinitionVersion.version_number.desc())
+            .limit(1)
+        )
+        return self.db.scalar(stmt)
+
     def insert_definition_version(
         self,
         *,

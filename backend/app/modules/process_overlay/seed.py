@@ -4,7 +4,10 @@ PROCESS_TEMPLATE_DEFINITIONS = [
     {
         "code": "flexity_sales_intake",
         "name": "Flexity Sales Intake",
-        "description": "E1 intake path on flexity_sales pipeline (new_lead through diagnosis to accepted/rejected).",
+        "description": (
+            "Sales intake on flexity_sales: new_lead through proposal/negotiation "
+            "to accepted/rejected (full graph)."
+        ),
         "default_pipeline_code": "flexity_sales",
         "required_module_codes_json": ["crm", "parties"],
         "default_policy_blueprint_json": {
@@ -15,6 +18,9 @@ PROCESS_TEMPLATE_DEFINITIONS = [
                 "new_lead",
                 "contacted",
                 "diagnosis",
+                "proposal_prepared",
+                "proposal_sent",
+                "negotiation",
                 "accepted",
                 "rejected",
             ],
@@ -29,6 +35,14 @@ PROCESS_TEMPLATE_DEFINITIONS = [
                     },
                 },
                 {
+                    "from_stage_code": "new_lead",
+                    "to_stage_code": "rejected",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
                     "from_stage_code": "contacted",
                     "to_stage_code": "diagnosis",
                     "conditions": {
@@ -37,8 +51,8 @@ PROCESS_TEMPLATE_DEFINITIONS = [
                     },
                 },
                 {
-                    "from_stage_code": "diagnosis",
-                    "to_stage_code": "accepted",
+                    "from_stage_code": "contacted",
+                    "to_stage_code": "rejected",
                     "conditions": {
                         "required_roles": ["sales"],
                         "requires_approval": False,
@@ -46,6 +60,70 @@ PROCESS_TEMPLATE_DEFINITIONS = [
                 },
                 {
                     "from_stage_code": "diagnosis",
+                    "to_stage_code": "proposal_prepared",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
+                    "from_stage_code": "diagnosis",
+                    "to_stage_code": "rejected",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
+                    "from_stage_code": "proposal_prepared",
+                    "to_stage_code": "proposal_sent",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
+                    "from_stage_code": "proposal_prepared",
+                    "to_stage_code": "rejected",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
+                    "from_stage_code": "proposal_sent",
+                    "to_stage_code": "negotiation",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
+                    "from_stage_code": "proposal_sent",
+                    "to_stage_code": "accepted",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
+                    "from_stage_code": "proposal_sent",
+                    "to_stage_code": "rejected",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
+                    "from_stage_code": "negotiation",
+                    "to_stage_code": "accepted",
+                    "conditions": {
+                        "required_roles": ["sales"],
+                        "requires_approval": False,
+                    },
+                },
+                {
+                    "from_stage_code": "negotiation",
                     "to_stage_code": "rejected",
                     "conditions": {
                         "required_roles": ["sales"],

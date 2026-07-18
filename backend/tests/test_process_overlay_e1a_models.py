@@ -62,7 +62,7 @@ def _create_pipeline(db_session, tenant_id: uuid.UUID, code: str = "flexity_sale
         is_default=True,
     )
     for order, stage_code in enumerate(
-        ["new_lead", "contacted", "diagnosis", "accepted", "rejected"],
+        ["new_lead", "contacted", "diagnosis", "proposal_prepared", "proposal_sent", "negotiation", "accepted", "rejected"],
         start=1,
     ):
         repo.create_stage(

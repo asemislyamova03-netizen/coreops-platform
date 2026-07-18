@@ -120,6 +120,19 @@ class ProcessOverlayRunService:
             # begin_nested rolled back the savepoint; outer txn stays usable.
             raise ProcessRunConflictError(_ACTIVE_RUN_CONFLICT_MESSAGE) from exc
 
+        # C2b1: optional first-contact Task automation (tenant config; same session).
+        from app.modules.workflows.service.lead_automation import (
+            maybe_create_process_run_first_contact_task,
+        )
+
+        maybe_create_process_run_first_contact_task(
+            self.db,
+            tenant_id=tenant_id,
+            process_run_id=run.id,
+            work_item_id=work_item.id,
+            actor_user_id=actor_user_id,
+        )
+
         return ProcessRunResponse.model_validate(run)
 
     def complete_run(

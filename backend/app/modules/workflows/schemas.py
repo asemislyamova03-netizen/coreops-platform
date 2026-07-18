@@ -144,6 +144,8 @@ class TaskCreate(BaseModel):
     status: TaskStatus = TaskStatus.PENDING
     due_at: datetime | None = None
     assigned_to_user_id: uuid.UUID | None = None
+    process_run_id: uuid.UUID | None = None
+    automation_key: str | None = Field(default=None, max_length=64)
 
 
 class TaskResponse(BaseModel):
@@ -155,6 +157,8 @@ class TaskResponse(BaseModel):
     status: TaskStatus
     due_at: datetime | None
     assigned_to_user_id: uuid.UUID | None
+    process_run_id: uuid.UUID | None = None
+    automation_key: str | None = None
     created_at: datetime
 
 

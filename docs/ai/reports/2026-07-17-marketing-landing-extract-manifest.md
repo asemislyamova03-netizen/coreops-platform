@@ -1,11 +1,11 @@
 # Marketing landing extract manifest
 
-**Date:** 2026-07-17 (session 2026-07-18 local)  
-**Source (READ/COPY ONLY):** dirty root `C:/Users/АДМИН/OneDrive/Documents/Flexity`  
-- branch `feature/marketing-m8-publish-bridge` @ `9658a82`  
+**Date:** 2026-07-17 (session 2026-07-18 local)
+**Source (READ/COPY ONLY):** dirty root `C:/Users/АДМИН/OneDrive/Documents/Flexity`
+- branch `feature/marketing-m8-publish-bridge` @ `9658a82`
 - dirty `git diff --cached` staged count: **0** (verified before/after; root not modified)
 
-**Target worktree:** `C:/Users/АДМИН/OneDrive/Documents/Flexity/.worktrees/marketing-landing-reconcile`  
+**Target worktree:** `C:/Users/АДМИН/OneDrive/Documents/Flexity/.worktrees/marketing-landing-reconcile`
 **Branch:** `feature/marketing-landing-reconcile` FROM `origin/main` @ `abbde60`
 
 **No push / no merge / no deploy.**
@@ -14,11 +14,11 @@
 
 ## Task classification
 
-1. **Project:** Flexity  
-2. **Category:** documentation_only + content extract (static marketing landing)  
-3. **Risk:** low  
-4. **Intended scope:** `landing/www/**` remainder + related article/handoff/report  
-5. **Forbidden:** M8-D publish ops, credentials, `.ai_local`/`.worktrees`/dumps, wholesale shared files, C1c/Booking/E1/M8 core duplicates  
+1. **Project:** Flexity
+2. **Category:** documentation_only + content extract (static marketing landing)
+3. **Risk:** low
+4. **Intended scope:** `landing/www/**` remainder + related article/handoff/report
+5. **Forbidden:** M8-D publish ops, credentials, `.ai_local`/`.worktrees`/dumps, wholesale shared files, C1c/Booking/E1/M8 core duplicates
 6. **Plan type:** documentation-only change + static content copy onto clean branch
 
 ---
@@ -39,7 +39,7 @@
 
 ## Frontend target
 
-**Static landing** under `landing/www/` (HTML + `assets/site.css` + Bootstrap CDN).  
+**Static landing** under `landing/www/` (HTML + `assets/site.css` + Bootstrap CDN).
 **Not** the npm Platform Console (`platform-console/`). No `landing/package.json`. No lockfile changes.
 
 Deploy path (docs): `/var/www/flexity-landing/` ← `landing/www/`.
@@ -93,15 +93,15 @@ Deploy path (docs): `/var/www/flexity-landing/` ← `landing/www/`.
 
 Still left on dirty root (valuable, **not** in this branch):
 
-1. **Backend / consulting import / C1c** — `backend/app/modules/**`, import dry-run, staging scripts, related tests  
-2. **Booking MVP domain** — `backend/app/modules/booking/**` + booking tests/docs (may already have a separate worktree)  
-3. **Platform Console WIP** — `platform-console/src/**`  
-4. **Process overlay / E1 docs & code** — docs + any remaining backend overlays  
-5. **Marketing M8 core / cabinet / publish bridge** — remaining marketing module code not in landing www (M8-D already branched)  
-6. **Content-ops packs diffs** — e.g. `process-before-ai`, dirty vs main pack file diffs  
-7. **Large docs/ai backlog** — plans, handoffs, research, CR notes (~200+ under `docs/ai`)  
-8. **Industry/reference docs** — clinic/trailers/booking audit plans at `docs/FLEXITY_*`  
-9. **Local-only / forbidden** — `.ai_local`, credentials, dumps, worktrees themselves  
+1. **Backend / consulting import / C1c** — `backend/app/modules/**`, import dry-run, staging scripts, related tests
+2. **Booking MVP domain** — `backend/app/modules/booking/**` + booking tests/docs (may already have a separate worktree)
+3. **Platform Console WIP** — `platform-console/src/**`
+4. **Process overlay / E1 docs & code** — docs + any remaining backend overlays
+5. **Marketing M8 core / cabinet / publish bridge** — remaining marketing module code not in landing www (M8-D already branched)
+6. **Content-ops packs diffs** — e.g. `process-before-ai`, dirty vs main pack file diffs
+7. **Large docs/ai backlog** — plans, handoffs, research, CR notes (~200+ under `docs/ai`)
+8. **Industry/reference docs** — clinic/trailers/booking audit plans at `docs/FLEXITY_*`
+9. **Local-only / forbidden** — `.ai_local`, credentials, dumps, worktrees themselves
 
 ---
 

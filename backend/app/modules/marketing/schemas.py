@@ -394,11 +394,36 @@ class HistoricalPublishResponse(BaseModel):
     channel_results: list[HistoricalPublishChannelResult] = Field(default_factory=list)
 
 
-# --- M8-B internal service view (not exposed via HTTP routes) ---
+# --- M8-B publishing connections HTTP request DTOs + safe view ---
+
+
+class PublishingConnectionCreate(BaseModel):
+    provider: MarketingPublishingProvider
+    account_display_name: str = Field(min_length=1, max_length=255)
+    account_identifier: str | None = Field(default=None, max_length=255)
+    scopes_json: list[str] = Field(default_factory=list)
+    metadata_json: dict = Field(default_factory=dict)
+
+
+class PublishingConnectionUpdate(BaseModel):
+    account_display_name: str | None = Field(default=None, min_length=1, max_length=255)
+    account_identifier: str | None = Field(default=None, max_length=255)
+    scopes_json: list[str] | None = None
+    metadata_json: dict | None = None
+
+
+class PublishingConnectionSecretWrite(BaseModel):
+    """Write-only secret material for connect/rotate. Never returned in responses."""
+
+    secret: str = Field(min_length=1, max_length=8192)
+
+
+class PublishingConnectionDisconnect(BaseModel):
+    reason: str | None = Field(default=None, max_length=512)
 
 
 class PublishingConnectionView(BaseModel):
-    """Service-layer DTO; never includes secret_ref (has_secret only)."""
+    """Safe connection DTO for HTTP + service; has_secret only (no secret_ref)."""
 
     model_config = ConfigDict(from_attributes=True)
 

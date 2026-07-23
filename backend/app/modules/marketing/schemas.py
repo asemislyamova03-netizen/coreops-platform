@@ -7,10 +7,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.modules.marketing.enums import (
     MarketingApprovalStatus,
     MarketingChannel,
+    MarketingDestinationStatus,
+    MarketingDestinationValidationStatus,
     MarketingMediaAssetStatus,
     MarketingMediaValidationStatus,
     MarketingPackStatus,
     MarketingPreflightStatus,
+    MarketingPublishDestinationType,
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
@@ -440,6 +443,30 @@ class PublishingConnectionView(BaseModel):
     last_checked_at: datetime | None = None
     last_error_code: str | None = None
     last_error_message_redacted: str | None = None
+    metadata_json: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+    created_by_user_id: uuid.UUID | None = None
+    updated_by_user_id: uuid.UUID | None = None
+
+
+class PublishDestinationView(BaseModel):
+    """Safe destination DTO — never includes secret_ref / tokens / credentials."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    publishing_connection_id: uuid.UUID
+    provider: MarketingPublishingProvider
+    destination_type: MarketingPublishDestinationType
+    external_id: str
+    display_name: str
+    status: MarketingDestinationStatus
+    validation_status: MarketingDestinationValidationStatus
+    validated_at: datetime | None = None
+    validation_error_code: str | None = None
+    identity_locked_at: datetime | None = None
     metadata_json: dict = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime

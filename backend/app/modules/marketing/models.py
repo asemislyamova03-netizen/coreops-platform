@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -26,10 +27,13 @@ from app.modules.marketing.enums import (
     MarketingApprovalStatus,
     MarketingAttributionTouchType,
     MarketingChannel,
+    MarketingDestinationStatus,
+    MarketingDestinationValidationStatus,
     MarketingMediaAssetStatus,
     MarketingMediaValidationStatus,
     MarketingPackStatus,
     MarketingPreflightStatus,
+    MarketingPublishDestinationType,
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
@@ -38,6 +42,7 @@ from app.modules.marketing.enums import (
     MarketingStorageResourceMode,
     MarketingTextStatus,
     MarketingTopicStatus,
+    destination_capability_enabled,
 )
 
 
@@ -462,6 +467,12 @@ class MarketingPublishingConnection(Base, UUIDPrimaryKeyMixin, TimestampMixin, A
             postgresql_where=text("account_identifier IS NOT NULL"),
             sqlite_where=text("account_identifier IS NOT NULL"),
         ),
+        # Composite FK target for publish destinations (added conceptually with M8-D1 / 0026).
+        UniqueConstraint(
+            "tenant_id",
+            "id",
+            name="uq_marketing_publishing_conn_tenant_id_id",
+        ),
         Index("ix_marketing_publishing_connections_tenant_provider", "tenant_id", "provider"),
         Index("ix_marketing_publishing_connections_tenant_status", "tenant_id", "status"),
         Index(
@@ -513,6 +524,241 @@ class MarketingPublishingConnection(Base, UUIDPrimaryKeyMixin, TimestampMixin, A
     last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_error_message_redacted: Mapped[str | None] = mapped_column(String(512), nullable=True)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class MarketingPublishDestination(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
+    """Publish target allow-list entry. Never stores secrets / tokens / secret_ref.
+
+    Enum storage convention (matches M8-C2a): SQLAlchemy Enum NAME storage —
+    uppercase member names in DB CHECKs / partial indexes (ENABLED, UNCHECKED, …).
+    HQ wording lives on enum `.value` (enabled, unchecked, telegram_chat, …).
+
+    identity_locked_at: set once on first VALID (and reserved for future D4 live use).
+    Resetting validation to UNCHECKED does not clear the lock.
+    """
+
+    __tablename__ = "marketing_publish_destinations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            ondelete="RESTRICT",
+            name="fk_mkt_publish_dest_tenant",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "publishing_connection_id"],
+            [
+                "marketing_publishing_connections.tenant_id",
+                "marketing_publishing_connections.id",
+            ],
+            ondelete="RESTRICT",
+            name="fk_mkt_publish_dest_tenant_connection",
+        ),
+        CheckConstraint(
+            "status IN ('ENABLED','DISABLED','ARCHIVED')",
+            name="ck_mkt_publish_dest_status_values",
+        ),
+        CheckConstraint(
+            "validation_status IN ('UNCHECKED','VALID','INVALID','UNAVAILABLE')",
+            name="ck_mkt_publish_dest_validation_status_values",
+        ),
+        CheckConstraint(
+            "destination_type IN ("
+            "'TELEGRAM_CHAT','INSTAGRAM_USER','THREADS_USER','TIKTOK_USER')",
+            name="ck_mkt_publish_dest_type_values",
+        ),
+        CheckConstraint(
+            "provider IN ('TELEGRAM','INSTAGRAM','THREADS','TIKTOK')",
+            name="ck_mkt_publish_dest_provider_values",
+        ),
+        CheckConstraint(
+            "trim(external_id) <> ''",
+            name="ck_mkt_publish_dest_external_id_nonempty",
+        ),
+        CheckConstraint(
+            "trim(display_name) <> ''",
+            name="ck_mkt_publish_dest_display_name_nonempty",
+        ),
+        Index(
+            "uq_mkt_publish_dest_active_identity",
+            "tenant_id",
+            "publishing_connection_id",
+            "destination_type",
+            "external_id",
+            unique=True,
+            postgresql_where=text("status <> 'ARCHIVED'"),
+            sqlite_where=text("status <> 'ARCHIVED'"),
+        ),
+        Index("ix_marketing_publish_destinations_tenant_status", "tenant_id", "status"),
+        Index(
+            "ix_marketing_publish_destinations_tenant_connection",
+            "tenant_id",
+            "publishing_connection_id",
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    publishing_connection_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, nullable=False, index=True
+    )
+    provider: Mapped[MarketingPublishingProvider] = mapped_column(
+        Enum(
+            MarketingPublishingProvider,
+            name="marketing_publish_destination_provider",
+            native_enum=False,
+        ),
+        nullable=False,
+    )
+    destination_type: Mapped[MarketingPublishDestinationType] = mapped_column(
+        Enum(
+            MarketingPublishDestinationType,
+            name="marketing_publish_destination_type",
+            native_enum=False,
+        ),
+        nullable=False,
+    )
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[MarketingDestinationStatus] = mapped_column(
+        Enum(
+            MarketingDestinationStatus,
+            name="marketing_destination_status",
+            native_enum=False,
+        ),
+        default=MarketingDestinationStatus.ENABLED,
+        server_default="ENABLED",
+        nullable=False,
+        index=True,
+    )
+    validation_status: Mapped[MarketingDestinationValidationStatus] = mapped_column(
+        Enum(
+            MarketingDestinationValidationStatus,
+            name="marketing_destination_validation_status",
+            native_enum=False,
+        ),
+        default=MarketingDestinationValidationStatus.UNCHECKED,
+        server_default="UNCHECKED",
+        nullable=False,
+    )
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    validation_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    identity_locked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+    def assert_external_id_mutable(self) -> None:
+        """Mutable only while unchecked AND identity not yet locked."""
+        from app.modules.marketing.exceptions import MarketingPublishDestinationValidationError
+
+        if (
+            self.validation_status != MarketingDestinationValidationStatus.UNCHECKED
+            or self.identity_locked_at is not None
+        ):
+            raise MarketingPublishDestinationValidationError("external_id_immutable")
+
+    def update_external_id(self, external_id: str) -> None:
+        from app.modules.marketing.exceptions import MarketingPublishDestinationValidationError
+
+        self.assert_external_id_mutable()
+        value = external_id.strip()
+        if not value:
+            raise MarketingPublishDestinationValidationError("external_id_required")
+        self.external_id = value
+
+    def enable(self) -> None:
+        from app.modules.marketing.exceptions import MarketingPublishDestinationValidationError
+
+        if self.status == MarketingDestinationStatus.ARCHIVED:
+            raise MarketingPublishDestinationValidationError("archived_destination_immutable")
+        if self.status == MarketingDestinationStatus.ENABLED:
+            return
+        if self.status != MarketingDestinationStatus.DISABLED:
+            raise MarketingPublishDestinationValidationError("invalid_status_transition")
+        if not destination_capability_enabled(self.destination_type):
+            raise MarketingPublishDestinationValidationError("destination_capability_disabled")
+        self.status = MarketingDestinationStatus.ENABLED
+
+    def disable(self) -> None:
+        from app.modules.marketing.exceptions import MarketingPublishDestinationValidationError
+
+        if self.status == MarketingDestinationStatus.ARCHIVED:
+            raise MarketingPublishDestinationValidationError("archived_destination_immutable")
+        if self.status == MarketingDestinationStatus.DISABLED:
+            return
+        if self.status != MarketingDestinationStatus.ENABLED:
+            raise MarketingPublishDestinationValidationError("invalid_status_transition")
+        self.status = MarketingDestinationStatus.DISABLED
+
+    def archive(self) -> None:
+        from app.modules.marketing.exceptions import MarketingPublishDestinationValidationError
+
+        if self.status == MarketingDestinationStatus.ARCHIVED:
+            return
+        if self.status not in (
+            MarketingDestinationStatus.ENABLED,
+            MarketingDestinationStatus.DISABLED,
+        ):
+            raise MarketingPublishDestinationValidationError("invalid_status_transition")
+        self.status = MarketingDestinationStatus.ARCHIVED
+
+    def apply_structural_validation(
+        self,
+        *,
+        validation_status: MarketingDestinationValidationStatus,
+        validation_error_code: str | None = None,
+        validated_at: datetime | None = None,
+    ) -> None:
+        """Structural validation only (D1). Provider validate requires adapter (later).
+
+        TikTok capability disabled: cannot mark VALID / available; UNAVAILABLE only.
+        First transition to VALID sets identity_locked_at once; UNCHECKED reset does not unlock.
+        """
+        from datetime import UTC
+
+        from app.modules.marketing.exceptions import MarketingPublishDestinationValidationError
+
+        if self.status == MarketingDestinationStatus.ARCHIVED:
+            raise MarketingPublishDestinationValidationError("archived_destination_immutable")
+
+        if not destination_capability_enabled(self.destination_type):
+            if validation_status == MarketingDestinationValidationStatus.VALID:
+                raise MarketingPublishDestinationValidationError(
+                    "destination_capability_disabled"
+                )
+            if validation_status not in (
+                MarketingDestinationValidationStatus.UNAVAILABLE,
+                MarketingDestinationValidationStatus.INVALID,
+                MarketingDestinationValidationStatus.UNCHECKED,
+            ):
+                raise MarketingPublishDestinationValidationError(
+                    "destination_capability_disabled"
+                )
+
+        if validation_status == MarketingDestinationValidationStatus.UNCHECKED:
+            self.validation_status = validation_status
+            self.validated_at = None
+            self.validation_error_code = None
+            # identity_locked_at intentionally preserved
+            return
+
+        stamp = validated_at or datetime.now(UTC)
+        self.validation_status = validation_status
+        self.validated_at = stamp
+        code = (validation_error_code or "").strip() or None
+        if validation_status in (
+            MarketingDestinationValidationStatus.INVALID,
+            MarketingDestinationValidationStatus.UNAVAILABLE,
+        ):
+            self.validation_error_code = code
+        else:
+            self.validation_error_code = None
+
+        if (
+            validation_status == MarketingDestinationValidationStatus.VALID
+            and self.identity_locked_at is None
+        ):
+            self.identity_locked_at = stamp
 
 
 class MarketingLeadAttribution(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):

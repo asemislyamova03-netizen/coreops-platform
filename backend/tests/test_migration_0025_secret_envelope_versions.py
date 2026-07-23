@@ -21,9 +21,13 @@ def test_0025_migration_revision_chain():
     assert rev.down_revision == DOWN_REVISION_0025
     assert len(REVISION_0025) <= 32
 
+    # 0025 remains a single linear ancestor; current head is a later revision.
     heads = script.get_heads()
     assert len(heads) == 1
-    assert heads[0] == REVISION_0025
+    assert REVISION_0025 not in heads or heads[0] == REVISION_0025
+    walk = list(script.walk_revisions())
+    ids = {item.revision for item in walk}
+    assert REVISION_0025 in ids
 
 
 def test_0025_migration_module_importable():
@@ -49,6 +53,18 @@ def test_0025_migration_module_importable():
     assert "marketing_publishing_connections" not in src
 
 
-def test_no_second_alembic_head_after_0025():
+def test_0025_is_ancestor_of_single_head():
     script = ScriptDirectory.from_config(Config(ALEMBIC_INI))
-    assert script.get_heads() == [REVISION_0025]
+    heads = script.get_heads()
+    assert len(heads) == 1
+    # Walk down from head until we find 0025 (must be on the only branch).
+    current = heads[0]
+    seen: set[str] = set()
+    while current is not None and current not in seen:
+        seen.add(current)
+        if current == REVISION_0025:
+            break
+        rev = script.get_revision(current)
+        assert rev is not None
+        current = rev.down_revision
+    assert REVISION_0025 in seen

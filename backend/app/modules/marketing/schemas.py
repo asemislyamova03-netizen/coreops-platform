@@ -474,6 +474,20 @@ class PublishDestinationView(BaseModel):
     updated_by_user_id: uuid.UUID | None = None
 
 
+class PublishDestinationCreate(BaseModel):
+    publishing_connection_id: uuid.UUID
+    destination_type: MarketingPublishDestinationType
+    external_id: str = Field(min_length=1, max_length=255)
+    display_name: str = Field(min_length=1, max_length=255)
+    metadata_json: dict = Field(default_factory=dict)
+
+
+class PublishDestinationUpdate(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=255)
+    external_id: str | None = Field(default=None, min_length=1, max_length=255)
+    metadata_json: dict | None = None
+
+
 # --- M8-C2a storage profiles / managed media (domain DTOs; no HTTP routes) ---
 
 

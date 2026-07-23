@@ -1,24 +1,62 @@
-"""Validation helpers for M8-D1 publish destination metadata (no secret material)."""
+"""Validation helpers for M8-D publish destination metadata / display_name (no secret material)."""
 
 from __future__ import annotations
 
+import re
+
 from app.modules.marketing.exceptions import MarketingPublishDestinationValidationError
 
-# Exact key names (case-insensitive). Never log the associated values.
+# Canonical forbidden key names (case-insensitive; separators / camelCase normalized away).
 _FORBIDDEN_METADATA_KEYS: frozenset[str] = frozenset(
     {
         "token",
-        "access_token",
-        "refresh_token",
+        "accesstoken",
+        "refreshtoken",
         "secret",
-        "secret_ref",
+        "secretref",
         "password",
         "credential",
         "credentials",
         "authorization",
-        "api_key",
+        "apikey",
+        "bottoken",
+        "clientsecret",
+        "privatekey",
+        "ciphertext",
+        "nonce",
+        "wrappedkey",
+        "credentialsjson",
     }
 )
+
+_MAX_DISPLAY_NAME_LENGTH = 255
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f]")
+_SEPARATORS_RE = re.compile(r"[-_./\s]+")
+_CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+
+
+def normalize_metadata_key(key: str) -> str:
+    """Normalize metadata key for forbidden-key checks (casefold + separators + camelCase)."""
+    # Split camelCase / PascalCase before casefold so AccessToken → access + token.
+    spaced = _CAMEL_BOUNDARY_RE.sub(" ", key)
+    collapsed = _SEPARATORS_RE.sub("", spaced.casefold())
+    return collapsed
+
+
+def validate_destination_display_name(display_name: str | None) -> str:
+    """Require non-empty display_name within length limit and without control characters."""
+    if display_name is None:
+        raise MarketingPublishDestinationValidationError("display_name_required")
+    if not isinstance(display_name, str):
+        raise MarketingPublishDestinationValidationError("display_name_must_be_string")
+    name = display_name.strip()
+    if not name:
+        raise MarketingPublishDestinationValidationError("display_name_required")
+    if len(name) > _MAX_DISPLAY_NAME_LENGTH:
+        raise MarketingPublishDestinationValidationError("display_name_too_long")
+    if _CONTROL_CHAR_RE.search(name):
+        raise MarketingPublishDestinationValidationError("display_name_control_characters")
+    return name
 
 
 def validate_destination_metadata_json(metadata: dict | None) -> dict:
@@ -35,7 +73,7 @@ def _sanitize_mapping(mapping: dict) -> dict:
     for key, value in mapping.items():
         if not isinstance(key, str):
             raise MarketingPublishDestinationValidationError("metadata_json_key_must_be_string")
-        if key.casefold() in _FORBIDDEN_METADATA_KEYS:
+        if normalize_metadata_key(key) in _FORBIDDEN_METADATA_KEYS:
             # Do not include the forbidden value in the exception message.
             raise MarketingPublishDestinationValidationError("metadata_json_forbidden_key")
         out[key] = _sanitize_value(value)

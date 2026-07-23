@@ -11,13 +11,17 @@ from app.core.secrets.port import SecretVaultPort
 from app.core.tenancy import TenantContext
 from app.modules.marketing.deps import (
     get_optional_secret_vault,
+    get_publish_destination_service,
     get_publishing_connection_service,
     get_publishing_secret_lifecycle_service,
     require_marketing_connection_admin,
+    require_marketing_destination_admin,
 )
 from app.modules.marketing.enums import (
     MarketingChannel,
+    MarketingDestinationStatus,
     MarketingPackStatus,
+    MarketingPublishDestinationType,
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
@@ -39,6 +43,9 @@ from app.modules.marketing.schemas import (
     PackUpdate,
     PreflightRequest,
     PreflightResponse,
+    PublishDestinationCreate,
+    PublishDestinationUpdate,
+    PublishDestinationView,
     PublishingConnectionCreate,
     PublishingConnectionDisconnect,
     PublishingConnectionSecretWrite,
@@ -55,6 +62,9 @@ from app.modules.marketing.service.approval import MarketingApprovalService
 from app.modules.marketing.service.historical_publish import MarketingHistoricalPublishService
 from app.modules.marketing.service.packs import MarketingPackService
 from app.modules.marketing.service.media import MarketingMediaService
+from app.modules.marketing.service.publish_destinations import (
+    MarketingPublishDestinationService,
+)
 from app.modules.marketing.service.publishing_connections import (
     MarketingPublishingConnectionService,
 )
@@ -576,3 +586,149 @@ def health_check_publishing_connection(
 
 
 # --- end M8-B publishing connections HTTP API ---
+
+
+# --- M8-D2 publish destinations HTTP API ---
+
+
+@router.get(
+    "/publish-destinations",
+    response_model=list[PublishDestinationView],
+)
+def list_publish_destinations(
+    status_filter: MarketingDestinationStatus | None = Query(
+        default=None, alias="status"
+    ),
+    publishing_connection_id: uuid.UUID | None = None,
+    destination_type: MarketingPublishDestinationType | None = None,
+    include_archived: bool = False,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    svc: MarketingPublishDestinationService = Depends(get_publish_destination_service),
+) -> list[PublishDestinationView]:
+    return svc.list_destinations(
+        status=status_filter,
+        publishing_connection_id=publishing_connection_id,
+        destination_type=destination_type,
+        include_archived=include_archived,
+    )
+
+
+@router.get(
+    "/publish-destinations/{destination_id}",
+    response_model=PublishDestinationView,
+)
+def get_publish_destination(
+    destination_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    svc: MarketingPublishDestinationService = Depends(get_publish_destination_service),
+) -> PublishDestinationView:
+    return svc.get_destination(destination_id)
+
+
+@router.post(
+    "/publish-destinations",
+    response_model=PublishDestinationView,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_publish_destination(
+    payload: PublishDestinationCreate,
+    ctx: TenantContext = Depends(require_marketing_destination_admin),
+    db: Session = Depends(get_db),
+    svc: MarketingPublishDestinationService = Depends(get_publish_destination_service),
+) -> PublishDestinationView:
+    result = svc.create_destination(
+        publishing_connection_id=payload.publishing_connection_id,
+        destination_type=payload.destination_type,
+        external_id=payload.external_id,
+        display_name=payload.display_name,
+        metadata_json=payload.metadata_json,
+        user_id=ctx.user.id,
+    )
+    db.commit()
+    return result
+
+
+@router.patch(
+    "/publish-destinations/{destination_id}",
+    response_model=PublishDestinationView,
+)
+def update_publish_destination(
+    destination_id: uuid.UUID,
+    payload: PublishDestinationUpdate,
+    ctx: TenantContext = Depends(require_marketing_destination_admin),
+    db: Session = Depends(get_db),
+    svc: MarketingPublishDestinationService = Depends(get_publish_destination_service),
+) -> PublishDestinationView:
+    result = svc.update_destination(
+        destination_id,
+        display_name=payload.display_name,
+        external_id=payload.external_id,
+        metadata_json=payload.metadata_json,
+        user_id=ctx.user.id,
+    )
+    db.commit()
+    return result
+
+
+@router.post(
+    "/publish-destinations/{destination_id}/disable",
+    response_model=PublishDestinationView,
+)
+def disable_publish_destination(
+    destination_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_destination_admin),
+    db: Session = Depends(get_db),
+    svc: MarketingPublishDestinationService = Depends(get_publish_destination_service),
+) -> PublishDestinationView:
+    result = svc.disable_destination(destination_id, user_id=ctx.user.id)
+    db.commit()
+    return result
+
+
+@router.post(
+    "/publish-destinations/{destination_id}/enable",
+    response_model=PublishDestinationView,
+)
+def enable_publish_destination(
+    destination_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_destination_admin),
+    db: Session = Depends(get_db),
+    svc: MarketingPublishDestinationService = Depends(get_publish_destination_service),
+) -> PublishDestinationView:
+    result = svc.enable_destination(destination_id, user_id=ctx.user.id)
+    db.commit()
+    return result
+
+
+@router.post(
+    "/publish-destinations/{destination_id}/validate",
+    response_model=PublishDestinationView,
+)
+def validate_publish_destination(
+    destination_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_destination_admin),
+    db: Session = Depends(get_db),
+    svc: MarketingPublishDestinationService = Depends(get_publish_destination_service),
+) -> PublishDestinationView:
+    """Structural validation only — never invents provider VALID without adapter."""
+    result = svc.validate_destination(destination_id, user_id=ctx.user.id)
+    db.commit()
+    return result
+
+
+@router.post(
+    "/publish-destinations/{destination_id}/archive",
+    response_model=PublishDestinationView,
+)
+def archive_publish_destination(
+    destination_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_destination_admin),
+    db: Session = Depends(get_db),
+    svc: MarketingPublishDestinationService = Depends(get_publish_destination_service),
+) -> PublishDestinationView:
+    result = svc.archive_destination(destination_id, user_id=ctx.user.id)
+    db.commit()
+    return result
+
+
+# --- end M8-D2 publish destinations HTTP API ---

@@ -20,6 +20,9 @@ from app.core.tenancy import TenantContext, get_tenant_context
 from app.modules.marketing.service.publishing_connections import (
     MarketingPublishingConnectionService,
 )
+from app.modules.marketing.service.publish_destinations import (
+    MarketingPublishDestinationService,
+)
 from app.modules.marketing.service.publishing_secret_lifecycle import (
     PublishingSecretLifecycleService,
 )
@@ -42,6 +45,10 @@ def require_marketing_connection_admin(
     raise PermissionDeniedError(
         "Insufficient permissions for publishing connection management"
     )
+
+
+# Destination mutations reuse the same OWNER/ADMIN (+ provider staff) gate as connections.
+require_marketing_destination_admin = require_marketing_connection_admin
 
 
 def _build_in_memory_vault(request: Request, env: str) -> InMemorySecretVault:
@@ -135,6 +142,13 @@ def get_publishing_connection_service(
     db: Session = Depends(get_db),
 ) -> MarketingPublishingConnectionService:
     return MarketingPublishingConnectionService(db, ctx.tenant.id)
+
+
+def get_publish_destination_service(
+    ctx: TenantContext = Depends(get_tenant_context),
+    db: Session = Depends(get_db),
+) -> MarketingPublishDestinationService:
+    return MarketingPublishDestinationService(db, ctx.tenant.id)
 
 
 def get_publishing_secret_lifecycle_service(

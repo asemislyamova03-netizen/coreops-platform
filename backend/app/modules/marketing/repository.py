@@ -34,6 +34,7 @@ from app.modules.marketing.exceptions import (
     MarketingPublishingConnectionNotFoundError,
 )
 from app.modules.marketing.service.publish_destination_validation import (
+    validate_destination_display_name,
     validate_destination_metadata_json,
 )
 
@@ -399,6 +400,8 @@ class MarketingRepository:
         tenant_id: uuid.UUID,
         *,
         status: MarketingDestinationStatus | None = None,
+        publishing_connection_id: uuid.UUID | None = None,
+        destination_type: MarketingPublishDestinationType | None = None,
         exclude_archived: bool = True,
     ) -> list[MarketingPublishDestination]:
         stmt = (
@@ -406,6 +409,15 @@ class MarketingRepository:
             .where(MarketingPublishDestination.tenant_id == tenant_id)
             .order_by(MarketingPublishDestination.created_at.desc())
         )
+        if publishing_connection_id is not None:
+            stmt = stmt.where(
+                MarketingPublishDestination.publishing_connection_id
+                == publishing_connection_id
+            )
+        if destination_type is not None:
+            stmt = stmt.where(
+                MarketingPublishDestination.destination_type == destination_type
+            )
         if status is not None:
             stmt = stmt.where(MarketingPublishDestination.status == status)
         elif exclude_archived:
@@ -472,9 +484,7 @@ class MarketingRepository:
         external = external_id.strip()
         if not external:
             raise MarketingPublishDestinationValidationError("external_id_required")
-        name = display_name.strip()
-        if not name:
-            raise MarketingPublishDestinationValidationError("display_name_required")
+        name = validate_destination_display_name(display_name)
 
         initial_status = status
         if initial_status is None:
@@ -522,10 +532,7 @@ class MarketingRepository:
         if row.status == MarketingDestinationStatus.ARCHIVED:
             raise MarketingPublishDestinationValidationError("archived_destination_immutable")
         if display_name is not None:
-            name = display_name.strip()
-            if not name:
-                raise MarketingPublishDestinationValidationError("display_name_required")
-            row.display_name = name
+            row.display_name = validate_destination_display_name(display_name)
         if metadata_json is not None:
             row.metadata_json = validate_destination_metadata_json(metadata_json)
         row.updated_by_user_id = updated_by_user_id
@@ -587,6 +594,26 @@ class MarketingRepository:
         if row is None:
             raise MarketingPublishDestinationNotFoundError()
         row.archive()
+        row.updated_by_user_id = updated_by_user_id
+        return row
+
+    def structural_validate_publish_destination(
+        self,
+        tenant_id: uuid.UUID,
+        destination_id: uuid.UUID,
+        *,
+        validation_status: MarketingDestinationValidationStatus,
+        validation_error_code: str | None = None,
+        updated_by_user_id: uuid.UUID | None = None,
+    ) -> MarketingPublishDestination:
+        """Apply structural validation only — never claims provider adapter success."""
+        row = self.get_publish_destination(tenant_id, destination_id)
+        if row is None:
+            raise MarketingPublishDestinationNotFoundError()
+        row.apply_structural_validation(
+            validation_status=validation_status,
+            validation_error_code=validation_error_code,
+        )
         row.updated_by_user_id = updated_by_user_id
         return row
 

@@ -422,6 +422,7 @@ def test_production_like_vault_fail_closed(client: TestClient):
 
 
 def test_no_destination_or_publish_routes_for_connections(client: TestClient):
+    """Nested connection publish/dry-run stay absent; top-level destinations live in D2."""
     headers, _, _ = _register_and_login(client, suffix="no-dest")
     created = _create_connection(client, headers, identifier="nodest-bot")
     cid = created["id"]
@@ -429,7 +430,6 @@ def test_no_destination_or_publish_routes_for_connections(client: TestClient):
         f"{BASE}/{cid}/destinations",
         f"{BASE}/{cid}/publish",
         f"{BASE}/{cid}/dry-run",
-        "/api/v1/marketing/publish-destinations",
     ):
         assert client.get(path, headers=headers).status_code in (404, 405, 422)
         assert client.post(path, headers=headers, json={}).status_code in (404, 405, 422)

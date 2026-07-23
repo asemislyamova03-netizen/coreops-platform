@@ -2,9 +2,9 @@
 
 **Date:** 2026-07-23  
 **Type:** documentation / design gate + D1 lock  
-**Status:** **HQ LOCKED — D1 IMPLEMENTATION AUTHORIZED**  
-**Category:** `universal_module` (Marketing) + `documentation_only`  
-**Risk:** high (live-publish adjacency; multi-tenant; secrets)  
+**Status:** **HQ LOCKED — D1 DONE; D2 HTTP IMPLEMENTED (no commit)**
+**Category:** `universal_module` (Marketing) + `documentation_only`
+**Risk:** high (live-publish adjacency; multi-tenant; secrets)
 
 **Parents / checkpoints:**
 
@@ -516,7 +516,7 @@ Encoded in D1 model/migration (and binding for later slices):
 
 **Column naming (D1):** `publishing_connection_id`, `external_id` (not `destination_external_id`).
 
-**Status:** D1 implementation approved and in progress on worktree `marketing-m8b-http-clean` — see implementation report.
+**Status:** D1 complete; **D2 HTTP slice authorized** on worktree `marketing-m8b-http-clean` — see D2 implementation report. D3/D4 still blocked.
 
 ---
 

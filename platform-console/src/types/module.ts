@@ -12,3 +12,23 @@ export interface TenantModule {
   created_at: string;
   updated_at: string;
 }
+
+export interface ModuleDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  default_mode: ModuleMode;
+  dependencies_json: {
+    required?: string[];
+    recommended?: string[];
+  };
+  is_active: boolean;
+}
+
+export interface TenantModuleRow extends TenantModule {
+  name: string;
+  description: string | null;
+  required_dependencies: string[];
+  active_dependents: string[];
+}

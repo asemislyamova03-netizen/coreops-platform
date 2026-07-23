@@ -71,6 +71,23 @@ class ModuleGuard:
                 f"Cannot enable '{module_code}': required modules not active: {', '.join(missing)}"
             )
 
+    def list_active_dependents(self, module_code: str) -> list[str]:
+        """Return active modules that list ``module_code`` as a required dependency."""
+        dependents: list[str] = []
+        for definition in self.repo.list_definitions(active_only=True):
+            required = definition.dependencies_json.get("required", []) or []
+            if module_code in required and self.is_active(definition.code):
+                dependents.append(definition.code)
+        return sorted(dependents)
+
+    def assert_no_active_dependents(self, module_code: str) -> None:
+        dependents = self.list_active_dependents(module_code)
+        if dependents:
+            raise ModuleDependencyError(
+                f"Cannot disable '{module_code}': required by active modules: "
+                f"{', '.join(dependents)}"
+            )
+
 
 def require_module(module_code: str) -> Callable:
     def dependency(

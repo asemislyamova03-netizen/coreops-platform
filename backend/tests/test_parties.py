@@ -32,10 +32,18 @@ def _setup_tenant_with_parties_module(client):
 def test_parties_module_required(client):
     headers, tenant_id = _setup_tenant_with_parties_module(client)
 
-    client.post(
+    # kindergarten_basic enables CRM (requires parties): disable dependents first.
+    for code in ("crm", "booking", "marketing"):
+        client.post(
+            f"/api/v1/tenants/{tenant_id}/modules/{code}/disable",
+            headers=headers,
+        )
+
+    disabled = client.post(
         f"/api/v1/tenants/{tenant_id}/modules/parties/disable",
         headers=headers,
     )
+    assert disabled.status_code == 200
 
     blocked = client.get("/api/v1/parties", headers=headers)
     assert blocked.status_code == 403

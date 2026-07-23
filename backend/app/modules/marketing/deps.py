@@ -6,12 +6,15 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings, get_settings
+from app.core.database import SessionLocal
 from app.core.deps import get_db
 from app.core.enums import TenantRole
 from app.core.exceptions import PermissionDeniedError
 from app.core.modules import require_module
 from app.core.permissions import get_provider_staff, user_has_any_tenant_role
+from app.core.secrets.adapters.envelope_pg import EnvelopePgSecretVault
 from app.core.secrets.adapters.in_memory import InMemorySecretVault
+from app.core.secrets.kek_provider import KekProvider, KekProviderError
 from app.core.secrets.port import SecretVaultPort
 from app.core.tenancy import TenantContext, get_tenant_context
 from app.modules.marketing.service.publishing_connections import (
@@ -41,22 +44,71 @@ def require_marketing_connection_admin(
     )
 
 
+def _build_in_memory_vault(request: Request, env: str) -> InMemorySecretVault:
+    existing = getattr(request.app.state, "marketing_secret_vault", None)
+    if isinstance(existing, InMemorySecretVault):
+        return existing
+    vault = InMemorySecretVault(app_env=env)
+    request.app.state.marketing_secret_vault = vault
+    return vault
+
+
+def _build_envelope_vault(
+    request: Request,
+    settings: Settings,
+) -> EnvelopePgSecretVault | None:
+    existing = getattr(request.app.state, "marketing_secret_vault", None)
+    if isinstance(existing, EnvelopePgSecretVault):
+        return existing
+    try:
+        kek_provider = KekProvider.load_from_config(
+            credential_path=settings.secret_kek_credential_path,
+            credentials_dir=settings.secret_kek_credentials_dir,
+            credential_name=settings.secret_kek_credential_name,
+        )
+    except KekProviderError:
+        return None
+    vault = EnvelopePgSecretVault(
+        session_factory=SessionLocal,
+        kek_provider=kek_provider,
+        pending_ttl_seconds=settings.secret_envelope_pending_ttl_seconds,
+    )
+    request.app.state.marketing_secret_vault = vault
+    return vault
+
+
 def resolve_secret_vault(
     request: Request,
     settings: Settings,
 ) -> SecretVaultPort | None:
-    """Return InMemory vault only in allow-listed envs; else None (fail-closed)."""
+    """Select vault adapter explicitly; never silently fall back to InMemory outside allow-list."""
     env = (settings.app_env or "").strip().lower()
-    if env not in _IN_MEMORY_VAULT_ENVS:
-        return None
-
+    adapter = (settings.secret_vault_adapter or "auto").strip().lower()
     existing = getattr(request.app.state, "marketing_secret_vault", None)
-    if isinstance(existing, InMemorySecretVault):
-        return existing
 
-    vault = InMemorySecretVault(app_env=env)
-    request.app.state.marketing_secret_vault = vault
-    return vault
+    if adapter == "in_memory":
+        if env not in _IN_MEMORY_VAULT_ENVS:
+            return None
+        if isinstance(existing, InMemorySecretVault):
+            return existing
+        return _build_in_memory_vault(request, env)
+
+    if adapter == "envelope_pg":
+        if isinstance(existing, EnvelopePgSecretVault):
+            return existing
+        return _build_envelope_vault(request, settings)
+
+    if adapter == "auto":
+        if env in _IN_MEMORY_VAULT_ENVS:
+            if isinstance(existing, InMemorySecretVault):
+                return existing
+            return _build_in_memory_vault(request, env)
+        # staging/production/etc.: envelope only — ignore any cached InMemory
+        if isinstance(existing, EnvelopePgSecretVault):
+            return existing
+        return _build_envelope_vault(request, settings)
+
+    return None
 
 
 def get_secret_vault(
@@ -74,7 +126,7 @@ def get_optional_secret_vault(
     request: Request,
     settings: Settings = Depends(get_settings),
 ) -> SecretVaultPort | None:
-    """Vault when available; None outside allow-listed envs (no InMemory fallback)."""
+    """Vault when available; None when adapter/KEK unavailable (no InMemory fallback)."""
     return resolve_secret_vault(request, settings)
 
 

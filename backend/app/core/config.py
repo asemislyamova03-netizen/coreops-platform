@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     # Process Overlay LOCAL/ops bootstrap — disabled by default; never enable in production
     process_overlay_bootstrap_enabled: bool = False
 
+    # Secret vault adapter selection (M8-B2). No secret material defaults.
+    # auto | in_memory | envelope_pg — in_memory only in allow-listed app_env.
+    secret_vault_adapter: str = "auto"
+    # Absolute path to KEK ring JSON, or systemd credential dir+name (no hard-coded host paths).
+    secret_kek_credential_path: str | None = None
+    secret_kek_credentials_dir: str | None = None
+    secret_kek_credential_name: str | None = None
+    # Orphan pending envelope TTL (seconds); Design Lock default = 15 minutes.
+    secret_envelope_pending_ttl_seconds: int = 900
+
     @property
     def public_leads_allowed_origin_list(self) -> list[str]:
         return [

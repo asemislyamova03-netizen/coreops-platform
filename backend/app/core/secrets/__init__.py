@@ -1,3 +1,4 @@
+from app.core.secrets.models import SecretEnvelopeVersion
 from app.core.secrets.plaintext import SecretPlaintext
 from app.core.secrets.port import (
     SecretStoreMetadata,
@@ -13,6 +14,7 @@ from app.core.secrets.ref import (
 )
 
 __all__ = [
+    "SecretEnvelopeVersion",
     "SecretPlaintext",
     "SecretRef",
     "SecretRefValidationError",

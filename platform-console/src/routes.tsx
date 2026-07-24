@@ -14,6 +14,7 @@ import { CrmPage } from "./pages/workspace/CrmPage";
 import { DashboardPage } from "./pages/workspace/DashboardPage";
 import { DocumentsPage } from "./pages/workspace/DocumentsPage";
 import { FinancePage } from "./pages/workspace/FinancePage";
+import { MarketingConnectionsPage } from "./pages/workspace/marketing/MarketingConnectionsPage";
 import { MarketingDashboardPage } from "./pages/workspace/marketing/MarketingDashboardPage";
 import { MarketingPackDetailPage } from "./pages/workspace/marketing/MarketingPackDetailPage";
 import { MarketingPacksPage } from "./pages/workspace/marketing/MarketingPacksPage";
@@ -41,6 +42,7 @@ export function AppRoutes() {
           <Route path="marketing/topics" element={<MarketingTopicsPage />} />
           <Route path="marketing/packs" element={<MarketingPacksPage />} />
           <Route path="marketing/packs/:packId" element={<MarketingPackDetailPage />} />
+          <Route path="marketing/connections" element={<MarketingConnectionsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="children" element={<Navigate to="../clients" replace />} />
           <Route path="parents" element={<Navigate to="../clients" replace />} />

@@ -87,3 +87,18 @@ class MarketingManagedMediaLifecycleError(ConflictError):
 class MarketingPublicUrlValidationError(ConflictError):
     def __init__(self, detail: str) -> None:
         super().__init__(detail)
+
+
+class MarketingPublishDestinationValidationError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
+class MarketingPublishDestinationNotFoundError(NotFoundError):
+    def __init__(self) -> None:
+        super().__init__("publish_destination_not_found")
+
+
+class MarketingPublishDestinationHardDeleteForbiddenError(ConflictError):
+    def __init__(self) -> None:
+        super().__init__("publish_destination_hard_delete_forbidden")

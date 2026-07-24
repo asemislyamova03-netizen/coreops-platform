@@ -7,10 +7,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.modules.marketing.enums import (
     MarketingApprovalStatus,
     MarketingChannel,
+    MarketingDestinationStatus,
+    MarketingDestinationValidationStatus,
     MarketingMediaAssetStatus,
     MarketingMediaValidationStatus,
     MarketingPackStatus,
     MarketingPreflightStatus,
+    MarketingPublishDestinationType,
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
@@ -394,11 +397,36 @@ class HistoricalPublishResponse(BaseModel):
     channel_results: list[HistoricalPublishChannelResult] = Field(default_factory=list)
 
 
-# --- M8-B internal service view (not exposed via HTTP routes) ---
+# --- M8-B publishing connections HTTP request DTOs + safe view ---
+
+
+class PublishingConnectionCreate(BaseModel):
+    provider: MarketingPublishingProvider
+    account_display_name: str = Field(min_length=1, max_length=255)
+    account_identifier: str | None = Field(default=None, max_length=255)
+    scopes_json: list[str] = Field(default_factory=list)
+    metadata_json: dict = Field(default_factory=dict)
+
+
+class PublishingConnectionUpdate(BaseModel):
+    account_display_name: str | None = Field(default=None, min_length=1, max_length=255)
+    account_identifier: str | None = Field(default=None, max_length=255)
+    scopes_json: list[str] | None = None
+    metadata_json: dict | None = None
+
+
+class PublishingConnectionSecretWrite(BaseModel):
+    """Write-only secret material for connect/rotate. Never returned in responses."""
+
+    secret: str = Field(min_length=1, max_length=8192)
+
+
+class PublishingConnectionDisconnect(BaseModel):
+    reason: str | None = Field(default=None, max_length=512)
 
 
 class PublishingConnectionView(BaseModel):
-    """Service-layer DTO; never includes secret_ref (has_secret only)."""
+    """Safe connection DTO for HTTP + service; has_secret only (no secret_ref)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -420,6 +448,44 @@ class PublishingConnectionView(BaseModel):
     updated_at: datetime
     created_by_user_id: uuid.UUID | None = None
     updated_by_user_id: uuid.UUID | None = None
+
+
+class PublishDestinationView(BaseModel):
+    """Safe destination DTO — never includes secret_ref / tokens / credentials."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    publishing_connection_id: uuid.UUID
+    provider: MarketingPublishingProvider
+    destination_type: MarketingPublishDestinationType
+    external_id: str
+    display_name: str
+    status: MarketingDestinationStatus
+    validation_status: MarketingDestinationValidationStatus
+    validated_at: datetime | None = None
+    validation_error_code: str | None = None
+    identity_locked_at: datetime | None = None
+    metadata_json: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+    created_by_user_id: uuid.UUID | None = None
+    updated_by_user_id: uuid.UUID | None = None
+
+
+class PublishDestinationCreate(BaseModel):
+    publishing_connection_id: uuid.UUID
+    destination_type: MarketingPublishDestinationType
+    external_id: str = Field(min_length=1, max_length=255)
+    display_name: str = Field(min_length=1, max_length=255)
+    metadata_json: dict = Field(default_factory=dict)
+
+
+class PublishDestinationUpdate(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=255)
+    external_id: str | None = Field(default=None, min_length=1, max_length=255)
+    metadata_json: dict | None = None
 
 
 # --- M8-C2a storage profiles / managed media (domain DTOs; no HTTP routes) ---

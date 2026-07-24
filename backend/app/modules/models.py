@@ -1,5 +1,6 @@
 """Import all ORM models for Alembic autogenerate and metadata registration."""
 
+from app.core.secrets.models import SecretEnvelopeVersion  # noqa: F401
 from app.modules.auth.models import User  # noqa: F401
 from app.modules.branches.models import Branch  # noqa: F401
 from app.modules.module_registry.models import ModuleDefinition, TenantModule  # noqa: F401
@@ -85,6 +86,7 @@ from app.modules.marketing.models import (  # noqa: F401
     MarketingMediaAsset,
     MarketingPublicationPack,
     MarketingPublicationText,
+    MarketingPublishDestination,
     MarketingPublishingConnection,
     MarketingPublishLog,
     MarketingStorageResourceProfile,

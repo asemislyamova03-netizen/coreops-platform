@@ -194,7 +194,7 @@ def test_0024_migration_revision_chain():
     heads = script.get_heads()
     assert len(heads) == 1
     head = heads[0]
-    assert head == REVISION_0024
+    # Extensible: later migrations (e.g. 0025) may advance the head beyond 0024.
     assert _revision_is_ancestor(script, REVISION_0023, head)
     assert _revision_is_ancestor(script, REVISION_0024, head)
 
@@ -219,7 +219,9 @@ def test_0024_migration_module_importable():
 
 def test_no_second_alembic_head():
     script = ScriptDirectory.from_config(Config(ALEMBIC_INI))
-    assert script.get_heads() == [REVISION_0024]
+    heads = script.get_heads()
+    assert len(heads) == 1
+    assert _revision_is_ancestor(script, REVISION_0024, heads[0])
 
 
 def _assert_tasks_automation_columns(engine) -> None:

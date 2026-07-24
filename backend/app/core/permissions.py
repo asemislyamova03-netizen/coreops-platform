@@ -23,6 +23,13 @@ def user_has_tenant_role(
     )
 
 
+def user_has_any_tenant_role(user: User, tenant_id, roles: frozenset[TenantRole]) -> bool:
+    return any(
+        m.tenant_id == tenant_id and m.role in roles and m.is_active
+        for m in user.tenant_memberships
+    )
+
+
 def user_is_tenant_owner(user: User, tenant_id) -> bool:
     return user_has_tenant_role(user, tenant_id, TenantRole.TENANT_OWNER)
 

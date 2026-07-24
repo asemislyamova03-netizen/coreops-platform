@@ -139,3 +139,56 @@ DEFAULT_MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024  # 10 MiB
 DEFAULT_MAX_URL_LENGTH: int = 1024
 MAX_UPLOAD_BYTES_HARD_CAP: int = 50 * 1024 * 1024
 MAX_URL_LENGTH_HARD_CAP: int = 2048
+
+
+class MarketingDestinationStatus(str, enum.Enum):
+    """Lifecycle status — HQ wording values; DB stores Enum member NAMES (ENABLED/…)."""
+
+    ENABLED = "enabled"
+    DISABLED = "disabled"
+    ARCHIVED = "archived"
+
+
+class MarketingDestinationValidationStatus(str, enum.Enum):
+    """Target allow-list validation track (orthogonal to lifecycle status)."""
+
+    UNCHECKED = "unchecked"
+    VALID = "valid"
+    INVALID = "invalid"
+    UNAVAILABLE = "unavailable"
+
+
+class MarketingPublishDestinationType(str, enum.Enum):
+    """Live publish destination types. Insights are out of scope. TikTok reserved/disabled."""
+
+    TELEGRAM_CHAT = "telegram_chat"
+    INSTAGRAM_USER = "instagram_user"
+    THREADS_USER = "threads_user"
+    TIKTOK_USER = "tiktok_user"  # reserved — capability disabled; no adapter
+
+
+_DESTINATION_TYPE_PROVIDER: dict[MarketingPublishDestinationType, MarketingPublishingProvider] = {
+    MarketingPublishDestinationType.TELEGRAM_CHAT: MarketingPublishingProvider.TELEGRAM,
+    MarketingPublishDestinationType.INSTAGRAM_USER: MarketingPublishingProvider.INSTAGRAM,
+    MarketingPublishDestinationType.THREADS_USER: MarketingPublishingProvider.THREADS,
+    MarketingPublishDestinationType.TIKTOK_USER: MarketingPublishingProvider.TIKTOK,
+}
+
+_DISABLED_DESTINATION_CAPABILITIES: frozenset[MarketingPublishDestinationType] = frozenset(
+    {
+        MarketingPublishDestinationType.TIKTOK_USER,
+    }
+)
+
+
+def destination_type_provider(
+    destination_type: MarketingPublishDestinationType,
+) -> MarketingPublishingProvider:
+    return _DESTINATION_TYPE_PROVIDER[destination_type]
+
+
+def destination_capability_enabled(
+    destination_type: MarketingPublishDestinationType,
+) -> bool:
+    """False for reserved/disabled destination types (TikTok). No activate / no available validate."""
+    return destination_type not in _DISABLED_DESTINATION_CAPABILITIES

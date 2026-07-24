@@ -10,16 +10,32 @@ from app.modules.marketing.models import (
     MarketingMediaAsset,
     MarketingPublicationPack,
     MarketingPublicationText,
+    MarketingPublishDestination,
     MarketingPublishingConnection,
     MarketingPublishLog,
     MarketingStorageResourceProfile,
 )
 from app.modules.marketing.enums import (
+    MarketingDestinationStatus,
+    MarketingDestinationValidationStatus,
+    MarketingPublishDestinationType,
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
     MarketingStorageProfileStatus,
     MarketingStorageResourceMode,
+    destination_capability_enabled,
+    destination_type_provider,
+)
+from app.modules.marketing.exceptions import (
+    MarketingPublishDestinationHardDeleteForbiddenError,
+    MarketingPublishDestinationNotFoundError,
+    MarketingPublishDestinationValidationError,
+    MarketingPublishingConnectionNotFoundError,
+)
+from app.modules.marketing.service.publish_destination_validation import (
+    validate_destination_display_name,
+    validate_destination_metadata_json,
 )
 
 
@@ -376,6 +392,234 @@ class MarketingRepository:
         )
         self.db.add(row)
         return row
+
+    # --- Publish destinations (M8-D1) ---
+
+    def list_publish_destinations_by_tenant(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        status: MarketingDestinationStatus | None = None,
+        publishing_connection_id: uuid.UUID | None = None,
+        destination_type: MarketingPublishDestinationType | None = None,
+        exclude_archived: bool = True,
+    ) -> list[MarketingPublishDestination]:
+        stmt = (
+            select(MarketingPublishDestination)
+            .where(MarketingPublishDestination.tenant_id == tenant_id)
+            .order_by(MarketingPublishDestination.created_at.desc())
+        )
+        if publishing_connection_id is not None:
+            stmt = stmt.where(
+                MarketingPublishDestination.publishing_connection_id
+                == publishing_connection_id
+            )
+        if destination_type is not None:
+            stmt = stmt.where(
+                MarketingPublishDestination.destination_type == destination_type
+            )
+        if status is not None:
+            stmt = stmt.where(MarketingPublishDestination.status == status)
+        elif exclude_archived:
+            stmt = stmt.where(
+                MarketingPublishDestination.status != MarketingDestinationStatus.ARCHIVED
+            )
+        return list(self.db.scalars(stmt).all())
+
+    def list_publish_destinations_by_connection(
+        self,
+        tenant_id: uuid.UUID,
+        publishing_connection_id: uuid.UUID,
+        *,
+        exclude_archived: bool = True,
+    ) -> list[MarketingPublishDestination]:
+        stmt = (
+            select(MarketingPublishDestination)
+            .where(
+                MarketingPublishDestination.tenant_id == tenant_id,
+                MarketingPublishDestination.publishing_connection_id
+                == publishing_connection_id,
+            )
+            .order_by(MarketingPublishDestination.created_at.desc())
+        )
+        if exclude_archived:
+            stmt = stmt.where(
+                MarketingPublishDestination.status != MarketingDestinationStatus.ARCHIVED
+            )
+        return list(self.db.scalars(stmt).all())
+
+    def get_publish_destination(
+        self,
+        tenant_id: uuid.UUID,
+        destination_id: uuid.UUID,
+    ) -> MarketingPublishDestination | None:
+        stmt = select(MarketingPublishDestination).where(
+            MarketingPublishDestination.tenant_id == tenant_id,
+            MarketingPublishDestination.id == destination_id,
+        )
+        return self.db.scalar(stmt)
+
+    def create_publish_destination(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        publishing_connection_id: uuid.UUID,
+        destination_type: MarketingPublishDestinationType,
+        external_id: str,
+        display_name: str,
+        metadata_json: dict | None = None,
+        status: MarketingDestinationStatus | None = None,
+        created_by_user_id: uuid.UUID | None = None,
+        updated_by_user_id: uuid.UUID | None = None,
+    ) -> MarketingPublishDestination:
+        connection = self.get_publishing_connection(tenant_id, publishing_connection_id)
+        if connection is None:
+            # Cross-tenant or missing connection — fail closed (same as not found).
+            raise MarketingPublishingConnectionNotFoundError()
+
+        expected_provider = destination_type_provider(destination_type)
+        if connection.provider != expected_provider:
+            raise MarketingPublishDestinationValidationError("provider_destination_type_mismatch")
+
+        external = external_id.strip()
+        if not external:
+            raise MarketingPublishDestinationValidationError("external_id_required")
+        name = validate_destination_display_name(display_name)
+
+        initial_status = status
+        if initial_status is None:
+            if destination_capability_enabled(destination_type):
+                initial_status = MarketingDestinationStatus.ENABLED
+            else:
+                initial_status = MarketingDestinationStatus.DISABLED
+        elif initial_status == MarketingDestinationStatus.ENABLED and not destination_capability_enabled(
+            destination_type
+        ):
+            raise MarketingPublishDestinationValidationError("destination_capability_disabled")
+        elif initial_status == MarketingDestinationStatus.ARCHIVED:
+            raise MarketingPublishDestinationValidationError("cannot_create_archived")
+
+        safe_metadata = validate_destination_metadata_json(metadata_json)
+
+        row = MarketingPublishDestination(
+            tenant_id=tenant_id,
+            publishing_connection_id=publishing_connection_id,
+            provider=connection.provider,
+            destination_type=destination_type,
+            external_id=external,
+            display_name=name,
+            status=initial_status,
+            validation_status=MarketingDestinationValidationStatus.UNCHECKED,
+            metadata_json=safe_metadata,
+            created_by_user_id=created_by_user_id,
+            updated_by_user_id=updated_by_user_id,
+        )
+        self.db.add(row)
+        return row
+
+    def update_publish_destination_display(
+        self,
+        tenant_id: uuid.UUID,
+        destination_id: uuid.UUID,
+        *,
+        display_name: str | None = None,
+        metadata_json: dict | None = None,
+        updated_by_user_id: uuid.UUID | None = None,
+    ) -> MarketingPublishDestination:
+        row = self.get_publish_destination(tenant_id, destination_id)
+        if row is None:
+            raise MarketingPublishDestinationNotFoundError()
+        if row.status == MarketingDestinationStatus.ARCHIVED:
+            raise MarketingPublishDestinationValidationError("archived_destination_immutable")
+        if display_name is not None:
+            row.display_name = validate_destination_display_name(display_name)
+        if metadata_json is not None:
+            row.metadata_json = validate_destination_metadata_json(metadata_json)
+        row.updated_by_user_id = updated_by_user_id
+        return row
+
+    def update_publish_destination_external_id(
+        self,
+        tenant_id: uuid.UUID,
+        destination_id: uuid.UUID,
+        external_id: str,
+        *,
+        updated_by_user_id: uuid.UUID | None = None,
+    ) -> MarketingPublishDestination:
+        row = self.get_publish_destination(tenant_id, destination_id)
+        if row is None:
+            raise MarketingPublishDestinationNotFoundError()
+        if row.status == MarketingDestinationStatus.ARCHIVED:
+            raise MarketingPublishDestinationValidationError("archived_destination_immutable")
+        row.update_external_id(external_id)
+        row.updated_by_user_id = updated_by_user_id
+        return row
+
+    def enable_publish_destination(
+        self,
+        tenant_id: uuid.UUID,
+        destination_id: uuid.UUID,
+        *,
+        updated_by_user_id: uuid.UUID | None = None,
+    ) -> MarketingPublishDestination:
+        row = self.get_publish_destination(tenant_id, destination_id)
+        if row is None:
+            raise MarketingPublishDestinationNotFoundError()
+        row.enable()
+        row.updated_by_user_id = updated_by_user_id
+        return row
+
+    def disable_publish_destination(
+        self,
+        tenant_id: uuid.UUID,
+        destination_id: uuid.UUID,
+        *,
+        updated_by_user_id: uuid.UUID | None = None,
+    ) -> MarketingPublishDestination:
+        row = self.get_publish_destination(tenant_id, destination_id)
+        if row is None:
+            raise MarketingPublishDestinationNotFoundError()
+        row.disable()
+        row.updated_by_user_id = updated_by_user_id
+        return row
+
+    def archive_publish_destination(
+        self,
+        tenant_id: uuid.UUID,
+        destination_id: uuid.UUID,
+        *,
+        updated_by_user_id: uuid.UUID | None = None,
+    ) -> MarketingPublishDestination:
+        row = self.get_publish_destination(tenant_id, destination_id)
+        if row is None:
+            raise MarketingPublishDestinationNotFoundError()
+        row.archive()
+        row.updated_by_user_id = updated_by_user_id
+        return row
+
+    def structural_validate_publish_destination(
+        self,
+        tenant_id: uuid.UUID,
+        destination_id: uuid.UUID,
+        *,
+        validation_status: MarketingDestinationValidationStatus,
+        validation_error_code: str | None = None,
+        updated_by_user_id: uuid.UUID | None = None,
+    ) -> MarketingPublishDestination:
+        """Apply structural validation only — never claims provider adapter success."""
+        row = self.get_publish_destination(tenant_id, destination_id)
+        if row is None:
+            raise MarketingPublishDestinationNotFoundError()
+        row.apply_structural_validation(
+            validation_status=validation_status,
+            validation_error_code=validation_error_code,
+        )
+        row.updated_by_user_id = updated_by_user_id
+        return row
+
+    def delete_publish_destination(self, *_args, **_kwargs) -> None:
+        """Hard delete is forbidden — archive instead."""
+        raise MarketingPublishDestinationHardDeleteForbiddenError()
 
     # --- Storage resource profiles (M8-C2a) ---
 

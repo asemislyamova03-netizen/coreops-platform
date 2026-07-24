@@ -141,45 +141,44 @@ export function CrmPage() {
             </Alert>
           )}
 
-          {workItemsQuery.data.length > 0 && (
-            <div className="crm-board-controls">
-              <CrmDisplayModeSwitcher
-                value={displayMode}
-                onChange={(nextMode) => {
-                  setDisplayMode(nextMode);
-                  writeDisplayMode(nextMode);
+          {/* Controls stay visible with 0 items so empty tenants can switch to List. */}
+          <div className="crm-board-controls">
+            <CrmDisplayModeSwitcher
+              value={displayMode}
+              onChange={(nextMode) => {
+                setDisplayMode(nextMode);
+                writeDisplayMode(nextMode);
+              }}
+            />
+            <CrmBoardViewSwitcher
+              value={boardView}
+              onChange={(nextView) => {
+                setBoardView(nextView);
+                if (nextView === "closed") {
+                  setCloseNotice(false);
+                }
+              }}
+            />
+            {displayMode === "board" && (
+              <CrmCardDensitySwitcher
+                value={cardDensity}
+                onChange={(nextDensity) => {
+                  setCardDensity(nextDensity);
+                  writeCardDensity(nextDensity);
                 }}
               />
-              <CrmBoardViewSwitcher
-                value={boardView}
-                onChange={(nextView) => {
-                  setBoardView(nextView);
-                  if (nextView === "closed") {
-                    setCloseNotice(false);
-                  }
+            )}
+            {displayMode === "list" && (
+              <CrmStageFilter
+                stages={pipeline.stages}
+                value={listStageFilter}
+                onChange={(nextFilter) => {
+                  setListStageFilter(nextFilter);
+                  writeListStageFilter(nextFilter);
                 }}
               />
-              {displayMode === "board" && (
-                <CrmCardDensitySwitcher
-                  value={cardDensity}
-                  onChange={(nextDensity) => {
-                    setCardDensity(nextDensity);
-                    writeCardDensity(nextDensity);
-                  }}
-                />
-              )}
-              {displayMode === "list" && (
-                <CrmStageFilter
-                  stages={pipeline.stages}
-                  value={listStageFilter}
-                  onChange={(nextFilter) => {
-                    setListStageFilter(nextFilter);
-                    writeListStageFilter(nextFilter);
-                  }}
-                />
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {closeNotice && (
             <Alert variant="info">

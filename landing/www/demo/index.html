@@ -93,7 +93,7 @@
                     <li class="nav-item"><a class="nav-link text-light active" href="/demo/">Демо</a></li>
                 </ul>
                 <div class="d-flex gap-2">
-                    <a class="btn btn-outline-light btn-sm" href="https://flexity.asia/console/login">Войти в систему</a>
+                    <a class="btn btn-outline-light btn-sm" href="https://app.flexity.kz/console/login">Войти в систему</a>
                     <a class="btn btn-primary btn-sm" href="/diagnostics/free.html">Бесплатная диагностика</a>
                 </div>
             </div>
@@ -133,23 +133,25 @@
                             Не удалось отправить форму. Напишите мне напрямую в WhatsApp или на email — ссылки ниже.
                         </div>
 
-                        <form id="inboundLeadForm" novalidate>
+                        <form id="inboundLeadForm" novalidate
+                            data-public-leads-endpoint="https://app.flexity.kz/api/v1/public/leads">
                             <div class="demo-honeypot" aria-hidden="true">
                                 <label for="website">Website</label>
-                                <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                                <input type="text" id="website" name="website" tabindex="-1" autocomplete="off"
+                                    maxlength="200">
                             </div>
 
                             <div class="mb-3">
                                 <label for="name" class="form-label">Имя <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="name" name="name" required
-                                    autocomplete="name" maxlength="200">
+                                    autocomplete="name" maxlength="120">
                                 <div class="invalid-feedback">Укажите имя.</div>
                             </div>
 
                             <div class="mb-3">
                                 <label for="phone" class="form-label">Телефон / WhatsApp</label>
                                 <input type="tel" class="form-control" id="phone" name="phone"
-                                    autocomplete="tel" maxlength="50" placeholder="+7 …">
+                                    autocomplete="tel" maxlength="40" placeholder="+7 …">
                                 <div class="invalid-feedback" id="phoneEmailFeedback">Укажите телефон или email.</div>
                             </div>
 
@@ -162,13 +164,13 @@
                             <div class="mb-3">
                                 <label for="company" class="form-label">Компания</label>
                                 <input type="text" class="form-control" id="company" name="company"
-                                    autocomplete="organization" maxlength="200">
+                                    autocomplete="organization" maxlength="160">
                             </div>
 
                             <div class="mb-3">
                                 <label for="process_area" class="form-label">Что хотите автоматизировать</label>
                                 <input type="text" class="form-control" id="process_area" name="process_area"
-                                    maxlength="500" placeholder="Например: заявки, договоры, оплаты">
+                                    maxlength="120" placeholder="Например: заявки, договоры, оплаты">
                                 <div class="invalid-feedback" id="processMessageFeedback">
                                     Укажите процесс или короткое сообщение.
                                 </div>
@@ -177,7 +179,7 @@
                             <div class="mb-3">
                                 <label for="message" class="form-label">Сообщение</label>
                                 <textarea class="form-control" id="message" name="message" rows="4"
-                                    maxlength="4000" placeholder="Контекст, сроки, отрасль — по желанию"></textarea>
+                                    maxlength="2000" placeholder="Контекст, сроки, отрасль — по желанию"></textarea>
                             </div>
 
                             <div class="mb-4">
@@ -252,8 +254,8 @@
         document.getElementById('year').textContent = new Date().getFullYear();
 
         (function () {
-            var SUBMIT_URL = 'https://flexity.asia/api/v1/public/leads';
             var form = document.getElementById('inboundLeadForm');
+            var PUBLIC_LEADS_ENDPOINT = form.getAttribute('data-public-leads-endpoint');
             var submitBtn = document.getElementById('submitBtn');
             var successEl = document.getElementById('formSuccess');
             var errorEl = document.getElementById('formError');
@@ -354,7 +356,12 @@
                 submitBtn.disabled = true;
                 hideAlerts();
 
-                fetch(SUBMIT_URL, {
+                if (!PUBLIC_LEADS_ENDPOINT) {
+                    showError();
+                    return;
+                }
+
+                fetch(PUBLIC_LEADS_ENDPOINT, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

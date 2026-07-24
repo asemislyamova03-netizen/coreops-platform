@@ -1,11 +1,11 @@
 # Report: M8-D2 MarketingPublishDestination HTTP API
 
-**Date:** 2026-07-23  
-**Worktree:** `.worktrees/marketing-m8b-http-clean`  
-**Branch:** `feature/marketing-m8b-http-clean-main`  
-**Baseline HEAD (start):** `333364750e7bae8bf2edad3549f2560b3b04071b`  
-**Category:** `universal_module` (Marketing)  
-**Slice:** D2 — HTTP API + RBAC + redaction + structural validate  
+**Date:** 2026-07-23
+**Worktree:** `.worktrees/marketing-m8b-http-clean`
+**Branch:** `feature/marketing-m8b-http-clean-main`
+**Baseline HEAD (start):** `333364750e7bae8bf2edad3549f2560b3b04071b`
+**Category:** `universal_module` (Marketing)
+**Slice:** D2 — HTTP API + RBAC + redaction + structural validate
 **Status:** implemented + provider-staff RBAC evidence (checkpoint pending HQ)
 
 ## Goal

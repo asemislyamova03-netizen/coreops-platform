@@ -1,10 +1,10 @@
 # M8-B Publishing Connections HTTP API — clean-main port report
 
-Date: 2026-07-23  
-Branch: `feature/marketing-m8b-http-clean-main`  
-Base: `origin/main` @ `308b804`  
-Source checkpoint: `860d904`  
-Worktree: `.worktrees/marketing-m8b-http-clean`  
+Date: 2026-07-23
+Branch: `feature/marketing-m8b-http-clean-main`
+Base: `origin/main` @ `308b804`
+Source checkpoint: `860d904`
+Worktree: `.worktrees/marketing-m8b-http-clean`
 Status: implemented locally; **no commit**, **no push**, **no deploy**
 
 ## Goal

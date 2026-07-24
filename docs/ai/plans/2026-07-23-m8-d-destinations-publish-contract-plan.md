@@ -1,7 +1,7 @@
 # Plan: M8-D Marketing Publish Destinations + Dry-run / Publish Contract
 
-**Date:** 2026-07-23  
-**Type:** documentation / design gate + D1 lock  
+**Date:** 2026-07-23
+**Type:** documentation / design gate + D1 lock
 **Status:** **HQ LOCKED — D1 DONE; D2 HTTP IMPLEMENTED (no commit)**
 **Category:** `universal_module` (Marketing) + `documentation_only`
 **Risk:** high (live-publish adjacency; multi-tenant; secrets)
@@ -49,17 +49,17 @@ Freeze the **Publish Destination** domain and the **dry-run / execute / attempt-
 
 ## Locked decisions (from ADR + HQ context)
 
-1. **MarketingPublishingConnection** = credential / account identity (`secret_ref`, health, scopes).  
-2. **MarketingPublishDestination** = publish **target** allow-list entry (non-secret external id).  
-3. One connection → **many** destinations.  
-4. Every destination / attempt / log row is **tenant-scoped**; cross-tenant refs **fail-closed**.  
-5. Destination rows **never** store secrets / tokens / `secret_ref`.  
-6. Telegram **bot token account ≠ chat/channel destination**.  
-7. Dry-run performs **zero** provider side-effects.  
-8. Execute is a **separate** endpoint with **explicit idempotency key**; dry-run ≠ execute.  
-9. `historical_record` never calls adapters / vault plaintext / provider HTTP.  
-10. Margosya = optional thin client/helper later; **not** state owner.  
-11. Media: Mode A Flexity-managed default; Mode B public HTTPS URLs; **Mode C private buckets out of M8-D**.  
+1. **MarketingPublishingConnection** = credential / account identity (`secret_ref`, health, scopes).
+2. **MarketingPublishDestination** = publish **target** allow-list entry (non-secret external id).
+3. One connection → **many** destinations.
+4. Every destination / attempt / log row is **tenant-scoped**; cross-tenant refs **fail-closed**.
+5. Destination rows **never** store secrets / tokens / `secret_ref`.
+6. Telegram **bot token account ≠ chat/channel destination**.
+7. Dry-run performs **zero** provider side-effects.
+8. Execute is a **separate** endpoint with **explicit idempotency key**; dry-run ≠ execute.
+9. `historical_record` never calls adapters / vault plaintext / provider HTTP.
+10. Margosya = optional thin client/helper later; **not** state owner.
+11. Media: Mode A Flexity-managed default; Mode B public HTTPS URLs; **Mode C private buckets out of M8-D**.
 12. Stage KEK / fake secrets do **not** authorize production publish.
 
 ---
@@ -87,8 +87,8 @@ Tenant
         └─ DryRun (N) → Intent (1 per idempotency_key) → Attempt (N) → Log rows
 ```
 
-- Publish intent **must** reference: `tenant_id`, `pack_id`, `connection_id`, `destination_id`, `idempotency_key`.  
-- Destination must belong to same `tenant_id` **and** `connection_id`.  
+- Publish intent **must** reference: `tenant_id`, `pack_id`, `connection_id`, `destination_id`, `idempotency_key`.
+- Destination must belong to same `tenant_id` **and** `connection_id`.
 - Connection `ACTIVE` + `has_secret` **does not** imply any destination is usable.
 
 ### Destination types (initial enum)
@@ -111,7 +111,7 @@ enabled ⇄ disabled → archived
          └─ validation_status: unchecked | valid | invalid | unavailable
 ```
 
-**HQ statuses:** `enabled` | `disabled` | `archived` (no normal hard delete).  
+**HQ statuses:** `enabled` | `disabled` | `archived` (no normal hard delete).
 Create defaults to `enabled` (capability-disabled types such as TikTok create as `disabled`) with `validation_status=unchecked`.
 
 ### Operations
@@ -139,7 +139,7 @@ Cross-tenant: any destination_id / connection_id from another tenant → **404**
 
 ## 3. API (proposed)
 
-Base: `/api/v1/marketing`  
+Base: `/api/v1/marketing`
 Auth: Bearer + `X-Tenant-ID` + `require_module("marketing")`
 
 ### Destination endpoints
@@ -169,8 +169,8 @@ Optional nested list: `GET /publishing-connections/{connection_id}/destinations`
 
 ### Schemas (response redaction)
 
-- Destination responses: ids, type, external_id, display_name, statuses, connection_id, timestamps — **never** `secret_ref`, tokens, KEK.  
-- Dry-run / attempt responses: structured codes + sanitized errors only.  
+- Destination responses: ids, type, external_id, display_name, statuses, connection_id, timestamps — **never** `secret_ref`, tokens, KEK.
+- Dry-run / attempt responses: structured codes + sanitized errors only.
 - Reuse connection pattern: admin deps analogous to `require_marketing_connection_admin`.
 
 ### RBAC matrix
@@ -189,21 +189,21 @@ Optional nested list: `GET /publishing-connections/{connection_id}/destinations`
 
 ### Guarantees
 
-- **No** outbound publish / post / media upload to social providers.  
-- **No** token refresh that mutates provider session beyond read-only validate (default: **no provider calls** in D3).  
-- **No** historical success log (`action=historical_record`) and **no** live `succeeded` attempt.  
+- **No** outbound publish / post / media upload to social providers.
+- **No** token refresh that mutates provider session beyond read-only validate (default: **no provider calls** in D3).
+- **No** historical success log (`action=historical_record`) and **no** live `succeeded` attempt.
 - Deterministic result for same inputs + content fingerprint.
 
 ### Checks (ordered)
 
-1. Pack exists in tenant; not `ARCHIVED`.  
-2. `approval_status=APPROVED` (or HQ-agreed equivalent).  
-3. M7 pack content preflight `PASSED` (default required; waive = separate policy).  
-4. Destination `enabled`, not archived; same tenant + connection.  
-5. Connection usable for dry-run: exists; `has_secret` (or explicit policy); status not `DISABLED`; **do not** set `token_status=VALID` from stub.  
-6. Channel text present / length limits for selected text channels.  
-7. Media: required resources resolvable via Mode A temporary handle policy or Mode B registered public URL; size/MIME vs storage profile; **no Mode C**.  
-8. Idempotency preview: if key already `succeeded`, report conflict code.  
+1. Pack exists in tenant; not `ARCHIVED`.
+2. `approval_status=APPROVED` (or HQ-agreed equivalent).
+3. M7 pack content preflight `PASSED` (default required; waive = separate policy).
+4. Destination `enabled`, not archived; same tenant + connection.
+5. Connection usable for dry-run: exists; `has_secret` (or explicit policy); status not `DISABLED`; **do not** set `token_status=VALID` from stub.
+6. Channel text present / length limits for selected text channels.
+7. Media: required resources resolvable via Mode A temporary handle policy or Mode B registered public URL; size/MIME vs storage profile; **no Mode C**.
+8. Idempotency preview: if key already `succeeded`, report conflict code.
 9. Emit structured issue codes (stable strings).
 
 ### Result object (conceptual)
@@ -223,21 +223,21 @@ Optional nested list: `GET /publishing-connections/{connection_id}/destinations`
 
 ### Rules
 
-1. Separate endpoint from dry-run.  
-2. Body **requires** `idempotency_key` (client-supplied; unique per tenant).  
-3. Approval required (same as dry-run).  
-4. Successful dry-run fingerprint must match current content within TTL (unless HQ waives — default **required**).  
-5. Dry-run success **never** auto-executes.  
-6. `historical_record` path remains isolated; cannot call execute adapters.  
-7. Retries under the **same** idempotency key must not create a second successful external post:  
-   - if attempt `succeeded` with `external_post_id` → return prior result;  
-   - if `running`/`unknown` → safe recovery policy (§9).  
+1. Separate endpoint from dry-run.
+2. Body **requires** `idempotency_key` (client-supplied; unique per tenant).
+3. Approval required (same as dry-run).
+4. Successful dry-run fingerprint must match current content within TTL (unless HQ waives — default **required**).
+5. Dry-run success **never** auto-executes.
+6. `historical_record` path remains isolated; cannot call execute adapters.
+7. Retries under the **same** idempotency key must not create a second successful external post:
+   - if attempt `succeeded` with `external_post_id` → return prior result;
+   - if `running`/`unknown` → safe recovery policy (§9).
 8. Persist `external_post_id` **only after** provider success acknowledgment.
 
 ### Execute input (conceptual)
 
-- `idempotency_key`, `connection_id`, `destination_id`  
-- optional `dry_run_id`  
+- `idempotency_key`, `connection_id`, `destination_id`
+- optional `dry_run_id`
 - channel/provider selection if multi
 
 ---
@@ -388,9 +388,9 @@ Dry-run/execute must enforce profile limits (size/MIME). Signed URL lifetime rem
 
 **Indexes / uniqueness:**
 
-- UNIQUE `(tenant_id, publishing_connection_id, destination_type, external_id)` WHERE status <> ARCHIVED  
-- INDEX `(tenant_id, publishing_connection_id)`  
-- INDEX `(tenant_id, status)`  
+- UNIQUE `(tenant_id, publishing_connection_id, destination_type, external_id)` WHERE status <> ARCHIVED
+- INDEX `(tenant_id, publishing_connection_id)`
+- INDEX `(tenant_id, status)`
 - INDEX `publishing_connection_id` (single; no duplicate named connection-only index)
 
 **CHECK:** status/validation enums; `external_id` / `display_name` trimmed non-empty; provider in known set.
@@ -401,15 +401,15 @@ Dry-run/execute must enforce profile limits (size/MIME). Signed URL lifetime rem
 
 ## State machines (summary)
 
-**Destination:** enabled ⇄ disabled → archived  
+**Destination:** enabled ⇄ disabled → archived
 
-`identity_locked_at` set once on first `valid`; future D4 live publish may also set lock if still NULL. Reset/disable/archive never unlock.  
+`identity_locked_at` set once on first `valid`; future D4 live publish may also set lock if still NULL. Reset/disable/archive never unlock.
 
-**Dry-run record:** created as immutable snapshot (`ok` true/false); superseded by newer fingerprint  
+**Dry-run record:** created as immutable snapshot (`ok` true/false); superseded by newer fingerprint
 
-**Intent:** accepted → in_progress → succeeded | failed | cancelled  
+**Intent:** accepted → in_progress → succeeded | failed | cancelled
 
-**Attempt:** requested → running → succeeded | failed | unknown  
+**Attempt:** requested → running → succeeded | failed | unknown
 
 ---
 
@@ -427,29 +427,29 @@ Dry-run/execute must enforce profile limits (size/MIME). Signed URL lifetime rem
 
 ### D1
 
-- `backend/app/modules/marketing/models.py` — destination model  
-- `backend/app/modules/marketing/enums.py` — destination status/type enums  
-- `backend/alembic/versions/<TBD>_mkt_publish_destinations.py`  
-- `backend/tests/test_marketing_publish_destinations_model.py` / migration test  
+- `backend/app/modules/marketing/models.py` — destination model
+- `backend/app/modules/marketing/enums.py` — destination status/type enums
+- `backend/alembic/versions/<TBD>_mkt_publish_destinations.py`
+- `backend/tests/test_marketing_publish_destinations_model.py` / migration test
 
 ### D2
 
-- `schemas.py`, `routes.py`, `service/publish_destinations.py`, deps RBAC  
+- `schemas.py`, `routes.py`, `service/publish_destinations.py`, deps RBAC
 - `tests/test_marketing_publish_destinations_api.py` (RBAC, cross-tenant, redaction)
 
 ### D3
 
-- `service/publish_dry_run.py`, routes, schemas, optional model  
-- tests: deterministic issues; no provider mock calls; approval/grant failures  
+- `service/publish_dry_run.py`, routes, schemas, optional model
+- tests: deterministic issues; no provider mock calls; approval/grant failures
 
 ### D4
 
-- `service/publish_execute.py`, `publish_attempts.py`, `adapters/port.py` stub  
-- tests: idempotency, no duplicate success, historical isolation, unknown recovery  
+- `service/publish_execute.py`, `publish_attempts.py`, `adapters/port.py` stub
+- tests: idempotency, no duplicate success, historical isolation, unknown recovery
 
 ### Always
 
-- No Telegram module until M8-E.  
+- No Telegram module until M8-E.
 - Extend sanitizer tests for live error paths.
 
 ---
@@ -473,24 +473,24 @@ Dry-run/execute must enforce profile limits (size/MIME). Signed URL lifetime rem
 
 Stop / do not start code when:
 
-1. This design gate is not HQ-approved.  
-2. Request merges destination into connection.  
-3. Request starts Telegram adapter before D1–D4 foundations.  
-4. Request treats historical publish as execute.  
-5. Plaintext tokens / `secret_ref` in destination or API responses.  
-6. Mode C private buckets required for M8-D MVP.  
+1. This design gate is not HQ-approved.
+2. Request merges destination into connection.
+3. Request starts Telegram adapter before D1–D4 foundations.
+4. Request treats historical publish as execute.
+5. Plaintext tokens / `secret_ref` in destination or API responses.
+6. Mode C private buckets required for M8-D MVP.
 7. Production publish demanded while stage uses fake secrets only.
 
 ---
 
 ## Unresolved questions (HQ)
 
-~~1. Is destination `destination_external_id` immutable after first successful publish?~~  
-~~2. Dry-run fingerprint TTL (propose **24h**)?~~  
-~~3. Live SoT: new `marketing_publish_attempts` only vs dual-write to `marketing_publish_logs`?~~  
-~~4. TikTok: add `MarketingChannel.TIKTOK` vs provider-only media publish?~~  
-~~5. Destination `validate` in D2: structural only vs optional read-only provider call?~~  
-~~6. Insights channel: in or out of live publish core?~~  
+~~1. Is destination `destination_external_id` immutable after first successful publish?~~
+~~2. Dry-run fingerprint TTL (propose **24h**)?~~
+~~3. Live SoT: new `marketing_publish_attempts` only vs dual-write to `marketing_publish_logs`?~~
+~~4. TikTok: add `MarketingChannel.TIKTOK` vs provider-only media publish?~~
+~~5. Destination `validate` in D2: structural only vs optional read-only provider call?~~
+~~6. Insights channel: in or out of live publish core?~~
 ~~7. FK on `connection_id`: RESTRICT vs CASCADE on connection delete?~~
 
 **All seven resolved — see «HQ locked decisions (2026-07-23)» above.** Remaining open items for later slices only (not blocking D1): exact D2 validate HTTP shape; Telegram adapter schedule (M8-E).
@@ -522,7 +522,7 @@ Encoded in D1 model/migration (and binding for later slices):
 
 ## Recommended first implementation slice
 
-**D1 — Destination model + migration + unit/migration tests only.**  
+**D1 — Destination model + migration + unit/migration tests only.**
 No HTTP, no dry-run, no execute, no Telegram.
 
 ---

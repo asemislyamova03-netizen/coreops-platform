@@ -1,11 +1,11 @@
 # Report: M8-D1 MarketingPublishDestination foundation
 
-**Date:** 2026-07-23  
-**Worktree:** `.worktrees/marketing-m8b-http-clean`  
-**Branch:** `feature/marketing-m8b-http-clean-main`  
-**Baseline HEAD (start):** `5249f045f59cb2a877316d10445bf3205d59c8ec`  
-**Category:** `universal_module` (Marketing)  
-**Slice:** D1 — model + migration + repository + tests only  
+**Date:** 2026-07-23
+**Worktree:** `.worktrees/marketing-m8b-http-clean`
+**Branch:** `feature/marketing-m8b-http-clean-main`
+**Baseline HEAD (start):** `5249f045f59cb2a877316d10445bf3205d59c8ec`
+**Category:** `universal_module` (Marketing)
+**Slice:** D1 — model + migration + repository + tests only
 **Status:** HQ remediation applied (pre-commit)
 
 ## Goal

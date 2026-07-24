@@ -1,0 +1,125 @@
+name: Instagram token health (diagnostic)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/instagram-token-health.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Instagram token health (read-only)
+        env:
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          import sys
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timezone
+
+          TOKEN_RE = re.compile(r"access_token=[^&\s]+|EAA[A-Za-z0-9]+|IGAA[A-Za-z0-9]+", re.I)
+
+          def redact(text: str) -> str:
+              return TOKEN_RE.sub("[REDACTED]", text)
+
+          def graph_get(path: str, params: dict[str, str]) -> dict:
+              query = urllib.parse.urlencode(params)
+              url = f"https://graph.facebook.com/v21.0/{path}?{query}"
+              req = urllib.request.Request(url)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      payload = json.loads(resp.read().decode())
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode(errors="replace")
+                  try:
+                      payload = json.loads(body)
+                  except json.JSONDecodeError:
+                      raise RuntimeError(
+                          f"HTTP {exc.code} during {path}: {redact(body[:200])}"
+                      ) from exc
+                  if isinstance(payload, dict) and payload.get("error"):
+                      err = payload["error"]
+                      message = redact(str(err.get("message", "request failed")))
+                      code = err.get("code")
+                      if code is not None:
+                          raise RuntimeError(f"{path} error (code {code}): {message}")
+                      raise RuntimeError(f"{path} error: {message}")
+                  raise RuntimeError(f"HTTP {exc.code} during {path}") from exc
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object payload")
+              if payload.get("error"):
+                  err = payload["error"]
+                  message = redact(str(err.get("message", "request failed")))
+                  code = err.get("code")
+                  if code is not None:
+                      raise RuntimeError(f"{path} error (code {code}): {message}")
+                  raise RuntimeError(f"{path} error: {message}")
+              return payload
+
+          token = os.environ.get("INSTAGRAM_ACCESS_TOKEN", "").strip()
+          user_id = os.environ.get("INSTAGRAM_USER_ID", "").strip()
+
+          print(f"TOKEN_PRESENT: {bool(token)}")
+          print(f"INSTAGRAM_USER_ID_CONFIGURED: {bool(user_id)}")
+          if not token:
+              sys.exit(1)
+
+          prefix = token.split("_", 1)[0] if "_" in token[:10] else token[:4]
+          print(f"TOKEN_PREFIX: {prefix}...")
+
+          debug = graph_get(
+              "debug_token",
+              {"input_token": token, "access_token": token},
+          )
+          data = debug.get("data") or {}
+          print(f"TOKEN_VALID: {data.get('is_valid')}")
+          print(f"TOKEN_TYPE: {data.get('type')}")
+          expires_at = data.get("expires_at")
+          print(f"EXPIRES_AT_UNIX: {expires_at}")
+          if expires_at:
+              print(
+                  "EXPIRES_AT_ISO: "
+                  + datetime.fromtimestamp(int(expires_at), tz=timezone.utc).isoformat()
+              )
+          else:
+              print("EXPIRES_AT_ISO: null")
+
+          scopes = data.get("scopes") or []
+          if not isinstance(scopes, list):
+              scopes = []
+          print(f"SCOPES_COUNT: {len(scopes)}")
+          print("SCOPES: " + ", ".join(str(s) for s in scopes))
+          print(
+              "HAS_instagram_content_publish: "
+              + str("instagram_content_publish" in scopes)
+          )
+          print(f"APP_ID: {data.get('app_id')}")
+
+          if user_id:
+              try:
+                  ig = graph_get(
+                      user_id,
+                      {"fields": "id,username,name", "access_token": token},
+                  )
+                  print(f"IG_ACCOUNT_ID: {ig.get('id')}")
+                  print(f"IG_USERNAME: {ig.get('username')}")
+                  print("IG_ACCOUNT_ACCESS: true")
+              except RuntimeError as exc:
+                  print("IG_ACCOUNT_ACCESS: false")
+                  print(f"IG_ACCOUNT_ERROR: {redact(str(exc))}")
+          PY

@@ -1,11 +1,11 @@
 # Report: Tenant Modules UI Slice 1 Implementation
 
-**Date:** 2026-07-23  
-**Branch:** `feature/tenant-modules-ui-slice1`  
-**Worktree:** `.worktrees/tenant-modules-ui-slice1`  
-**Base SHA:** `308b804e81131e9b4d7cc9877eb3f33c65e5af58` (`origin/main`)  
-**Plan:** `docs/ai/plans/2026-07-23-tenant-modules-ui-presets-implementation-plan.md`  
-**HQ:** Decision A — Slice 1 approved  
+**Date:** 2026-07-23
+**Branch:** `feature/tenant-modules-ui-slice1`
+**Worktree:** `.worktrees/tenant-modules-ui-slice1`
+**Base SHA:** `308b804e81131e9b4d7cc9877eb3f33c65e5af58` (`origin/main`)
+**Plan:** `docs/ai/plans/2026-07-23-tenant-modules-ui-presets-implementation-plan.md`
+**HQ:** Decision A — Slice 1 approved
 **Commit/push:** **not performed**
 
 ---
@@ -24,7 +24,7 @@
 
 ## Verdict
 
-**PASS (implementation complete, pre-commit).**  
+**PASS (implementation complete, pre-commit).**
 Provider Tenant Detail → Modules shows registry names/deps; disable of required dependency returns **409**; enable is idempotent; disable retains data/`settings_json`.
 
 ---

@@ -1,9 +1,9 @@
 # Audit + Implementation Plan: Tenant Modules UI + Presets Readiness
 
-**Date:** 2026-07-23  
-**Type:** research_only / documentation_only → **Slice 1 implementation approved (HQ Decision A)**  
-**Status:** Slice 1 implemented on `feature/tenant-modules-ui-slice1` — **waiting for commit approval**  
-**Risk:** low  
+**Date:** 2026-07-23
+**Type:** research_only / documentation_only → **Slice 1 implementation approved (HQ Decision A)**
+**Status:** Slice 1 implemented on `feature/tenant-modules-ui-slice1` — **waiting for commit approval**
+**Risk:** low
 **Code / migrations / seed / deploy / server:** Slice 1 code in dedicated worktree only; **no migrations; no commit/push yet**
 
 **Related (read-only reuse):**
@@ -188,8 +188,8 @@ Reuse `ModuleDefinition.dependencies_json`:
 
 ## 5. `consulting_basic` preset definition (design for later seed — **do not seed in slice 1**)
 
-**Preset code:** `consulting_basic`  
-**Target first client tenant slug (ops):** `qonsulting` (activation out of this plan)  
+**Preset code:** `consulting_basic`
+**Target first client tenant slug (ops):** `qonsulting` (activation out of this plan)
 **Mechanism:** same as `kindergarten_basic` / `flexity_sales_basic` — `industry_templates` row + `default_modules` + config JSON — applied via existing `apply_to_tenant`.
 
 | Tier | Business label | Module codes (existing) | Notes |
@@ -214,22 +214,22 @@ Reuse `ModuleDefinition.dependencies_json`:
 1. Console: join tenant modules with `GET /modules/registry` (display name, description, required deps).
 2. Console: show **entitlement** as read-only badge if cheaply available from existing plan endpoints; if not, show placeholder `unknown` + status only (no fake billing).
 3. Console: surface dependency errors from API (409) in Russian alerts.
-4. Backend (minimal, only if needed for UI):  
-   - optional response enrichment OR thin `GET /tenants/{id}/modules` include definition fields;  
-   - **disable dependents guard**;  
+4. Backend (minimal, only if needed for UI):
+   - optional response enrichment OR thin `GET /tenants/{id}/modules` include definition fields;
+   - **disable dependents guard**;
    - optional entitlement check on enable (provider override flag allowed with audit note).
 5. Confirm disable never deletes data (test).
 6. Confirm enable is idempotent (re-enable already enabled = 200/no-op).
 
 **Out of scope for Slice 1:**
-- `consulting_basic` seed  
-- preset apply UI  
-- client self-service  
-- billing/add-on purchase  
-- `trailers_basic`  
-- qonsulting create/enable  
-- Alembic  
-- Marketing M8  
+- `consulting_basic` seed
+- preset apply UI
+- client self-service
+- billing/add-on purchase
+- `trailers_basic`
+- qonsulting create/enable
+- Alembic
+- Marketing M8
 
 ### Later slices (separate approvals)
 
@@ -258,17 +258,17 @@ Reuse `ModuleDefinition.dependencies_json`:
 
 ### Do not touch (Slice 1)
 
-- `backend/alembic/**`  
-- `backend/app/modules/industry_templates/seed.py` (no `consulting_basic` yet)  
-- Marketing M8 / publish bridge worktrees  
-- Import / consulting SQLite migration code  
-- Deploy / nginx / DNS / Hoster / AWS  
-- Tenant data for `qonsulting`  
+- `backend/alembic/**`
+- `backend/app/modules/industry_templates/seed.py` (no `consulting_basic` yet)
+- Marketing M8 / publish bridge worktrees
+- Import / consulting SQLite migration code
+- Deploy / nginx / DNS / Hoster / AWS
+- Tenant data for `qonsulting`
 
 ### Slice 2+ (preview only — not authorized now)
 
-- `industry_templates/seed.py` — add editable `consulting_basic`  
-- Console preset preview components  
+- `industry_templates/seed.py` — add editable `consulting_basic`
+- Console preset preview components
 - Subscriptions add-on models (may need migration — **separate** plan)
 
 ---
@@ -303,13 +303,13 @@ Reuse `ModuleDefinition.dependencies_json`:
 
 ## 10. Blockers / decisions for HQ
 
-1. **Confirm three-state model** (entitlement / enabled / readiness) as product lock.  
-2. **Confirm “Consulting” is preset-on-CRM**, not a new `module_definitions` code in v1.  
-3. **Confirm “Reports”** stays composed UI (no `reports` module) for v1.  
-4. **Provider override:** may provider enable a module not on the plan? (recommended: yes + audit; client self-service: no).  
-5. **Slice 1 scope:** UI-only vs UI + disable-dependents backend guard (recommended: **both**, still no migration).  
-6. **When to seed `consulting_basic`:** only after Slice 1 green + separate approval (Slice 2).  
-7. **`qonsulting` activation:** separate ops gate after preset exists — not part of Modules UI slice.  
+1. **Confirm three-state model** (entitlement / enabled / readiness) as product lock.
+2. **Confirm “Consulting” is preset-on-CRM**, not a new `module_definitions` code in v1.
+3. **Confirm “Reports”** stays composed UI (no `reports` module) for v1.
+4. **Provider override:** may provider enable a module not on the plan? (recommended: yes + audit; client self-service: no).
+5. **Slice 1 scope:** UI-only vs UI + disable-dependents backend guard (recommended: **both**, still no migration).
+6. **When to seed `consulting_basic`:** only after Slice 1 green + separate approval (Slice 2).
+7. **`qonsulting` activation:** separate ops gate after preset exists — not part of Modules UI slice.
 8. **Marketing paid vs included** for consulting clients.
 
 ---
@@ -339,11 +339,10 @@ No other files.
 
 ## Approval
 
-**Status:** HQ Decision **A** approved Slice 1 (2026-07-23).  
+**Status:** HQ Decision **A** approved Slice 1 (2026-07-23).
 
-**Slice 1 implementation:** done in worktree `.worktrees/tenant-modules-ui-slice1` on branch `feature/tenant-modules-ui-slice1` (base `308b804`).  
-**Report:** `docs/ai/reports/2026-07-23-tenant-modules-ui-slice1-implementation-report.md`  
+**Slice 1 implementation:** done in worktree `.worktrees/tenant-modules-ui-slice1` on branch `feature/tenant-modules-ui-slice1` (base `308b804`).
+**Report:** `docs/ai/reports/2026-07-23-tenant-modules-ui-slice1-implementation-report.md`
 **Commit:** not created — stop before commit per HQ.
 
 Further slices (presets / self-service / billing / trailers_basic) still require separate HQ approval.
-

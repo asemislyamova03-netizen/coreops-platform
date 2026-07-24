@@ -79,6 +79,10 @@ class ModuleRegistryService:
     def enable_module(self, user: User, tenant_id: uuid.UUID, module_code: str):
         self._ensure_provider_access(user, tenant_id)
         tenant_module = self._get_or_create_tenant_module(tenant_id, module_code)
+        # Idempotent: already fully enabled — no-op (preserve mode/settings).
+        if tenant_module.status == ModuleStatus.ENABLED:
+            return tenant_module
+
         guard = ModuleGuard(self.db, tenant_id)
         guard.assert_dependencies(module_code)
 
@@ -93,6 +97,13 @@ class ModuleRegistryService:
 
     def disable_module(self, user: User, tenant_id: uuid.UUID, module_code: str):
         tenant_module = self.get_tenant_module(user, tenant_id, module_code)
+        # Idempotent: already disabled — no-op (preserve settings_json).
+        if tenant_module.status == ModuleStatus.DISABLED:
+            return tenant_module
+
+        ModuleGuard(self.db, tenant_id).assert_no_active_dependents(module_code)
+
+        # Enablement only: never delete tenant business data or settings_json.
         tenant_module.status = ModuleStatus.DISABLED
         tenant_module.mode = ModuleMode.DISABLED
         tenant_module.external_provider_code = None

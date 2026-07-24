@@ -1,5 +1,9 @@
-import type { TenantModule } from "../types/module";
+import type { ModuleDefinition, TenantModule } from "../types/module";
 import { apiFetch } from "./client";
+
+export function listModuleRegistry(): Promise<ModuleDefinition[]> {
+  return apiFetch<ModuleDefinition[]>("/modules/registry");
+}
 
 export function listTenantModules(tenantId: string): Promise<TenantModule[]> {
   return apiFetch<TenantModule[]>(`/tenants/${tenantId}/modules`);

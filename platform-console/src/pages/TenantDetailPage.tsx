@@ -4,7 +4,16 @@ import { Link, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { applyTemplate, listTemplates } from "../api/industry-templates";
 import { getTenantLabels } from "../api/labels";
-import { disableModule, enableModule, listTenantModules } from "../api/modules";
+import {
+  disableModule,
+  enableModule,
+  listModuleRegistry,
+  listTenantModules,
+} from "../api/modules";
+import {
+  buildTenantModuleRows,
+  disableBlockedMessage,
+} from "./tenantModulesHelpers";
 import { assignPlan, getSubscription, listPlans } from "../api/subscriptions";
 import {
   addTenantMembership,
@@ -19,7 +28,7 @@ import { Input } from "../components/ui/Input";
 import { Loading } from "../components/ui/Loading";
 import { Select } from "../components/ui/Select";
 import { Table } from "../components/ui/Table";
-import type { TenantModule } from "../types/module";
+import type { TenantModuleRow } from "../types/module";
 import type { TenantMembership, TenantMembershipRole, TenantStatus, TenantUserCreateRole } from "../types/tenant";
 import type { ApplyTemplateResponse } from "../types/template";
 import {
@@ -105,6 +114,17 @@ export function TenantDetailPage() {
     enabled: Boolean(tenantId) && activeTab === "modules",
   });
 
+  const registryQuery = useQuery({
+    queryKey: ["module-registry"],
+    queryFn: listModuleRegistry,
+    enabled: activeTab === "modules",
+  });
+
+  const moduleRows = buildTenantModuleRows(
+    modulesQuery.data ?? [],
+    registryQuery.data ?? [],
+  );
+
   const membershipsQuery = useQuery({
     queryKey: ["tenant-memberships", tenantId],
     queryFn: () => listTenantMemberships(tenantId),
@@ -156,16 +176,34 @@ export function TenantDetailPage() {
   const moduleMutation = useMutation({
     mutationFn: ({ code, action }: { code: string; action: "enable" | "disable" }) =>
       action === "enable" ? enableModule(tenantId, code) : disableModule(tenantId, code),
-    onSuccess: () => {
-      setActionSuccess("Модуль обновлён");
+    onSuccess: (_data, variables) => {
+      setActionSuccess(
+        variables.action === "enable" ? "Модуль включён" : "Модуль отключён",
+      );
       setActionError(null);
       void queryClient.invalidateQueries({ queryKey: ["tenant-modules", tenantId] });
     },
     onError: (err: unknown) => {
       setActionSuccess(null);
-      setActionError(err instanceof ApiError ? err.message : "Ошибка модуля");
+      setActionError(err instanceof ApiError ? formatApiErrorMessage(err.message) : "Ошибка модуля");
     },
   });
+
+  const requestDisableModule = (row: TenantModuleRow) => {
+    if (row.active_dependents.length > 0) {
+      setActionSuccess(null);
+      setActionError(disableBlockedMessage(row.module_code, row.active_dependents));
+      return;
+    }
+    const confirmed = window.confirm(
+      `Отключить модуль «${row.name}» (${row.module_code})?\n` +
+        "Данные tenant не удаляются — отключается только доступ к модулю.",
+    );
+    if (!confirmed) {
+      return;
+    }
+    moduleMutation.mutate({ code: row.module_code, action: "disable" });
+  };
 
   const assignPlanMutation = useMutation({
     mutationFn: (planCode: string) => assignPlan(tenantId, planCode),
@@ -343,51 +381,94 @@ export function TenantDetailPage() {
 
       {activeTab === "modules" && (
         <div className="panel">
-          {modulesQuery.isLoading ? (
+          {modulesQuery.isLoading || registryQuery.isLoading ? (
             <Loading />
-          ) : modulesQuery.error ? (
+          ) : modulesQuery.error || registryQuery.error ? (
             <Alert variant="error">Не удалось загрузить модули</Alert>
           ) : (
-            <Table<TenantModule>
-              data={modulesQuery.data ?? []}
-              rowKey={(row) => row.id}
-              emptyText="Модули не найдены"
-              columns={[
-                { key: "code", header: "Модуль", render: (row) => row.module_code },
-                { key: "status", header: "Статус", render: (row) => formatModuleStatus(row.status) },
-                { key: "mode", header: "Режим", render: (row) => formatModuleMode(row.mode) },
-                {
-                  key: "actions",
-                  header: "Действия",
-                  render: (row) => (
-                    <div className="actions-row compact">
-                      {row.status !== "enabled" && (
-                        <Button
-                          variant="secondary"
-                          disabled={moduleMutation.isPending}
-                          onClick={() =>
-                            moduleMutation.mutate({ code: row.module_code, action: "enable" })
-                          }
-                        >
-                          Включить
-                        </Button>
-                      )}
-                      {row.status !== "disabled" && (
-                        <Button
-                          variant="danger"
-                          disabled={moduleMutation.isPending}
-                          onClick={() =>
-                            moduleMutation.mutate({ code: row.module_code, action: "disable" })
-                          }
-                        >
-                          Отключить
-                        </Button>
-                      )}
-                    </div>
-                  ),
-                },
-              ]}
-            />
+            <>
+              <p className="muted" style={{ marginBottom: "0.75rem" }}>
+                Каталог модулей общий для всех tenant. Отключение не удаляет данные.
+                Сначала отключайте зависимые модули, затем их зависимости.
+              </p>
+              <Table<TenantModuleRow>
+                data={moduleRows}
+                rowKey={(row) => row.id}
+                emptyText="Модули не найдены"
+                columns={[
+                  {
+                    key: "name",
+                    header: "Модуль",
+                    render: (row) => (
+                      <div>
+                        <div>{row.name}</div>
+                        <div className="muted" style={{ fontSize: "0.85em" }}>
+                          {row.module_code}
+                          {row.description ? ` — ${row.description}` : ""}
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "status",
+                    header: "Статус",
+                    render: (row) => formatModuleStatus(row.status),
+                  },
+                  {
+                    key: "mode",
+                    header: "Режим",
+                    render: (row) => formatModuleMode(row.mode),
+                  },
+                  {
+                    key: "deps",
+                    header: "Зависимости",
+                    render: (row) =>
+                      row.required_dependencies.length > 0
+                        ? row.required_dependencies.join(", ")
+                        : "—",
+                  },
+                  {
+                    key: "dependents",
+                    header: "Требуется для",
+                    render: (row) =>
+                      row.active_dependents.length > 0
+                        ? row.active_dependents.join(", ")
+                        : "—",
+                  },
+                  {
+                    key: "actions",
+                    header: "Действия",
+                    render: (row) => (
+                      <div className="actions-row compact">
+                        {row.status !== "enabled" && (
+                          <Button
+                            variant="secondary"
+                            disabled={moduleMutation.isPending}
+                            onClick={() =>
+                              moduleMutation.mutate({
+                                code: row.module_code,
+                                action: "enable",
+                              })
+                            }
+                          >
+                            Включить
+                          </Button>
+                        )}
+                        {row.status !== "disabled" && (
+                          <Button
+                            variant="danger"
+                            disabled={moduleMutation.isPending}
+                            onClick={() => requestDisableModule(row)}
+                          >
+                            Отключить
+                          </Button>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            </>
           )}
         </div>
       )}

@@ -1,6 +1,10 @@
 from app.modules.process_overlay.service.bootstrap import ProcessOverlayBootstrapService
 from app.modules.process_overlay.service.catalog import ProcessOverlayCatalogService
 from app.modules.process_overlay.service.configuration import ProcessOverlayConfigurationService
+from app.modules.process_overlay.service.policy_fingerprint import (
+    find_matching_published_version,
+    policy_fingerprint,
+)
 from app.modules.process_overlay.service.publication import ProcessOverlayPublicationService
 from app.modules.process_overlay.service.runs import ProcessOverlayRunService
 from app.modules.process_overlay.service.transitions import ProcessOverlayTransitionGuard
@@ -12,4 +16,6 @@ __all__ = [
     "ProcessOverlayPublicationService",
     "ProcessOverlayRunService",
     "ProcessOverlayTransitionGuard",
+    "find_matching_published_version",
+    "policy_fingerprint",
 ]

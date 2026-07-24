@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import copy
-import hashlib
-import json
 import uuid
 
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.exceptions import NotFoundError, PermissionDeniedError
-from app.modules.process_overlay.policy_schema import PolicySnapshotV1, parse_policy_snapshot
+from app.modules.process_overlay.policy_schema import parse_policy_snapshot
 from app.modules.process_overlay.repository import ProcessOverlayRepository
+from app.modules.process_overlay.service.policy_fingerprint import (
+    find_matching_published_version,
+    policy_fingerprint,
+)
 from app.modules.process_overlay.schemas import (
     PublishDefinitionVersionRequest,
     TenantProcessConfigurationResponse,
@@ -25,26 +27,6 @@ from app.modules.workflows.repository import WorkflowRepository
 _DEFAULT_PUBLISH_REASON = "C2a local/ops bootstrap — new immutable definition version"
 _FLEXITY_SALES_TEMPLATE = "flexity_sales_intake"
 _FLEXITY_SALES_PIPELINE = "flexity_sales"
-
-
-def policy_fingerprint(policy: PolicySnapshotV1 | dict) -> str:
-    """Stable SHA-256 of a canonical policy representation.
-
-    Transitions are ordered by (from, to) so list order does not create
-    false-positive "policy changed" publishes.
-    """
-    if isinstance(policy, PolicySnapshotV1):
-        data = policy.model_dump()
-    else:
-        data = parse_policy_snapshot(policy).model_dump()
-
-    transitions = sorted(
-        data.get("transitions") or [],
-        key=lambda item: (item["from_stage_code"], item["to_stage_code"]),
-    )
-    data["transitions"] = transitions
-    canonical = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 class ProcessOverlayBootstrapService:
@@ -114,7 +96,8 @@ class ProcessOverlayBootstrapService:
         )
         desired_fp = policy_fingerprint(desired_policy)
 
-        matching = self._find_matching_published_version(
+        matching = find_matching_published_version(
+            self.repo,
             tenant_id=tenant_id,
             configuration_id=configuration_id,
             fingerprint=desired_fp,
@@ -173,32 +156,6 @@ class ProcessOverlayBootstrapService:
                 actor_user_id=actor_user_id,
             )
         return self.configuration.get_configuration(tenant_id, configuration_id)
-
-    def _find_matching_published_version(
-        self,
-        *,
-        tenant_id: uuid.UUID,
-        configuration_id: uuid.UUID,
-        fingerprint: str,
-    ):
-        """Prefer active published version; else latest published with same fingerprint."""
-        config = self.repo.get_configuration(tenant_id, configuration_id)
-        if config is None:
-            return None
-
-        if config.active_definition_version_id is not None:
-            active = self.repo.get_definition_version_for_configuration(
-                tenant_id,
-                configuration_id,
-                config.active_definition_version_id,
-            )
-            if active is not None and policy_fingerprint(active.policy_snapshot_json) == fingerprint:
-                return active
-
-        latest = self.repo.get_latest_definition_version(tenant_id, configuration_id)
-        if latest is not None and policy_fingerprint(latest.policy_snapshot_json) == fingerprint:
-            return latest
-        return None
 
     def _assert_ops_guard(self) -> None:
         settings = get_settings()

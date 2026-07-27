@@ -22,8 +22,8 @@ def test_0027_migration_revision_chain():
 
     heads = script.get_heads()
     assert len(heads) == 1
-    # Head advances with later additive revisions (M7.5-B 0028).
-    assert heads[0] == "0028_mkt_content_plans"
+    # Head advances with later additive revisions (M7.5-B 0028, timestamp hotfix 0029).
+    assert heads[0] == "0029_mkt_timestamp_defaults"
     assert REVISION_0027 not in heads
 
 

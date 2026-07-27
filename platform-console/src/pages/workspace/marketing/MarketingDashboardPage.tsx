@@ -127,9 +127,12 @@ export function MarketingDashboardPage() {
       <div className="workspace-dashboard-links panel">
         <h3>Разделы Marketing Cabinet</h3>
         <div className="workspace-quick-links">
+          <Link to="plans">{ui.marketingPlans}</Link>
           <Link to="topics">{ui.marketingTopics}</Link>
           <Link to="packs">{ui.marketingPacks}</Link>
           <Link to="connections">{ui.marketingConnections}</Link>
+          <Link to="guide">{ui.marketingGuide}</Link>
+          <Link to="rubrics">{ui.marketingRubrics}</Link>
           <span className="muted">Leads из контента — будет подключено позже</span>
         </div>
       </div>

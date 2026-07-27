@@ -743,6 +743,14 @@ class ContentPlanItemResponse(BaseModel):
     updated_at: datetime
 
 
+class ContentPlanCreateTopicResponse(BaseModel):
+    """M7.5-D: create-topic result (first create or replay)."""
+
+    item: ContentPlanItemResponse
+    topic: TopicResponse
+    replayed: bool
+
+
 # --- M7.5-C Prompt Export + Import -------------------------------------------
 
 

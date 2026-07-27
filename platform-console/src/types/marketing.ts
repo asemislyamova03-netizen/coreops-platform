@@ -430,3 +430,163 @@ export interface MarketingRubricSeedResponse {
   skipped: number;
   updated: number;
 }
+
+export type MarketingContentPlanStatus = "draft" | "approved" | "archived";
+export type MarketingContentPlanSource = "manual" | "json_import";
+export type MarketingContentPlanItemStatus =
+  | "draft"
+  | "approved"
+  | "topic_created"
+  | "cancelled";
+
+export interface MarketingContentPlan {
+  id: string;
+  tenant_id: string;
+  title: string;
+  period_start: string;
+  period_end: string;
+  status: MarketingContentPlanStatus;
+  guide_id: string | null;
+  guide_version: number | null;
+  source: MarketingContentPlanSource;
+  import_fingerprint: string | null;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarketingContentPlanItem {
+  id: string;
+  tenant_id: string;
+  plan_id: string;
+  planned_date: string;
+  rubric_id: string;
+  working_title: string;
+  angle: string | null;
+  channels: string[];
+  format: string | null;
+  goal: string | null;
+  audience: string | null;
+  cta: string | null;
+  pain: string | null;
+  insight: string | null;
+  funnel_stage: string | null;
+  notes: string | null;
+  status: MarketingContentPlanItemStatus;
+  topic_id: string | null;
+  line_key: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarketingContentPlanCreatePayload {
+  title: string;
+  period_start: string;
+  period_end: string;
+  guide_id?: string | null;
+  metadata_json?: Record<string, unknown>;
+}
+
+export interface MarketingContentPlanItemCreatePayload {
+  planned_date: string;
+  rubric_id: string;
+  working_title: string;
+  angle?: string | null;
+  channels?: string[];
+  format?: string | null;
+  goal?: string | null;
+  audience?: string | null;
+  cta?: string | null;
+  pain?: string | null;
+  insight?: string | null;
+  funnel_stage?: string | null;
+  notes?: string | null;
+  line_key?: string | null;
+  sort_order?: number;
+}
+
+export interface MarketingContentPlanItemUpdatePayload {
+  planned_date?: string;
+  rubric_id?: string;
+  working_title?: string;
+  angle?: string | null;
+  channels?: string[];
+  format?: string | null;
+  goal?: string | null;
+  audience?: string | null;
+  cta?: string | null;
+  pain?: string | null;
+  insight?: string | null;
+  funnel_stage?: string | null;
+  notes?: string | null;
+  sort_order?: number;
+}
+
+export interface MarketingContentPlanPromptExportPayload {
+  period_start: string;
+  period_end: string;
+  channels: string[];
+  target_item_count?: number | null;
+  frequency?: string | null;
+  rubric_ids?: string[] | null;
+  additional_instructions?: string | null;
+  language?: string;
+}
+
+export interface MarketingContentPlanPromptExportResponse {
+  schema_version: string;
+  prompt_text: string;
+  json_schema: Record<string, unknown>;
+  guide_id: string;
+  guide_version: number;
+  rubric_ids: string[];
+  rubric_codes: string[];
+  period_start: string;
+  period_end: string;
+  channels: string[];
+  target_item_count: number | null;
+  frequency: string | null;
+  language: string;
+  generated_at: string;
+}
+
+export interface MarketingContentPlanImportIssue {
+  code: string;
+  path: string;
+  message: string;
+}
+
+export interface MarketingContentPlanImportResolvedItem {
+  line_key: string;
+  date: string;
+  rubric_code: string;
+  rubric_id: string | null;
+  working_title: string;
+  channels: string[];
+  resolved: boolean;
+}
+
+export interface MarketingContentPlanImportPreviewResponse {
+  valid: boolean;
+  errors: MarketingContentPlanImportIssue[];
+  warnings: MarketingContentPlanImportIssue[];
+  unknown_rubric_codes: string[];
+  resolved_items: MarketingContentPlanImportResolvedItem[];
+  import_fingerprint: string | null;
+  fingerprint_already_imported: boolean;
+  existing_plan_id: string | null;
+}
+
+export interface MarketingContentPlanImportCommitResponse {
+  plan: MarketingContentPlan;
+  item_count: number;
+  replayed: boolean;
+  import_fingerprint: string;
+}
+
+export interface MarketingContentPlanCreateTopicResponse {
+  item: MarketingContentPlanItem;
+  topic: MarketingTopic;
+  replayed: boolean;
+}

@@ -18,6 +18,10 @@ import { MarketingDashboardPage } from "./pages/workspace/marketing/MarketingDas
 import { MarketingGuidePage } from "./pages/workspace/marketing/MarketingGuidePage";
 import { MarketingPackDetailPage } from "./pages/workspace/marketing/MarketingPackDetailPage";
 import { MarketingPacksPage } from "./pages/workspace/marketing/MarketingPacksPage";
+import { MarketingPlanDetailPage } from "./pages/workspace/marketing/MarketingPlanDetailPage";
+import { MarketingPlanImportPage } from "./pages/workspace/marketing/MarketingPlanImportPage";
+import { MarketingPlanPromptPage } from "./pages/workspace/marketing/MarketingPlanPromptPage";
+import { MarketingPlansPage } from "./pages/workspace/marketing/MarketingPlansPage";
 import { MarketingRubricsPage } from "./pages/workspace/marketing/MarketingRubricsPage";
 import { MarketingTopicsPage } from "./pages/workspace/marketing/MarketingTopicsPage";
 import { ReportsPage } from "./pages/workspace/ReportsPage";
@@ -43,6 +47,10 @@ export function AppRoutes() {
           <Route path="marketing/topics" element={<MarketingTopicsPage />} />
           <Route path="marketing/packs" element={<MarketingPacksPage />} />
           <Route path="marketing/packs/:packId" element={<MarketingPackDetailPage />} />
+          <Route path="marketing/plans" element={<MarketingPlansPage />} />
+          <Route path="marketing/plans/prompt" element={<MarketingPlanPromptPage />} />
+          <Route path="marketing/plans/import" element={<MarketingPlanImportPage />} />
+          <Route path="marketing/plans/:planId" element={<MarketingPlanDetailPage />} />
           <Route path="marketing/guide" element={<MarketingGuidePage />} />
           <Route path="marketing/rubrics" element={<MarketingRubricsPage />} />
           <Route path="reports" element={<ReportsPage />} />

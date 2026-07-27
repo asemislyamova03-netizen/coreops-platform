@@ -139,3 +139,33 @@ class MarketingRubricNotSelectableError(ConflictError):
 class MarketingRubricHardDeleteForbiddenError(ConflictError):
     def __init__(self) -> None:
         super().__init__("marketing_rubric_hard_delete_forbidden")
+
+
+class MarketingContentPlanNotFoundError(NotFoundError):
+    def __init__(self) -> None:
+        super().__init__("marketing_content_plan_not_found")
+
+
+class MarketingContentPlanItemNotFoundError(NotFoundError):
+    def __init__(self) -> None:
+        super().__init__("marketing_content_plan_item_not_found")
+
+
+class MarketingContentPlanValidationError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
+class MarketingContentPlanImmutableError(ConflictError):
+    def __init__(self, detail: str = "marketing_content_plan_immutable") -> None:
+        super().__init__(detail)
+
+
+class MarketingContentPlanItemDuplicateLineKeyError(ConflictError):
+    def __init__(self) -> None:
+        super().__init__("marketing_content_plan_item_line_key_duplicate")
+
+
+class MarketingContentPlanHardDeleteForbiddenError(ConflictError):
+    def __init__(self) -> None:
+        super().__init__("marketing_content_plan_hard_delete_forbidden")

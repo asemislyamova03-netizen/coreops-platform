@@ -3,6 +3,8 @@
 from sqlalchemy import inspect
 
 from app.modules.marketing.models import (
+    MarketingContentPlan,
+    MarketingContentPlanItem,
     MarketingContentTopic,
     MarketingGuide,
     MarketingLeadAttribution,
@@ -30,6 +32,8 @@ def test_marketing_models_registered_in_metadata(db_engine):
         MarketingPublishDestination.__tablename__,
         MarketingGuide.__tablename__,
         MarketingRubric.__tablename__,
+        MarketingContentPlan.__tablename__,
+        MarketingContentPlanItem.__tablename__,
     }
     inspector = inspect(db_engine)
     existing = set(inspector.get_table_names())

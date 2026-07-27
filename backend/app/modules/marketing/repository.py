@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.modules.marketing.enums import MarketingMediaAssetStatus, MarketingPackStatus, MarketingTopicStatus
 from app.modules.marketing.models import (
+    MarketingContentPlan,
+    MarketingContentPlanItem,
     MarketingContentTopic,
     MarketingGuide,
     MarketingMediaAsset,
@@ -18,6 +20,7 @@ from app.modules.marketing.models import (
     MarketingStorageResourceProfile,
 )
 from app.modules.marketing.enums import (
+    MarketingContentPlanStatus,
     MarketingDestinationStatus,
     MarketingDestinationValidationStatus,
     MarketingGuideStatus,
@@ -197,6 +200,99 @@ class MarketingRepository:
         self.db.add(rubric)
         self.db.flush()
         return rubric
+
+    # --- Content plans (M7.5-B) ---
+
+    def list_content_plans(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        status: MarketingContentPlanStatus | None = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> list[MarketingContentPlan]:
+        stmt = (
+            select(MarketingContentPlan)
+            .where(MarketingContentPlan.tenant_id == tenant_id)
+            .order_by(
+                MarketingContentPlan.period_start.desc(),
+                MarketingContentPlan.created_at.desc(),
+            )
+            .offset(skip)
+            .limit(limit)
+        )
+        if status is not None:
+            stmt = stmt.where(MarketingContentPlan.status == status)
+        return list(self.db.scalars(stmt).all())
+
+    def get_content_plan(
+        self,
+        tenant_id: uuid.UUID,
+        plan_id: uuid.UUID,
+    ) -> MarketingContentPlan | None:
+        stmt = select(MarketingContentPlan).where(
+            MarketingContentPlan.tenant_id == tenant_id,
+            MarketingContentPlan.id == plan_id,
+        )
+        return self.db.scalar(stmt)
+
+    def create_content_plan(self, **kwargs) -> MarketingContentPlan:
+        plan = MarketingContentPlan(**kwargs)
+        self.db.add(plan)
+        self.db.flush()
+        return plan
+
+    def list_content_plan_items(
+        self,
+        tenant_id: uuid.UUID,
+        plan_id: uuid.UUID,
+    ) -> list[MarketingContentPlanItem]:
+        stmt = (
+            select(MarketingContentPlanItem)
+            .where(
+                MarketingContentPlanItem.tenant_id == tenant_id,
+                MarketingContentPlanItem.plan_id == plan_id,
+            )
+            .order_by(
+                MarketingContentPlanItem.planned_date.asc(),
+                MarketingContentPlanItem.sort_order.asc(),
+                MarketingContentPlanItem.created_at.asc(),
+                MarketingContentPlanItem.id.asc(),
+            )
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def get_content_plan_item(
+        self,
+        tenant_id: uuid.UUID,
+        plan_id: uuid.UUID,
+        item_id: uuid.UUID,
+    ) -> MarketingContentPlanItem | None:
+        stmt = select(MarketingContentPlanItem).where(
+            MarketingContentPlanItem.tenant_id == tenant_id,
+            MarketingContentPlanItem.plan_id == plan_id,
+            MarketingContentPlanItem.id == item_id,
+        )
+        return self.db.scalar(stmt)
+
+    def get_content_plan_item_by_line_key(
+        self,
+        tenant_id: uuid.UUID,
+        plan_id: uuid.UUID,
+        line_key: str,
+    ) -> MarketingContentPlanItem | None:
+        stmt = select(MarketingContentPlanItem).where(
+            MarketingContentPlanItem.tenant_id == tenant_id,
+            MarketingContentPlanItem.plan_id == plan_id,
+            MarketingContentPlanItem.external_line_key == line_key,
+        )
+        return self.db.scalar(stmt)
+
+    def create_content_plan_item(self, **kwargs) -> MarketingContentPlanItem:
+        item = MarketingContentPlanItem(**kwargs)
+        self.db.add(item)
+        self.db.flush()
+        return item
 
     def find_pack_for_topic_date(
         self,

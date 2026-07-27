@@ -24,6 +24,28 @@ class MarketingRubricStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
+class MarketingContentPlanStatus(str, enum.Enum):
+    """Content plan header lifecycle (M7.5-B)."""
+
+    DRAFT = "draft"
+    APPROVED = "approved"
+    ARCHIVED = "archived"
+
+
+class MarketingContentPlanItemStatus(str, enum.Enum):
+    """Plan line lifecycle. topic_created is Slice D only."""
+
+    DRAFT = "draft"
+    APPROVED = "approved"
+    TOPIC_CREATED = "topic_created"
+    CANCELLED = "cancelled"
+
+
+class MarketingContentPlanSource(str, enum.Enum):
+    MANUAL = "manual"
+    JSON_IMPORT = "json_import"
+
+
 class MarketingPackStatus(str, enum.Enum):
     DRAFT = "draft"
     PREFLIGHT_FAILED = "preflight_failed"

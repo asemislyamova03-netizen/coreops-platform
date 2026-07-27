@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.modules.marketing.enums import (
     MarketingApprovalStatus,
     MarketingChannel,
+    MarketingContentPlanItemStatus,
+    MarketingContentPlanSource,
+    MarketingContentPlanStatus,
     MarketingDestinationStatus,
     MarketingDestinationValidationStatus,
     MarketingGuideStatus,
@@ -633,3 +636,108 @@ class RubricSeedResponse(BaseModel):
     created: int
     skipped: int
     updated: int
+
+
+# --- M7.5-B Content Plans ---
+
+
+class ContentPlanCreate(BaseModel):
+    """Header-only create. Items via POST /content-plans/{id}/items. No fingerprint."""
+
+    title: str = Field(min_length=1, max_length=512)
+    period_start: date
+    period_end: date
+    guide_id: uuid.UUID | None = None
+    metadata_json: dict = Field(default_factory=dict)
+
+
+class ContentPlanUpdate(BaseModel):
+    """Draft-only header PATCH. fingerprint/source/status not accepted."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=512)
+    period_start: date | None = None
+    period_end: date | None = None
+    guide_id: uuid.UUID | None = None
+    metadata_json: dict | None = None
+
+
+class ContentPlanResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    title: str
+    period_start: date
+    period_end: date
+    status: MarketingContentPlanStatus
+    guide_id: uuid.UUID | None = None
+    guide_version: int | None = None
+    source: MarketingContentPlanSource
+    import_fingerprint: str | None = None
+    metadata_json: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContentPlanItemCreate(BaseModel):
+    planned_date: date
+    rubric_id: uuid.UUID
+    working_title: str = Field(min_length=1, max_length=512)
+    angle: str | None = None
+    channels: list[str] = Field(default_factory=list)
+    format: str | None = Field(default=None, max_length=64)
+    goal: str | None = None
+    audience: str | None = None
+    cta: str | None = None
+    pain: str | None = None
+    insight: str | None = None
+    funnel_stage: str | None = Field(default=None, max_length=64)
+    notes: str | None = None
+    line_key: str | None = Field(default=None, min_length=1, max_length=128)
+    sort_order: int = Field(default=0, ge=0)
+
+
+class ContentPlanItemUpdate(BaseModel):
+    """Editorial fields only. status / topic_id / line_key not accepted."""
+
+    planned_date: date | None = None
+    rubric_id: uuid.UUID | None = None
+    working_title: str | None = Field(default=None, min_length=1, max_length=512)
+    angle: str | None = None
+    channels: list[str] | None = None
+    format: str | None = Field(default=None, max_length=64)
+    goal: str | None = None
+    audience: str | None = None
+    cta: str | None = None
+    pain: str | None = None
+    insight: str | None = None
+    funnel_stage: str | None = Field(default=None, max_length=64)
+    notes: str | None = None
+    sort_order: int | None = Field(default=None, ge=0)
+
+
+class ContentPlanItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    plan_id: uuid.UUID
+    planned_date: date
+    rubric_id: uuid.UUID
+    working_title: str
+    angle: str | None = None
+    channels: list[str] = Field(default_factory=list)
+    format: str | None = None
+    goal: str | None = None
+    audience: str | None = None
+    cta: str | None = None
+    pain: str | None = None
+    insight: str | None = None
+    funnel_stage: str | None = None
+    notes: str | None = None
+    status: MarketingContentPlanItemStatus
+    topic_id: uuid.UUID | None = None
+    line_key: str | None = None
+    sort_order: int
+    created_at: datetime
+    updated_at: datetime

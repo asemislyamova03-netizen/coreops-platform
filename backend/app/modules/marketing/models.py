@@ -27,6 +27,9 @@ from app.modules.marketing.enums import (
     MarketingApprovalStatus,
     MarketingAttributionTouchType,
     MarketingChannel,
+    MarketingContentPlanItemStatus,
+    MarketingContentPlanSource,
+    MarketingContentPlanStatus,
     MarketingDestinationStatus,
     MarketingDestinationValidationStatus,
     MarketingGuideStatus,
@@ -170,6 +173,163 @@ class MarketingRubric(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin)
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class MarketingContentPlan(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
+    """Tenant content plan header (period + lifecycle). M7.5-B persistence."""
+
+    __tablename__ = "marketing_content_plans"
+    __table_args__ = (
+        Index("ix_marketing_content_plans_tenant_status", "tenant_id", "status"),
+        Index(
+            "ix_marketing_content_plans_tenant_period",
+            "tenant_id",
+            "period_start",
+            "period_end",
+        ),
+        Index(
+            "uq_marketing_content_plans_tenant_fingerprint",
+            "tenant_id",
+            "import_fingerprint",
+            unique=True,
+            sqlite_where=text("import_fingerprint IS NOT NULL"),
+            postgresql_where=text("import_fingerprint IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "period_start <= period_end",
+            name="ck_marketing_content_plans_period",
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[MarketingContentPlanStatus] = mapped_column(
+        Enum(
+            MarketingContentPlanStatus,
+            name="marketing_content_plan_status",
+            native_enum=False,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
+        default=MarketingContentPlanStatus.DRAFT,
+        nullable=False,
+    )
+    guide_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("marketing_guides.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    guide_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source: Mapped[MarketingContentPlanSource] = mapped_column(
+        Enum(
+            MarketingContentPlanSource,
+            name="marketing_content_plan_source",
+            native_enum=False,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
+        default=MarketingContentPlanSource.MANUAL,
+        nullable=False,
+    )
+    import_fingerprint: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+    items: Mapped[list["MarketingContentPlanItem"]] = relationship(
+        "MarketingContentPlanItem",
+        back_populates="plan",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+
+
+class MarketingContentPlanItem(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
+    """Plan line — belongs to one plan/tenant. topic_id reserved for Slice D."""
+
+    __tablename__ = "marketing_content_plan_items"
+    __table_args__ = (
+        Index("ix_marketing_content_plan_items_tenant_plan", "tenant_id", "plan_id"),
+        Index(
+            "ix_marketing_content_plan_items_tenant_planned_date",
+            "tenant_id",
+            "planned_date",
+        ),
+        Index(
+            "ix_marketing_content_plan_items_order",
+            "tenant_id",
+            "plan_id",
+            "planned_date",
+            "sort_order",
+        ),
+        Index(
+            "uq_marketing_content_plan_items_line_key",
+            "tenant_id",
+            "plan_id",
+            "external_line_key",
+            unique=True,
+            sqlite_where=text("external_line_key IS NOT NULL"),
+            postgresql_where=text("external_line_key IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "sort_order >= 0",
+            name="ck_marketing_content_plan_items_sort_order",
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    plan_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("marketing_content_plans.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    planned_date: Mapped[date] = mapped_column(Date, nullable=False)
+    rubric_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("marketing_rubrics.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    working_title: Mapped[str] = mapped_column(String(512), nullable=False)
+    angle: Mapped[str | None] = mapped_column(Text, nullable=True)
+    channels: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    format: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    goal: Mapped[str | None] = mapped_column(Text, nullable=True)
+    audience: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cta: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pain: Mapped[str | None] = mapped_column(Text, nullable=True)
+    insight: Mapped[str | None] = mapped_column(Text, nullable=True)
+    funnel_stage: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[MarketingContentPlanItemStatus] = mapped_column(
+        Enum(
+            MarketingContentPlanItemStatus,
+            name="marketing_content_plan_item_status",
+            native_enum=False,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
+        default=MarketingContentPlanItemStatus.DRAFT,
+        nullable=False,
+    )
+    topic_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("marketing_content_topics.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    external_line_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    plan: Mapped[MarketingContentPlan] = relationship(
+        "MarketingContentPlan",
+        back_populates="items",
+    )
 
 
 class MarketingPublicationPack(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):

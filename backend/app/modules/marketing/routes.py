@@ -16,6 +16,7 @@ from app.modules.marketing.deps import (
     get_publishing_secret_lifecycle_service,
     require_marketing_connection_admin,
     require_marketing_destination_admin,
+    require_marketing_settings_admin,
 )
 from app.modules.marketing.enums import (
     MarketingChannel,
@@ -25,10 +26,14 @@ from app.modules.marketing.enums import (
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
+    MarketingRubricStatus,
     MarketingTopicStatus,
 )
 from app.modules.marketing.schemas import (
     ApproveRequest,
+    GuideCreate,
+    GuideResponse,
+    GuideUpdate,
     HistoricalPublishRequest,
     HistoricalPublishResponse,
     MarketingHealthResponse,
@@ -52,6 +57,11 @@ from app.modules.marketing.schemas import (
     PublishingConnectionUpdate,
     PublishingConnectionView,
     RejectRequest,
+    RubricCreate,
+    RubricResponse,
+    RubricSeedRequest,
+    RubricSeedResponse,
+    RubricUpdate,
     TakeTopicPackResponse,
     TakeTopicRequest,
     TopicCreate,
@@ -59,6 +69,7 @@ from app.modules.marketing.schemas import (
     TopicUpdate,
 )
 from app.modules.marketing.service.approval import MarketingApprovalService
+from app.modules.marketing.service.guides import MarketingGuideService
 from app.modules.marketing.service.historical_publish import MarketingHistoricalPublishService
 from app.modules.marketing.service.packs import MarketingPackService
 from app.modules.marketing.service.media import MarketingMediaService
@@ -71,6 +82,7 @@ from app.modules.marketing.service.publishing_connections import (
 from app.modules.marketing.service.publishing_secret_lifecycle import (
     PublishingSecretLifecycleService,
 )
+from app.modules.marketing.service.rubrics import MarketingRubricService
 from app.modules.marketing.service.texts import MarketingTextService
 from app.modules.marketing.service.topics import MarketingTopicService
 
@@ -79,6 +91,14 @@ router = APIRouter(prefix="/marketing", tags=["marketing"])
 
 def _topic_service(ctx: TenantContext, db: Session) -> MarketingTopicService:
     return MarketingTopicService(db, ctx.tenant.id)
+
+
+def _guide_service(ctx: TenantContext, db: Session) -> MarketingGuideService:
+    return MarketingGuideService(db, ctx.tenant.id)
+
+
+def _rubric_service(ctx: TenantContext, db: Session) -> MarketingRubricService:
+    return MarketingRubricService(db, ctx.tenant.id)
 
 
 def _pack_service(ctx: TenantContext, db: Session) -> MarketingPackService:
@@ -109,6 +129,161 @@ def marketing_health(
     ctx: TenantContext = Depends(require_module("marketing")),
 ) -> MarketingHealthResponse:
     return MarketingHealthResponse()
+
+
+# --- M7.5-A Guides ---
+
+
+@router.get("/guides/active", response_model=GuideResponse)
+def get_active_guide(
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> GuideResponse:
+    return _guide_service(ctx, db).get_active()
+
+
+@router.get("/guides", response_model=list[GuideResponse])
+def list_guides(
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> list[GuideResponse]:
+    return _guide_service(ctx, db).list_guides()
+
+
+@router.post("/guides", response_model=GuideResponse, status_code=201)
+def create_guide(
+    payload: GuideCreate,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> GuideResponse:
+    result = _guide_service(ctx, db).create_draft(ctx.user, payload)
+    db.commit()
+    return result
+
+
+@router.get("/guides/{guide_id}", response_model=GuideResponse)
+def get_guide(
+    guide_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> GuideResponse:
+    return _guide_service(ctx, db).get_guide(guide_id)
+
+
+@router.patch("/guides/{guide_id}", response_model=GuideResponse)
+def update_guide(
+    guide_id: uuid.UUID,
+    payload: GuideUpdate,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> GuideResponse:
+    result = _guide_service(ctx, db).update_guide(ctx.user, guide_id, payload)
+    db.commit()
+    return result
+
+
+@router.post("/guides/{guide_id}/activate", response_model=GuideResponse)
+def activate_guide(
+    guide_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> GuideResponse:
+    result = _guide_service(ctx, db).activate(ctx.user, guide_id)
+    db.commit()
+    return result
+
+
+# --- M7.5-A Rubrics ---
+
+
+@router.get("/rubrics", response_model=list[RubricResponse])
+def list_rubrics(
+    status: MarketingRubricStatus | None = None,
+    include_archived: bool = False,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> list[RubricResponse]:
+    return _rubric_service(ctx, db).list_rubrics(
+        status=status,
+        include_archived=include_archived,
+    )
+
+
+@router.post("/rubrics", response_model=RubricResponse, status_code=201)
+def create_rubric(
+    payload: RubricCreate,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> RubricResponse:
+    result = _rubric_service(ctx, db).create_rubric(ctx.user, payload)
+    db.commit()
+    return result
+
+
+@router.post("/rubrics/seed-defaults", response_model=RubricSeedResponse)
+def seed_default_rubrics(
+    payload: RubricSeedRequest | None = None,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> RubricSeedResponse:
+    body = payload or RubricSeedRequest()
+    result = _rubric_service(ctx, db).seed_defaults(ctx.user, body)
+    db.commit()
+    return result
+
+
+@router.get("/rubrics/{rubric_id}", response_model=RubricResponse)
+def get_rubric(
+    rubric_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> RubricResponse:
+    return _rubric_service(ctx, db).get_rubric(rubric_id)
+
+
+@router.patch("/rubrics/{rubric_id}", response_model=RubricResponse)
+def update_rubric(
+    rubric_id: uuid.UUID,
+    payload: RubricUpdate,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> RubricResponse:
+    result = _rubric_service(ctx, db).update_rubric(ctx.user, rubric_id, payload)
+    db.commit()
+    return result
+
+
+@router.post("/rubrics/{rubric_id}/activate", response_model=RubricResponse)
+def activate_rubric(
+    rubric_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> RubricResponse:
+    result = _rubric_service(ctx, db).activate(ctx.user, rubric_id)
+    db.commit()
+    return result
+
+
+@router.post("/rubrics/{rubric_id}/deactivate", response_model=RubricResponse)
+def deactivate_rubric(
+    rubric_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> RubricResponse:
+    result = _rubric_service(ctx, db).deactivate(ctx.user, rubric_id)
+    db.commit()
+    return result
+
+
+@router.post("/rubrics/{rubric_id}/archive", response_model=RubricResponse)
+def archive_rubric(
+    rubric_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> RubricResponse:
+    result = _rubric_service(ctx, db).archive(ctx.user, rubric_id)
+    db.commit()
+    return result
 
 
 @router.get("/topics", response_model=list[TopicResponse])

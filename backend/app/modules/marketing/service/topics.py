@@ -22,6 +22,7 @@ from app.modules.marketing.schemas import (
     TopicUpdate,
 )
 from app.modules.marketing.service.pack_factory import create_draft_pack_with_texts
+from app.modules.marketing.service.rubrics import MarketingRubricService
 from app.modules.marketing.service.slugify import slugify
 from app.modules.marketing.topic_metadata import (
     build_topic_metadata_for_create,
@@ -35,6 +36,7 @@ class MarketingTopicService:
         self.db = db
         self.tenant_id = tenant_id
         self.repo = MarketingRepository(db)
+        self.rubrics = MarketingRubricService(db, tenant_id)
 
     def list_topics(
         self,
@@ -62,6 +64,7 @@ class MarketingTopicService:
         return self._to_response(topic)
 
     def create_topic(self, user: User, payload: TopicCreate) -> TopicResponse:
+        self.rubrics.assert_code_selectable_for_new_topic(payload.rubric)
         metadata = build_topic_metadata_for_create(payload)
         topic = self.repo.create_topic(
             tenant_id=self.tenant_id,
@@ -88,6 +91,8 @@ class MarketingTopicService:
         payload: TopicUpdate,
     ) -> TopicResponse:
         topic = self._get_topic_or_404(topic_id)
+        if payload.rubric is not None:
+            self.rubrics.assert_code_selectable_for_new_topic(payload.rubric)
         for field in (
             "title",
             "rubric",

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   archiveMarketingTopic,
   createMarketingTopic,
+  listMarketingRubrics,
   listMarketingTopics,
   takeMarketingTopic,
   updateMarketingTopic,
@@ -42,6 +43,7 @@ import {
   priorityLevelFromValue,
   priorityValueFromLevel,
   type MarketingPriorityLevel,
+  type MarketingRubricOption,
 } from "./marketingTaxonomy";
 
 type TopicFormState = {
@@ -107,6 +109,12 @@ export function MarketingTopicsPage() {
   const [filterStatus, setFilterStatus] = useState<"" | MarketingTopicStatus>("");
   const [filterPriority, setFilterPriority] = useState<"" | MarketingPriorityLevel>("");
 
+  const rubricsQuery = useQuery({
+    queryKey: ["marketing-rubrics-active"],
+    queryFn: () => listMarketingRubrics({ status: "active" }),
+    enabled: !labelsLoading,
+  });
+
   const topicsQuery = useQuery({
     queryKey: ["marketing-topics", filterRubric, filterStatus],
     queryFn: () =>
@@ -117,6 +125,14 @@ export function MarketingTopicsPage() {
       }),
     enabled: !labelsLoading,
   });
+
+  const rubricOptions: MarketingRubricOption[] = useMemo(() => {
+    const live = (rubricsQuery.data ?? []).map((row) => ({
+      code: row.code,
+      label: row.name,
+    }));
+    return live.length > 0 ? live : MARKETING_RUBRIC_OPTIONS;
+  }, [rubricsQuery.data]);
 
   const createMutation = useMutation({
     mutationFn: (payload: MarketingTopicCreatePayload) => createMarketingTopic(payload),
@@ -270,7 +286,7 @@ export function MarketingTopicsPage() {
               value={form.rubric}
               onChange={(event) => patchForm({ rubric: event.target.value })}
             >
-              {MARKETING_RUBRIC_OPTIONS.map((option) => (
+              {rubricOptions.map((option) => (
                 <option key={option.code} value={option.code}>
                   {option.label}
                 </option>
@@ -421,7 +437,7 @@ export function MarketingTopicsPage() {
               onChange={(event) => setFilterRubric(event.target.value)}
             >
               <option value="">Все</option>
-              {MARKETING_RUBRIC_OPTIONS.map((option) => (
+              {rubricOptions.map((option) => (
                 <option key={option.code} value={option.code}>
                   {option.label}
                 </option>
@@ -488,7 +504,7 @@ export function MarketingTopicsPage() {
               {
                 key: "rubric",
                 header: "Рубрика",
-                render: (row) => marketingRubricLabel(row.rubric),
+                render: (row) => marketingRubricLabel(row.rubric, rubricOptions),
               },
               {
                 key: "context",

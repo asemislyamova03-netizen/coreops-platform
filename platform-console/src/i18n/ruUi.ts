@@ -217,6 +217,8 @@ export const ui = {
   marketingPacks: "Публикации / Packs",
   marketingPackDetail: "Pack detail",
   marketingConnections: "Подключения",
+  marketingGuide: "Marketing Guide",
+  marketingRubrics: "Рубрики",
   reports: "Отчёты",
   workItem: "Заявка",
   overview: "Обзор",

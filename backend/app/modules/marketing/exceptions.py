@@ -102,3 +102,40 @@ class MarketingPublishDestinationNotFoundError(NotFoundError):
 class MarketingPublishDestinationHardDeleteForbiddenError(ConflictError):
     def __init__(self) -> None:
         super().__init__("publish_destination_hard_delete_forbidden")
+
+
+class MarketingGuideNotFoundError(NotFoundError):
+    def __init__(self) -> None:
+        super().__init__("marketing_guide_not_found")
+
+
+class MarketingGuideValidationError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
+class MarketingRubricNotFoundError(NotFoundError):
+    def __init__(self) -> None:
+        super().__init__("marketing_rubric_not_found")
+
+
+class MarketingRubricValidationError(ConflictError):
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+
+
+class MarketingRubricDuplicateError(ConflictError):
+    def __init__(self) -> None:
+        super().__init__("marketing_rubric_duplicate")
+
+
+class MarketingRubricNotSelectableError(ConflictError):
+    """Inactive/archived rubric must not be chosen for a new consumable topic."""
+
+    def __init__(self) -> None:
+        super().__init__("marketing_rubric_not_selectable")
+
+
+class MarketingRubricHardDeleteForbiddenError(ConflictError):
+    def __init__(self) -> None:
+        super().__init__("marketing_rubric_hard_delete_forbidden")

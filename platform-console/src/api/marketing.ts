@@ -1,6 +1,9 @@
 import type {
   ListMarketingPacksParams,
   ListMarketingTopicsParams,
+  MarketingGuide,
+  MarketingGuideCreatePayload,
+  MarketingGuideUpdatePayload,
   MarketingHealth,
   MarketingMediaAsset,
   MarketingMediaCreatePayload,
@@ -9,6 +12,11 @@ import type {
   MarketingPackSummary,
   MarketingPackText,
   MarketingPreflightResponse,
+  MarketingRubric,
+  MarketingRubricCreatePayload,
+  MarketingRubricSeedResponse,
+  MarketingRubricStatus,
+  MarketingRubricUpdatePayload,
   MarketingTakeTopicPackResponse,
   MarketingTakeTopicPayload,
   MarketingTopic,
@@ -168,5 +176,100 @@ export function rejectMarketingPack(
   return workspaceApiFetch<MarketingPackDetail>(`/marketing/packs/${packId}/reject`, {
     method: "POST",
     body: JSON.stringify(reason ? { reason } : {}),
+  });
+}
+
+export function getActiveMarketingGuide(): Promise<MarketingGuide> {
+  return workspaceApiFetch<MarketingGuide>("/marketing/guides/active");
+}
+
+export function listMarketingGuides(): Promise<MarketingGuide[]> {
+  return workspaceApiFetch<MarketingGuide[]>("/marketing/guides");
+}
+
+export function createMarketingGuide(
+  payload: MarketingGuideCreatePayload,
+): Promise<MarketingGuide> {
+  return workspaceApiFetch<MarketingGuide>("/marketing/guides", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateMarketingGuide(
+  guideId: string,
+  payload: MarketingGuideUpdatePayload,
+): Promise<MarketingGuide> {
+  return workspaceApiFetch<MarketingGuide>(`/marketing/guides/${guideId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function activateMarketingGuide(guideId: string): Promise<MarketingGuide> {
+  return workspaceApiFetch<MarketingGuide>(`/marketing/guides/${guideId}/activate`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function listMarketingRubrics(params: {
+  status?: MarketingRubricStatus;
+  include_archived?: boolean;
+} = {}): Promise<MarketingRubric[]> {
+  return workspaceApiFetch<MarketingRubric[]>(
+    `/marketing/rubrics${buildQuery({
+      status: params.status,
+      include_archived: params.include_archived ? "true" : undefined,
+    })}`,
+  );
+}
+
+export function createMarketingRubric(
+  payload: MarketingRubricCreatePayload,
+): Promise<MarketingRubric> {
+  return workspaceApiFetch<MarketingRubric>("/marketing/rubrics", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateMarketingRubric(
+  rubricId: string,
+  payload: MarketingRubricUpdatePayload,
+): Promise<MarketingRubric> {
+  return workspaceApiFetch<MarketingRubric>(`/marketing/rubrics/${rubricId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function activateMarketingRubric(rubricId: string): Promise<MarketingRubric> {
+  return workspaceApiFetch<MarketingRubric>(`/marketing/rubrics/${rubricId}/activate`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function deactivateMarketingRubric(rubricId: string): Promise<MarketingRubric> {
+  return workspaceApiFetch<MarketingRubric>(`/marketing/rubrics/${rubricId}/deactivate`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function archiveMarketingRubric(rubricId: string): Promise<MarketingRubric> {
+  return workspaceApiFetch<MarketingRubric>(`/marketing/rubrics/${rubricId}/archive`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function seedMarketingRubricDefaults(
+  force = false,
+): Promise<MarketingRubricSeedResponse> {
+  return workspaceApiFetch<MarketingRubricSeedResponse>("/marketing/rubrics/seed-defaults", {
+    method: "POST",
+    body: JSON.stringify({ force }),
   });
 }

@@ -29,6 +29,7 @@ from app.modules.marketing.enums import (
     MarketingChannel,
     MarketingDestinationStatus,
     MarketingDestinationValidationStatus,
+    MarketingGuideStatus,
     MarketingMediaAssetStatus,
     MarketingMediaValidationStatus,
     MarketingPackStatus,
@@ -38,6 +39,7 @@ from app.modules.marketing.enums import (
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
     MarketingPublishStatus,
+    MarketingRubricStatus,
     MarketingStorageProfileStatus,
     MarketingStorageResourceMode,
     MarketingTextStatus,
@@ -88,6 +90,86 @@ class MarketingContentTopic(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUser
         back_populates="topic",
         lazy="selectin",
     )
+
+
+class MarketingGuide(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
+    """Tenant Marketing Guide (brief). At most one ACTIVE row per tenant."""
+
+    __tablename__ = "marketing_guides"
+    __table_args__ = (
+        Index("ix_marketing_guides_tenant_status", "tenant_id", "status"),
+        Index(
+            "uq_marketing_guides_tenant_active",
+            "tenant_id",
+            unique=True,
+            sqlite_where=text("status = 'active'"),
+            postgresql_where=text("status = 'active'"),
+        ),
+        UniqueConstraint("tenant_id", "version", name="uq_marketing_guides_tenant_version"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[MarketingGuideStatus] = mapped_column(
+        Enum(
+            MarketingGuideStatus,
+            name="marketing_guide_status",
+            native_enum=False,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
+        default=MarketingGuideStatus.DRAFT,
+        nullable=False,
+    )
+    business_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    business_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    products_services: Mapped[str] = mapped_column(Text, nullable=False)
+    audiences: Mapped[str] = mapped_column(Text, nullable=False)
+    goals: Mapped[str] = mapped_column(Text, nullable=False)
+    channels: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    default_frequency: Mapped[str] = mapped_column(String(64), nullable=False)
+    tone_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
+    constraints: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sources_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extra_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class MarketingRubric(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):
+    """Tenant-scoped permanent rubric/theme directory (not consumable topics)."""
+
+    __tablename__ = "marketing_rubrics"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "code", name="uq_marketing_rubrics_tenant_code"),
+        Index("ix_marketing_rubrics_tenant_status", "tenant_id", "status"),
+        Index("ix_marketing_rubrics_tenant_sort", "tenant_id", "sort_order"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    code: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[MarketingRubricStatus] = mapped_column(
+        Enum(
+            MarketingRubricStatus,
+            name="marketing_rubric_status",
+            native_enum=False,
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
+        default=MarketingRubricStatus.ACTIVE,
+        nullable=False,
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    metadata_json: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
 
 class MarketingPublicationPack(Base, UUIDPrimaryKeyMixin, TimestampMixin, AuditUserMixin):

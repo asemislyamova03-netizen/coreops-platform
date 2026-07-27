@@ -19,9 +19,12 @@ import {
 assert.equal(MARKETING_RUBRIC_OPTIONS.length, 10);
 assert.equal(MARKETING_FUNNEL_OPTIONS.length, 6);
 assert.equal(MARKETING_PRIORITY_OPTIONS.length, 3);
-
 assert.equal(marketingRubricLabel("ai_employees"), "AI-сотрудники");
 assert.equal(marketingRubricLabel("unknown_code"), "unknown_code");
+assert.equal(
+  marketingRubricLabel("ai_employees", [{ code: "ai_employees", label: "Live label" }]),
+  "Live label",
+);
 assert.equal(marketingFunnelLabel("trust"), "Trust — доверие");
 assert.equal(priorityLevelFromValue(0), "low");
 assert.equal(priorityLevelFromValue(5), "normal");

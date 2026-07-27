@@ -49,6 +49,8 @@ def require_marketing_connection_admin(
 
 # Destination mutations reuse the same OWNER/ADMIN (+ provider staff) gate as connections.
 require_marketing_destination_admin = require_marketing_connection_admin
+# Guide / rubric directory mutations reuse the same admin gate.
+require_marketing_settings_admin = require_marketing_connection_admin
 
 
 def _build_in_memory_vault(request: Request, env: str) -> InMemorySecretVault:

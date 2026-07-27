@@ -23,7 +23,9 @@ def test_0026_migration_revision_chain():
 
     heads = script.get_heads()
     assert len(heads) == 1
-    assert heads[0] == REVISION_0026
+    # Head advances with later additive revisions (M7.5-A 0027).
+    assert REVISION_0026 not in heads
+    assert script.get_revision(heads[0]) is not None
 
 
 def test_0026_migration_module_importable():
@@ -62,7 +64,7 @@ def test_0026_migration_module_importable():
 
 def test_no_second_alembic_head_after_0026():
     script = ScriptDirectory.from_config(Config(ALEMBIC_INI))
-    assert script.get_heads() == [REVISION_0026]
+    assert len(script.get_heads()) == 1
 
 
 def test_0025_still_points_at_0024_and_is_not_head():

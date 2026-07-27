@@ -42,6 +42,18 @@ export function MarketingPageHeader({
           >
             {ui.marketingConnections}
           </NavLink>
+          <NavLink
+            to={`${base}/guide`}
+            className={({ isActive }) => (isActive ? "active" : undefined)}
+          >
+            {ui.marketingGuide}
+          </NavLink>
+          <NavLink
+            to={`${base}/rubrics`}
+            className={({ isActive }) => (isActive ? "active" : undefined)}
+          >
+            {ui.marketingRubrics}
+          </NavLink>
         </nav>
       </div>
     </div>

@@ -7,21 +7,25 @@ from sqlalchemy.orm import Session, selectinload
 from app.modules.marketing.enums import MarketingMediaAssetStatus, MarketingPackStatus, MarketingTopicStatus
 from app.modules.marketing.models import (
     MarketingContentTopic,
+    MarketingGuide,
     MarketingMediaAsset,
     MarketingPublicationPack,
     MarketingPublicationText,
     MarketingPublishDestination,
     MarketingPublishingConnection,
     MarketingPublishLog,
+    MarketingRubric,
     MarketingStorageResourceProfile,
 )
 from app.modules.marketing.enums import (
     MarketingDestinationStatus,
     MarketingDestinationValidationStatus,
+    MarketingGuideStatus,
     MarketingPublishDestinationType,
     MarketingPublishingConnectionStatus,
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
+    MarketingRubricStatus,
     MarketingStorageProfileStatus,
     MarketingStorageResourceMode,
     destination_capability_enabled,
@@ -99,6 +103,100 @@ class MarketingRepository:
             MarketingContentTopic.status == MarketingTopicStatus.APPROVED,
         )
         return len(list(self.db.scalars(stmt).all()))
+
+    # --- Guides (M7.5-A) ---
+
+    def list_guides(self, tenant_id: uuid.UUID) -> list[MarketingGuide]:
+        stmt = (
+            select(MarketingGuide)
+            .where(MarketingGuide.tenant_id == tenant_id)
+            .order_by(MarketingGuide.version.desc())
+        )
+        return list(self.db.scalars(stmt).all())
+
+    def get_guide(
+        self,
+        tenant_id: uuid.UUID,
+        guide_id: uuid.UUID,
+    ) -> MarketingGuide | None:
+        stmt = select(MarketingGuide).where(
+            MarketingGuide.tenant_id == tenant_id,
+            MarketingGuide.id == guide_id,
+        )
+        return self.db.scalar(stmt)
+
+    def get_active_guide(self, tenant_id: uuid.UUID) -> MarketingGuide | None:
+        stmt = select(MarketingGuide).where(
+            MarketingGuide.tenant_id == tenant_id,
+            MarketingGuide.status == MarketingGuideStatus.ACTIVE,
+        )
+        return self.db.scalar(stmt)
+
+    def max_guide_version(self, tenant_id: uuid.UUID) -> int:
+        stmt = select(MarketingGuide.version).where(MarketingGuide.tenant_id == tenant_id)
+        versions = list(self.db.scalars(stmt).all())
+        return max(versions) if versions else 0
+
+    def create_guide(self, **kwargs) -> MarketingGuide:
+        guide = MarketingGuide(**kwargs)
+        self.db.add(guide)
+        self.db.flush()
+        return guide
+
+    def list_active_guides_for_update(self, tenant_id: uuid.UUID) -> list[MarketingGuide]:
+        stmt = select(MarketingGuide).where(
+            MarketingGuide.tenant_id == tenant_id,
+            MarketingGuide.status == MarketingGuideStatus.ACTIVE,
+        )
+        return list(self.db.scalars(stmt).all())
+
+    # --- Rubrics (M7.5-A) ---
+
+    def list_rubrics(
+        self,
+        tenant_id: uuid.UUID,
+        *,
+        status: MarketingRubricStatus | None = None,
+        include_archived: bool = False,
+    ) -> list[MarketingRubric]:
+        stmt = (
+            select(MarketingRubric)
+            .where(MarketingRubric.tenant_id == tenant_id)
+            .order_by(MarketingRubric.sort_order.asc(), MarketingRubric.name.asc())
+        )
+        if status is not None:
+            stmt = stmt.where(MarketingRubric.status == status)
+        elif not include_archived:
+            stmt = stmt.where(MarketingRubric.status != MarketingRubricStatus.ARCHIVED)
+        return list(self.db.scalars(stmt).all())
+
+    def get_rubric(
+        self,
+        tenant_id: uuid.UUID,
+        rubric_id: uuid.UUID,
+    ) -> MarketingRubric | None:
+        stmt = select(MarketingRubric).where(
+            MarketingRubric.tenant_id == tenant_id,
+            MarketingRubric.id == rubric_id,
+        )
+        return self.db.scalar(stmt)
+
+    def get_rubric_by_code(
+        self,
+        tenant_id: uuid.UUID,
+        code: str,
+    ) -> MarketingRubric | None:
+        stmt = select(MarketingRubric).where(
+            MarketingRubric.tenant_id == tenant_id,
+            MarketingRubric.code == code,
+        )
+        return self.db.scalar(stmt)
+
+    def create_rubric(self, **kwargs) -> MarketingRubric:
+        rubric = MarketingRubric(**kwargs)
+        self.db.add(rubric)
+        self.db.flush()
+        return rubric
 
     def find_pack_for_topic_date(
         self,

@@ -1,6 +1,17 @@
 import type {
   ListMarketingPacksParams,
   ListMarketingTopicsParams,
+  MarketingContentPlan,
+  MarketingContentPlanCreatePayload,
+  MarketingContentPlanCreateTopicResponse,
+  MarketingContentPlanImportCommitResponse,
+  MarketingContentPlanImportPreviewResponse,
+  MarketingContentPlanItem,
+  MarketingContentPlanItemCreatePayload,
+  MarketingContentPlanItemUpdatePayload,
+  MarketingContentPlanPromptExportPayload,
+  MarketingContentPlanPromptExportResponse,
+  MarketingContentPlanStatus,
   MarketingGuide,
   MarketingGuideCreatePayload,
   MarketingGuideUpdatePayload,
@@ -272,4 +283,125 @@ export function seedMarketingRubricDefaults(
     method: "POST",
     body: JSON.stringify({ force }),
   });
+}
+
+// --- M7.5 Content Plans ----------------------------------------------------
+
+export function listMarketingContentPlans(params: {
+  status?: MarketingContentPlanStatus;
+  skip?: number;
+  limit?: number;
+} = {}): Promise<MarketingContentPlan[]> {
+  return workspaceApiFetch<MarketingContentPlan[]>(
+    `/marketing/content-plans${buildQuery({
+      status: params.status,
+      skip: params.skip,
+      limit: params.limit,
+    })}`,
+  );
+}
+
+export function getMarketingContentPlan(planId: string): Promise<MarketingContentPlan> {
+  return workspaceApiFetch<MarketingContentPlan>(`/marketing/content-plans/${planId}`);
+}
+
+export function createMarketingContentPlan(
+  payload: MarketingContentPlanCreatePayload,
+): Promise<MarketingContentPlan> {
+  return workspaceApiFetch<MarketingContentPlan>("/marketing/content-plans", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function approveMarketingContentPlan(planId: string): Promise<MarketingContentPlan> {
+  return workspaceApiFetch<MarketingContentPlan>(`/marketing/content-plans/${planId}/approve`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function archiveMarketingContentPlan(planId: string): Promise<MarketingContentPlan> {
+  return workspaceApiFetch<MarketingContentPlan>(`/marketing/content-plans/${planId}/archive`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export function listMarketingContentPlanItems(
+  planId: string,
+): Promise<MarketingContentPlanItem[]> {
+  return workspaceApiFetch<MarketingContentPlanItem[]>(
+    `/marketing/content-plans/${planId}/items`,
+  );
+}
+
+export function createMarketingContentPlanItem(
+  planId: string,
+  payload: MarketingContentPlanItemCreatePayload,
+): Promise<MarketingContentPlanItem> {
+  return workspaceApiFetch<MarketingContentPlanItem>(
+    `/marketing/content-plans/${planId}/items`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+}
+
+export function updateMarketingContentPlanItem(
+  planId: string,
+  itemId: string,
+  payload: MarketingContentPlanItemUpdatePayload,
+): Promise<MarketingContentPlanItem> {
+  return workspaceApiFetch<MarketingContentPlanItem>(
+    `/marketing/content-plans/${planId}/items/${itemId}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+  );
+}
+
+export function cancelMarketingContentPlanItem(
+  planId: string,
+  itemId: string,
+): Promise<MarketingContentPlanItem> {
+  return workspaceApiFetch<MarketingContentPlanItem>(
+    `/marketing/content-plans/${planId}/items/${itemId}/cancel`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+export function createTopicFromContentPlanItem(
+  planId: string,
+  itemId: string,
+): Promise<MarketingContentPlanCreateTopicResponse> {
+  return workspaceApiFetch<MarketingContentPlanCreateTopicResponse>(
+    `/marketing/content-plans/${planId}/items/${itemId}/create-topic`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+}
+
+export function exportMarketingContentPlanPrompt(
+  payload: MarketingContentPlanPromptExportPayload,
+): Promise<MarketingContentPlanPromptExportResponse> {
+  return workspaceApiFetch<MarketingContentPlanPromptExportResponse>(
+    "/marketing/content-plans/prompt-export",
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+}
+
+export function previewMarketingContentPlanImport(payload: {
+  plan: Record<string, unknown> | string;
+  rubric_code_map?: Record<string, string>;
+}): Promise<MarketingContentPlanImportPreviewResponse> {
+  return workspaceApiFetch<MarketingContentPlanImportPreviewResponse>(
+    "/marketing/content-plans/import/preview",
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+}
+
+export function commitMarketingContentPlanImport(payload: {
+  plan: Record<string, unknown> | string;
+  rubric_code_map?: Record<string, string>;
+}): Promise<MarketingContentPlanImportCommitResponse> {
+  return workspaceApiFetch<MarketingContentPlanImportCommitResponse>(
+    "/marketing/content-plans/import/commit",
+    { method: "POST", body: JSON.stringify(payload) },
+  );
 }

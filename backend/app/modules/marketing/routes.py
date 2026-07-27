@@ -33,6 +33,7 @@ from app.modules.marketing.enums import (
 from app.modules.marketing.schemas import (
     ApproveRequest,
     ContentPlanCreate,
+    ContentPlanCreateTopicResponse,
     ContentPlanImportCommitRequest,
     ContentPlanImportCommitResponse,
     ContentPlanImportPreviewRequest,
@@ -497,6 +498,28 @@ def cancel_content_plan_item(
 ) -> ContentPlanItemResponse:
     result = _content_plan_service(ctx, db).cancel_item(ctx.user, plan_id, item_id)
     db.commit()
+    return result
+
+
+@router.post(
+    "/content-plans/{plan_id}/items/{item_id}/create-topic",
+    response_model=ContentPlanCreateTopicResponse,
+)
+def create_topic_from_content_plan_item(
+    plan_id: uuid.UUID,
+    item_id: uuid.UUID,
+    response: Response,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanCreateTopicResponse:
+    """M7.5-D: first create → 201; replay (topic_id set) → 200."""
+    result = _content_plan_service(ctx, db).create_topic_from_item(
+        ctx.user, plan_id, item_id
+    )
+    db.commit()
+    response.status_code = (
+        status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED
+    )
     return result
 
 

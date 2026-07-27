@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   archiveMarketingTopic,
   createMarketingTopic,
@@ -33,7 +33,6 @@ import { formatMarketingApiError } from "./packDetail/marketingErrors";
 import {
   MARKETING_FUNNEL_OPTIONS,
   MARKETING_PRIORITY_OPTIONS,
-  MARKETING_RUBRIC_OPTIONS,
   buildTopicCreatePayload,
   buildTopicUpdatePayload,
   extractTopicEditorial,
@@ -127,11 +126,10 @@ export function MarketingTopicsPage() {
   });
 
   const rubricOptions: MarketingRubricOption[] = useMemo(() => {
-    const live = (rubricsQuery.data ?? []).map((row) => ({
+    return (rubricsQuery.data ?? []).map((row) => ({
       code: row.code,
       label: row.name,
     }));
-    return live.length > 0 ? live : MARKETING_RUBRIC_OPTIONS;
   }, [rubricsQuery.data]);
 
   const createMutation = useMutation({
@@ -266,6 +264,13 @@ export function MarketingTopicsPage() {
         title={ui.marketingTopics}
         subtitle="Банк тем: рубрика, insight, CTA → утвердить → взять в работу."
       />
+
+      {rubricOptions.length === 0 ? (
+        <Alert variant="info">
+          Active рубрик нет — справочник Marketing Rubrics является источником истины.{" "}
+          <Link to={`/workspace/${tenantSlug}/marketing/rubrics`}>Открыть рубрики</Link>
+        </Alert>
+      ) : null}
 
       <form className="panel marketing-topic-create" onSubmit={submitForm}>
         <h3>{editingTopicId ? "Редактирование темы" : "Создание темы"}</h3>

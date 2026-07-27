@@ -8,12 +8,15 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.core.enums import AuditAction
+from app.modules.audit.recorder import AuditRecorder
 from app.modules.auth.models import User
 from app.modules.marketing.enums import (
     MarketingContentPlanItemStatus,
     MarketingContentPlanSource,
     MarketingContentPlanStatus,
     MarketingRubricStatus,
+    MarketingTopicStatus,
 )
 from app.modules.marketing.exceptions import (
     MarketingContentPlanImmutableError,
@@ -29,12 +32,14 @@ from app.modules.marketing.models import MarketingContentPlan, MarketingContentP
 from app.modules.marketing.repository import MarketingRepository
 from app.modules.marketing.schemas import (
     ContentPlanCreate,
+    ContentPlanCreateTopicResponse,
     ContentPlanItemCreate,
     ContentPlanItemResponse,
     ContentPlanItemUpdate,
     ContentPlanResponse,
     ContentPlanUpdate,
 )
+from app.modules.marketing.service.topics import MarketingTopicService
 
 _SECRETISH_KEY = re.compile(
     r"(secret|token|password|api[_-]?key|bearer|credential)",
@@ -329,6 +334,120 @@ class MarketingContentPlanService:
         item.updated_by_user_id = user.id
         self.db.flush()
         return self._item_response(item)
+
+    def create_topic_from_item(
+        self,
+        user: User,
+        plan_id: uuid.UUID,
+        item_id: uuid.UUID,
+    ) -> ContentPlanCreateTopicResponse:
+        """M7.5-D: materialize MarketingContentTopic from an approved plan item."""
+        plan = self._get_plan_or_404(plan_id)
+        if plan.status != MarketingContentPlanStatus.APPROVED:
+            raise MarketingContentPlanValidationError("plan_not_approved")
+        item = self._get_item_or_404(plan_id, item_id)
+
+        topic_svc = MarketingTopicService(self.db, self.tenant_id)
+
+        if item.topic_id is not None:
+            topic = self.repo.get_topic(self.tenant_id, item.topic_id)
+            if topic is None:
+                # Orphan link — fail closed rather than invent a new topic.
+                raise MarketingContentPlanValidationError("linked_topic_missing")
+            if item.status != MarketingContentPlanItemStatus.TOPIC_CREATED:
+                item.status = MarketingContentPlanItemStatus.TOPIC_CREATED
+                item.updated_by_user_id = user.id
+                self.db.flush()
+            AuditRecorder(self.db).audit_log(
+                action=AuditAction.EXECUTE,
+                summary="Marketing plan item create-topic replay",
+                tenant_id=self.tenant_id,
+                user_id=user.id,
+                entity_type="marketing_content_plan_item",
+                entity_id=item.id,
+                changes_json={
+                    "replayed": True,
+                    "topic_id": str(topic.id),
+                    "plan_id": str(plan.id),
+                },
+            )
+            return ContentPlanCreateTopicResponse(
+                item=self._item_response(item),
+                topic=topic_svc._to_response(topic),
+                replayed=True,
+            )
+
+        if item.status == MarketingContentPlanItemStatus.CANCELLED:
+            raise MarketingContentPlanValidationError("item_cancelled")
+        if item.status == MarketingContentPlanItemStatus.DRAFT:
+            raise MarketingContentPlanValidationError("item_not_approved")
+        if item.status != MarketingContentPlanItemStatus.APPROVED:
+            raise MarketingContentPlanValidationError("item_not_approved")
+
+        rubric = self.repo.get_rubric(self.tenant_id, item.rubric_id)
+        if rubric is None:
+            raise MarketingRubricNotFoundError()
+
+        channels = list(item.channels or [])
+        metadata: dict = {
+            "plan_id": str(plan.id),
+            "plan_item_id": str(item.id),
+            "rubric_id": str(rubric.id),
+            "channels": channels,
+            "planned_date": item.planned_date.isoformat(),
+        }
+        for key, value in (
+            ("audience", item.audience),
+            ("pain", item.pain),
+            ("insight", item.insight),
+            ("cta", item.cta),
+            ("funnel_stage", item.funnel_stage),
+            ("notes", item.notes),
+            ("format", item.format),
+            ("goal", item.goal),
+        ):
+            if value and str(value).strip():
+                metadata[key] = str(value).strip()
+
+        topic = self.repo.create_topic(
+            tenant_id=self.tenant_id,
+            title=item.working_title.strip(),
+            rubric=rubric.code,
+            angle=item.angle,
+            source="content_plan",
+            status=MarketingTopicStatus.APPROVED,
+            priority=0,
+            reusable=False,
+            recommended_channels=channels,
+            slug_hint=None,
+            metadata_json=metadata,
+            created_by_user_id=user.id,
+            updated_by_user_id=user.id,
+        )
+        item.topic_id = topic.id
+        item.status = MarketingContentPlanItemStatus.TOPIC_CREATED
+        item.updated_by_user_id = user.id
+        self.db.flush()
+
+        AuditRecorder(self.db).audit_log(
+            action=AuditAction.CREATE,
+            summary="Marketing topic created from content plan item",
+            tenant_id=self.tenant_id,
+            user_id=user.id,
+            entity_type="marketing_content_topic",
+            entity_id=topic.id,
+            changes_json={
+                "replayed": False,
+                "plan_id": str(plan.id),
+                "plan_item_id": str(item.id),
+                "rubric_code": rubric.code,
+            },
+        )
+        return ContentPlanCreateTopicResponse(
+            item=self._item_response(item),
+            topic=topic_svc._to_response(topic),
+            replayed=False,
+        )
 
     def _require_active_rubric(self, rubric_id: uuid.UUID) -> None:
         rubric = self.repo.get_rubric(self.tenant_id, rubric_id)

@@ -1,8 +1,8 @@
 import uuid
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.modules.marketing.enums import (
     MarketingApprovalStatus,
@@ -741,3 +741,108 @@ class ContentPlanItemResponse(BaseModel):
     sort_order: int
     created_at: datetime
     updated_at: datetime
+
+
+# --- M7.5-C Prompt Export + Import -------------------------------------------
+
+
+class ContentPlanPromptExportRequest(BaseModel):
+    period_start: date
+    period_end: date
+    channels: list[str] = Field(min_length=1)
+    target_item_count: int | None = Field(default=None, ge=1, le=200)
+    frequency: str | None = Field(default=None, max_length=64)
+    rubric_ids: list[uuid.UUID] | None = None
+    additional_instructions: str | None = Field(default=None, max_length=4000)
+    language: str = Field(default="ru", min_length=2, max_length=16)
+
+    @field_validator("channels")
+    @classmethod
+    def _normalize_channels(cls, value: list[str]) -> list[str]:
+        from app.modules.marketing.content_plan_schema import ALLOWED_CHANNELS, MAX_CHANNELS_PER_ITEM
+
+        if len(value) > MAX_CHANNELS_PER_ITEM:
+            raise ValueError("too_many_channels")
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for raw in value:
+            channel = str(raw).strip().lower()
+            if channel not in ALLOWED_CHANNELS:
+                raise ValueError(f"unsupported_channel:{channel}")
+            if channel not in seen:
+                cleaned.append(channel)
+                seen.add(channel)
+        if not cleaned:
+            raise ValueError("channels_required")
+        return cleaned
+
+    @model_validator(mode="after")
+    def _validate_period_and_target(self) -> "ContentPlanPromptExportRequest":
+        if self.period_end < self.period_start:
+            raise ValueError("period_end_before_start")
+        if self.target_item_count is None and not (self.frequency and self.frequency.strip()):
+            raise ValueError("target_or_frequency_required")
+        if self.rubric_ids is not None and len(self.rubric_ids) > 100:
+            raise ValueError("too_many_rubric_ids")
+        return self
+
+
+class ContentPlanPromptExportResponse(BaseModel):
+    schema_version: str
+    prompt_text: str
+    json_schema: dict[str, Any]
+    guide_id: uuid.UUID
+    guide_version: int
+    rubric_ids: list[uuid.UUID]
+    rubric_codes: list[str]
+    period_start: date
+    period_end: date
+    channels: list[str]
+    target_item_count: int | None = None
+    frequency: str | None = None
+    language: str
+    generated_at: datetime
+
+
+class ContentPlanImportIssue(BaseModel):
+    code: str
+    path: str
+    message: str
+
+
+class ContentPlanImportResolvedItem(BaseModel):
+    line_key: str
+    date: date
+    rubric_code: str
+    rubric_id: uuid.UUID | None = None
+    working_title: str
+    channels: list[str]
+    resolved: bool
+
+
+class ContentPlanImportPreviewRequest(BaseModel):
+    plan: dict[str, Any] | str
+    rubric_code_map: dict[str, uuid.UUID] | None = None
+
+
+class ContentPlanImportPreviewResponse(BaseModel):
+    valid: bool
+    errors: list[ContentPlanImportIssue] = Field(default_factory=list)
+    warnings: list[ContentPlanImportIssue] = Field(default_factory=list)
+    unknown_rubric_codes: list[str] = Field(default_factory=list)
+    resolved_items: list[ContentPlanImportResolvedItem] = Field(default_factory=list)
+    import_fingerprint: str | None = None
+    fingerprint_already_imported: bool = False
+    existing_plan_id: uuid.UUID | None = None
+
+
+class ContentPlanImportCommitRequest(BaseModel):
+    plan: dict[str, Any] | str
+    rubric_code_map: dict[str, uuid.UUID] | None = None
+
+
+class ContentPlanImportCommitResponse(BaseModel):
+    plan: ContentPlanResponse
+    item_count: int
+    replayed: bool
+    import_fingerprint: str

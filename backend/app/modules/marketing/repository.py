@@ -242,6 +242,17 @@ class MarketingRepository:
         self.db.flush()
         return plan
 
+    def get_content_plan_by_fingerprint(
+        self,
+        tenant_id: uuid.UUID,
+        import_fingerprint: str,
+    ) -> MarketingContentPlan | None:
+        stmt = select(MarketingContentPlan).where(
+            MarketingContentPlan.tenant_id == tenant_id,
+            MarketingContentPlan.import_fingerprint == import_fingerprint,
+        )
+        return self.db.scalar(stmt)
+
     def list_content_plan_items(
         self,
         tenant_id: uuid.UUID,

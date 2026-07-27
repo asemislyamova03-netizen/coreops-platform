@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.deps import get_db
@@ -33,9 +33,15 @@ from app.modules.marketing.enums import (
 from app.modules.marketing.schemas import (
     ApproveRequest,
     ContentPlanCreate,
+    ContentPlanImportCommitRequest,
+    ContentPlanImportCommitResponse,
+    ContentPlanImportPreviewRequest,
+    ContentPlanImportPreviewResponse,
     ContentPlanItemCreate,
     ContentPlanItemResponse,
     ContentPlanItemUpdate,
+    ContentPlanPromptExportRequest,
+    ContentPlanPromptExportResponse,
     ContentPlanResponse,
     ContentPlanUpdate,
     GuideCreate,
@@ -76,6 +82,12 @@ from app.modules.marketing.schemas import (
     TopicUpdate,
 )
 from app.modules.marketing.service.approval import MarketingApprovalService
+from app.modules.marketing.service.content_plan_import import (
+    MarketingContentPlanImportService,
+)
+from app.modules.marketing.service.content_plan_prompt import (
+    MarketingContentPlanPromptService,
+)
 from app.modules.marketing.service.content_plans import MarketingContentPlanService
 from app.modules.marketing.service.guides import MarketingGuideService
 from app.modules.marketing.service.historical_publish import MarketingHistoricalPublishService
@@ -111,6 +123,18 @@ def _rubric_service(ctx: TenantContext, db: Session) -> MarketingRubricService:
 
 def _content_plan_service(ctx: TenantContext, db: Session) -> MarketingContentPlanService:
     return MarketingContentPlanService(db, ctx.tenant.id)
+
+
+def _content_plan_prompt_service(
+    ctx: TenantContext, db: Session
+) -> MarketingContentPlanPromptService:
+    return MarketingContentPlanPromptService(db, ctx.tenant.id)
+
+
+def _content_plan_import_service(
+    ctx: TenantContext, db: Session
+) -> MarketingContentPlanImportService:
+    return MarketingContentPlanImportService(db, ctx.tenant.id)
 
 
 def _pack_service(ctx: TenantContext, db: Session) -> MarketingPackService:
@@ -326,6 +350,51 @@ def create_content_plan(
     db.commit()
     return result
 
+
+# --- M7.5-C Prompt Export + Import (static paths before {plan_id}) ---
+
+
+@router.post(
+    "/content-plans/prompt-export",
+    response_model=ContentPlanPromptExportResponse,
+)
+def export_content_plan_prompt(
+    payload: ContentPlanPromptExportRequest,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> ContentPlanPromptExportResponse:
+    return _content_plan_prompt_service(ctx, db).export_prompt(payload)
+
+
+@router.post(
+    "/content-plans/import/preview",
+    response_model=ContentPlanImportPreviewResponse,
+)
+def preview_content_plan_import(
+    payload: ContentPlanImportPreviewRequest,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> ContentPlanImportPreviewResponse:
+    return _content_plan_import_service(ctx, db).preview(payload)
+
+
+@router.post(
+    "/content-plans/import/commit",
+    response_model=ContentPlanImportCommitResponse,
+)
+def commit_content_plan_import(
+    payload: ContentPlanImportCommitRequest,
+    response: Response,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanImportCommitResponse:
+    """First import → 201; fingerprint replay → 200 with replayed=true."""
+    result = _content_plan_import_service(ctx, db).commit(ctx.user, payload)
+    db.commit()
+    response.status_code = (
+        status.HTTP_200_OK if result.replayed else status.HTTP_201_CREATED
+    )
+    return result
 
 @router.get("/content-plans/{plan_id}", response_model=ContentPlanResponse)
 def get_content_plan(

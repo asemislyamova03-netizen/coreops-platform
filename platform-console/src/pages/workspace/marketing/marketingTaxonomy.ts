@@ -1,5 +1,7 @@
 /**
- * Rubric / funnel / priority helpers for Marketing M7-A.
+ * Rubric / funnel / priority helpers for Marketing.
+ * Rubric SoT is tenant API (`GET /marketing/rubrics`).
+ * `LEGACY_RUBRIC_LABELS` is display-only fallback for historical topic.rubric codes.
  * Run: npx tsx src/pages/workspace/marketing/marketingTaxonomy.test.ts
  */
 
@@ -34,18 +36,24 @@ export interface MarketingTopicEditorialFields {
   planned_date?: string | null;
 }
 
-export const MARKETING_RUBRIC_OPTIONS: MarketingRubricOption[] = [
-  { code: "asem_column", label: "Авторская колонка Асем" },
-  { code: "digital_organism", label: "Flexity как цифровой организм" },
-  { code: "erp_crm_future", label: "ERP/CRM будущего" },
-  { code: "ai_employees", label: "AI-сотрудники" },
-  { code: "business_diagnosis", label: "Бизнес-диагностика" },
-  { code: "sales_inbox_review", label: "Разбор заявок и продаж" },
-  { code: "client_journey", label: "Кейсы / путь клиента" },
-  { code: "marketing_contentops", label: "Marketing / ContentOps" },
-  { code: "industry_modules", label: "Clinic / Booking / отраслевые модули" },
-  { code: "founder_notes", label: "Founder notes / за кадром" },
-];
+/** @deprecated Not SoT — legacy labels only for historical codes. Prefer API rubrics. */
+export const LEGACY_RUBRIC_LABELS: Record<string, string> = {
+  asem_column: "Авторская колонка Асем",
+  digital_organism: "Flexity как цифровой организм",
+  erp_crm_future: "ERP/CRM будущего",
+  ai_employees: "AI-сотрудники",
+  business_diagnosis: "Бизнес-диагностика",
+  sales_inbox_review: "Разбор заявок и продаж",
+  client_journey: "Кейсы / путь клиента",
+  marketing_contentops: "Marketing / ContentOps",
+  industry_modules: "Clinic / Booking / отраслевые модули",
+  founder_notes: "Founder notes / за кадром",
+};
+
+/** @deprecated Use listMarketingRubrics(); kept for test/legacy import compatibility. */
+export const MARKETING_RUBRIC_OPTIONS: MarketingRubricOption[] = Object.entries(
+  LEGACY_RUBRIC_LABELS,
+).map(([code, label]) => ({ code, label }));
 
 export const MARKETING_FUNNEL_OPTIONS: Array<{ code: MarketingFunnelStage; label: string }> = [
   { code: "awareness", label: "Awareness — узнаваемость" },
@@ -66,17 +74,18 @@ export const MARKETING_PRIORITY_OPTIONS: Array<{
   { level: "high", value: 10, label: "High" },
 ];
 
-const RUBRIC_LABELS = Object.fromEntries(
-  MARKETING_RUBRIC_OPTIONS.map((item) => [item.code, item.label]),
-) as Record<string, string>;
-
 const FUNNEL_LABELS = Object.fromEntries(
   MARKETING_FUNNEL_OPTIONS.map((item) => [item.code, item.label]),
 ) as Record<string, string>;
 
-export function marketingRubricLabel(code: string | null | undefined): string {
+export function marketingRubricLabel(
+  code: string | null | undefined,
+  liveOptions?: MarketingRubricOption[],
+): string {
   if (!code) return "—";
-  return RUBRIC_LABELS[code] ?? code;
+  const fromLive = liveOptions?.find((item) => item.code === code)?.label;
+  if (fromLive) return fromLive;
+  return LEGACY_RUBRIC_LABELS[code] ?? code;
 }
 
 export function marketingFunnelLabel(code: string | null | undefined): string {

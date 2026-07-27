@@ -15,8 +15,10 @@ import { DashboardPage } from "./pages/workspace/DashboardPage";
 import { DocumentsPage } from "./pages/workspace/DocumentsPage";
 import { FinancePage } from "./pages/workspace/FinancePage";
 import { MarketingDashboardPage } from "./pages/workspace/marketing/MarketingDashboardPage";
+import { MarketingGuidePage } from "./pages/workspace/marketing/MarketingGuidePage";
 import { MarketingPackDetailPage } from "./pages/workspace/marketing/MarketingPackDetailPage";
 import { MarketingPacksPage } from "./pages/workspace/marketing/MarketingPacksPage";
+import { MarketingRubricsPage } from "./pages/workspace/marketing/MarketingRubricsPage";
 import { MarketingTopicsPage } from "./pages/workspace/marketing/MarketingTopicsPage";
 import { ReportsPage } from "./pages/workspace/ReportsPage";
 import { WorkspaceAccessDeniedPage } from "./pages/workspace/WorkspaceAccessDeniedPage";
@@ -41,6 +43,8 @@ export function AppRoutes() {
           <Route path="marketing/topics" element={<MarketingTopicsPage />} />
           <Route path="marketing/packs" element={<MarketingPacksPage />} />
           <Route path="marketing/packs/:packId" element={<MarketingPackDetailPage />} />
+          <Route path="marketing/guide" element={<MarketingGuidePage />} />
+          <Route path="marketing/rubrics" element={<MarketingRubricsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="children" element={<Navigate to="../clients" replace />} />
           <Route path="parents" element={<Navigate to="../clients" replace />} />

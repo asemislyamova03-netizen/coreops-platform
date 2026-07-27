@@ -338,3 +338,95 @@ export interface MarketingTakeTopicPackResponse {
   source: string;
   texts: MarketingTakeTopicPackText[];
 }
+
+export type MarketingGuideStatus = "draft" | "active" | "superseded";
+export type MarketingRubricStatus = "active" | "inactive" | "archived";
+
+export interface MarketingGuide {
+  id: string;
+  tenant_id: string;
+  version: number;
+  status: MarketingGuideStatus;
+  business_name: string;
+  business_summary: string;
+  products_services: string;
+  audiences: string;
+  goals: string;
+  channels: string[];
+  default_frequency: string;
+  tone_rules: string | null;
+  constraints: string | null;
+  sources_notes: string | null;
+  extra_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarketingGuideCreatePayload {
+  business_name: string;
+  business_summary: string;
+  products_services: string;
+  audiences: string;
+  goals: string;
+  channels?: string[];
+  default_frequency: string;
+  tone_rules?: string | null;
+  constraints?: string | null;
+  sources_notes?: string | null;
+  extra_json?: Record<string, unknown>;
+  activate?: boolean;
+}
+
+export interface MarketingGuideUpdatePayload {
+  business_name?: string;
+  business_summary?: string;
+  products_services?: string;
+  audiences?: string;
+  goals?: string;
+  channels?: string[];
+  default_frequency?: string;
+  tone_rules?: string | null;
+  constraints?: string | null;
+  sources_notes?: string | null;
+  extra_json?: Record<string, unknown>;
+}
+
+export interface MarketingRubric {
+  id: string;
+  tenant_id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  content_instructions: string | null;
+  status: MarketingRubricStatus;
+  sort_order: number;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MarketingRubricCreatePayload {
+  code: string;
+  name: string;
+  description?: string | null;
+  content_instructions?: string | null;
+  status?: MarketingRubricStatus;
+  sort_order?: number;
+  metadata_json?: Record<string, unknown>;
+}
+
+export interface MarketingRubricUpdatePayload {
+  code?: string;
+  name?: string;
+  description?: string | null;
+  content_instructions?: string | null;
+  status?: MarketingRubricStatus;
+  sort_order?: number;
+  metadata_json?: Record<string, unknown>;
+}
+
+export interface MarketingRubricSeedResponse {
+  created: number;
+  skipped: number;
+  updated: number;
+}

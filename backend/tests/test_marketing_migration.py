@@ -4,6 +4,7 @@ from sqlalchemy import inspect
 
 from app.modules.marketing.models import (
     MarketingContentTopic,
+    MarketingGuide,
     MarketingLeadAttribution,
     MarketingMediaAsset,
     MarketingPublicationPack,
@@ -11,6 +12,7 @@ from app.modules.marketing.models import (
     MarketingPublishDestination,
     MarketingPublishingConnection,
     MarketingPublishLog,
+    MarketingRubric,
     MarketingStorageResourceProfile,
 )
 
@@ -26,6 +28,8 @@ def test_marketing_models_registered_in_metadata(db_engine):
         MarketingPublishingConnection.__tablename__,
         MarketingStorageResourceProfile.__tablename__,
         MarketingPublishDestination.__tablename__,
+        MarketingGuide.__tablename__,
+        MarketingRubric.__tablename__,
     }
     inspector = inspect(db_engine)
     existing = set(inspector.get_table_names())

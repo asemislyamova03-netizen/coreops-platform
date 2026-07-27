@@ -8,6 +8,22 @@ class MarketingTopicStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
+class MarketingGuideStatus(str, enum.Enum):
+    """Guide lifecycle — DB stores lowercase .value (same convention as topics)."""
+
+    DRAFT = "draft"
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+
+
+class MarketingRubricStatus(str, enum.Enum):
+    """Permanent rubric directory — never 'used'; reusable."""
+
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ARCHIVED = "archived"
+
+
 class MarketingPackStatus(str, enum.Enum):
     DRAFT = "draft"
     PREFLIGHT_FAILED = "preflight_failed"

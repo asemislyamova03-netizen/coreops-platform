@@ -9,6 +9,7 @@ from app.modules.marketing.enums import (
     MarketingChannel,
     MarketingDestinationStatus,
     MarketingDestinationValidationStatus,
+    MarketingGuideStatus,
     MarketingMediaAssetStatus,
     MarketingMediaValidationStatus,
     MarketingPackStatus,
@@ -18,6 +19,7 @@ from app.modules.marketing.enums import (
     MarketingPublishingProvider,
     MarketingPublishingTokenStatus,
     MarketingPublishStatus,
+    MarketingRubricStatus,
     MarketingStorageProfileStatus,
     MarketingStorageResourceMode,
     MarketingTextStatus,
@@ -531,3 +533,103 @@ class ManagedMediaAssetView(BaseModel):
     storage_profile_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
+
+
+# --- M7.5-A Guide + Rubrics ---
+
+
+class GuideCreate(BaseModel):
+    business_name: str = Field(min_length=1, max_length=255)
+    business_summary: str = Field(min_length=1)
+    products_services: str = Field(min_length=1)
+    audiences: str = Field(min_length=1)
+    goals: str = Field(min_length=1)
+    channels: list[str] = Field(default_factory=list)
+    default_frequency: str = Field(min_length=1, max_length=64)
+    tone_rules: str | None = None
+    constraints: str | None = None
+    sources_notes: str | None = None
+    extra_json: dict = Field(default_factory=dict)
+    activate: bool = False
+
+
+class GuideUpdate(BaseModel):
+    business_name: str | None = Field(default=None, min_length=1, max_length=255)
+    business_summary: str | None = Field(default=None, min_length=1)
+    products_services: str | None = Field(default=None, min_length=1)
+    audiences: str | None = Field(default=None, min_length=1)
+    goals: str | None = Field(default=None, min_length=1)
+    channels: list[str] | None = None
+    default_frequency: str | None = Field(default=None, min_length=1, max_length=64)
+    tone_rules: str | None = None
+    constraints: str | None = None
+    sources_notes: str | None = None
+    extra_json: dict | None = None
+
+
+class GuideResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    version: int
+    status: MarketingGuideStatus
+    business_name: str
+    business_summary: str
+    products_services: str
+    audiences: str
+    goals: str
+    channels: list[str]
+    default_frequency: str
+    tone_rules: str | None = None
+    constraints: str | None = None
+    sources_notes: str | None = None
+    extra_json: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class RubricCreate(BaseModel):
+    code: str = Field(min_length=2, max_length=64)
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    content_instructions: str | None = None
+    status: MarketingRubricStatus = MarketingRubricStatus.ACTIVE
+    sort_order: int = 0
+    metadata_json: dict = Field(default_factory=dict)
+
+
+class RubricUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=2, max_length=64)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    content_instructions: str | None = None
+    status: MarketingRubricStatus | None = None
+    sort_order: int | None = None
+    metadata_json: dict | None = None
+
+
+class RubricResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    code: str
+    name: str
+    description: str | None = None
+    content_instructions: str | None = None
+    status: MarketingRubricStatus
+    sort_order: int
+    metadata_json: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class RubricSeedRequest(BaseModel):
+    force: bool = False
+
+
+class RubricSeedResponse(BaseModel):
+    created: int
+    skipped: int
+    updated: int

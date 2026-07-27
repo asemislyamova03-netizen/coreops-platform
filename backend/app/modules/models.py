@@ -82,6 +82,7 @@ from app.modules.booking.models import (  # noqa: F401
 )
 from app.modules.marketing.models import (  # noqa: F401
     MarketingContentTopic,
+    MarketingGuide,
     MarketingLeadAttribution,
     MarketingMediaAsset,
     MarketingPublicationPack,
@@ -89,6 +90,7 @@ from app.modules.marketing.models import (  # noqa: F401
     MarketingPublishDestination,
     MarketingPublishingConnection,
     MarketingPublishLog,
+    MarketingRubric,
     MarketingStorageResourceProfile,
 )
 from app.modules.process_overlay.models import (  # noqa: F401

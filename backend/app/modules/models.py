@@ -81,6 +81,8 @@ from app.modules.booking.models import (  # noqa: F401
     BookingTerritory,
 )
 from app.modules.marketing.models import (  # noqa: F401
+    MarketingContentPlan,
+    MarketingContentPlanItem,
     MarketingContentTopic,
     MarketingGuide,
     MarketingLeadAttribution,

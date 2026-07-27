@@ -22,7 +22,9 @@ def test_0027_migration_revision_chain():
 
     heads = script.get_heads()
     assert len(heads) == 1
-    assert heads[0] == REVISION_0027
+    # Head advances with later additive revisions (M7.5-B 0028).
+    assert heads[0] == "0028_mkt_content_plans"
+    assert REVISION_0027 not in heads
 
 
 def test_0027_migration_module_importable():

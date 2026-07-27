@@ -20,6 +20,7 @@ from app.modules.marketing.deps import (
 )
 from app.modules.marketing.enums import (
     MarketingChannel,
+    MarketingContentPlanStatus,
     MarketingDestinationStatus,
     MarketingPackStatus,
     MarketingPublishDestinationType,
@@ -31,6 +32,12 @@ from app.modules.marketing.enums import (
 )
 from app.modules.marketing.schemas import (
     ApproveRequest,
+    ContentPlanCreate,
+    ContentPlanItemCreate,
+    ContentPlanItemResponse,
+    ContentPlanItemUpdate,
+    ContentPlanResponse,
+    ContentPlanUpdate,
     GuideCreate,
     GuideResponse,
     GuideUpdate,
@@ -69,6 +76,7 @@ from app.modules.marketing.schemas import (
     TopicUpdate,
 )
 from app.modules.marketing.service.approval import MarketingApprovalService
+from app.modules.marketing.service.content_plans import MarketingContentPlanService
 from app.modules.marketing.service.guides import MarketingGuideService
 from app.modules.marketing.service.historical_publish import MarketingHistoricalPublishService
 from app.modules.marketing.service.packs import MarketingPackService
@@ -99,6 +107,10 @@ def _guide_service(ctx: TenantContext, db: Session) -> MarketingGuideService:
 
 def _rubric_service(ctx: TenantContext, db: Session) -> MarketingRubricService:
     return MarketingRubricService(db, ctx.tenant.id)
+
+
+def _content_plan_service(ctx: TenantContext, db: Session) -> MarketingContentPlanService:
+    return MarketingContentPlanService(db, ctx.tenant.id)
 
 
 def _pack_service(ctx: TenantContext, db: Session) -> MarketingPackService:
@@ -282,6 +294,139 @@ def archive_rubric(
     db: Session = Depends(get_db),
 ) -> RubricResponse:
     result = _rubric_service(ctx, db).archive(ctx.user, rubric_id)
+    db.commit()
+    return result
+
+
+# --- M7.5-B Content Plans ---
+
+
+@router.get("/content-plans", response_model=list[ContentPlanResponse])
+def list_content_plans(
+    status: MarketingContentPlanStatus | None = None,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> list[ContentPlanResponse]:
+    return _content_plan_service(ctx, db).list_plans(
+        status=status,
+        skip=skip,
+        limit=limit,
+    )
+
+
+@router.post("/content-plans", response_model=ContentPlanResponse, status_code=201)
+def create_content_plan(
+    payload: ContentPlanCreate,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanResponse:
+    result = _content_plan_service(ctx, db).create_plan(ctx.user, payload)
+    db.commit()
+    return result
+
+
+@router.get("/content-plans/{plan_id}", response_model=ContentPlanResponse)
+def get_content_plan(
+    plan_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> ContentPlanResponse:
+    return _content_plan_service(ctx, db).get_plan(plan_id)
+
+
+@router.patch("/content-plans/{plan_id}", response_model=ContentPlanResponse)
+def update_content_plan(
+    plan_id: uuid.UUID,
+    payload: ContentPlanUpdate,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanResponse:
+    result = _content_plan_service(ctx, db).update_plan(ctx.user, plan_id, payload)
+    db.commit()
+    return result
+
+
+@router.post("/content-plans/{plan_id}/approve", response_model=ContentPlanResponse)
+def approve_content_plan(
+    plan_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanResponse:
+    result = _content_plan_service(ctx, db).approve_plan(ctx.user, plan_id)
+    db.commit()
+    return result
+
+
+@router.post("/content-plans/{plan_id}/archive", response_model=ContentPlanResponse)
+def archive_content_plan(
+    plan_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanResponse:
+    result = _content_plan_service(ctx, db).archive_plan(ctx.user, plan_id)
+    db.commit()
+    return result
+
+
+@router.get(
+    "/content-plans/{plan_id}/items",
+    response_model=list[ContentPlanItemResponse],
+)
+def list_content_plan_items(
+    plan_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_module("marketing")),
+    db: Session = Depends(get_db),
+) -> list[ContentPlanItemResponse]:
+    return _content_plan_service(ctx, db).list_items(plan_id)
+
+
+@router.post(
+    "/content-plans/{plan_id}/items",
+    response_model=ContentPlanItemResponse,
+    status_code=201,
+)
+def create_content_plan_item(
+    plan_id: uuid.UUID,
+    payload: ContentPlanItemCreate,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanItemResponse:
+    result = _content_plan_service(ctx, db).create_item(ctx.user, plan_id, payload)
+    db.commit()
+    return result
+
+
+@router.patch(
+    "/content-plans/{plan_id}/items/{item_id}",
+    response_model=ContentPlanItemResponse,
+)
+def update_content_plan_item(
+    plan_id: uuid.UUID,
+    item_id: uuid.UUID,
+    payload: ContentPlanItemUpdate,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanItemResponse:
+    result = _content_plan_service(ctx, db).update_item(
+        ctx.user, plan_id, item_id, payload
+    )
+    db.commit()
+    return result
+
+
+@router.post(
+    "/content-plans/{plan_id}/items/{item_id}/cancel",
+    response_model=ContentPlanItemResponse,
+)
+def cancel_content_plan_item(
+    plan_id: uuid.UUID,
+    item_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_marketing_settings_admin),
+    db: Session = Depends(get_db),
+) -> ContentPlanItemResponse:
+    result = _content_plan_service(ctx, db).cancel_item(ctx.user, plan_id, item_id)
     db.commit()
     return result
 

@@ -22,7 +22,9 @@ def test_0028_migration_revision_chain():
 
     heads = script.get_heads()
     assert len(heads) == 1
-    assert heads[0] == REVISION_0028
+    # Head advances with later additive revisions (timestamp hotfix 0029).
+    assert heads[0] == "0029_mkt_timestamp_defaults"
+    assert REVISION_0028 not in heads
 
 
 def test_0028_migration_module_importable():

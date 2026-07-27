@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 
@@ -29,10 +30,43 @@ from app.modules.marketing.schemas import (
 )
 
 _CODE_RE = re.compile(r"^[a-z][a-z0-9_]{1,62}$")
+_RUBRIC_CODE_UNIQUE = "uq_marketing_rubrics_tenant_code"
+_UNIQUE_SQLSTATE = "23505"
+logger = logging.getLogger(__name__)
 
 
 def normalize_rubric_code(code: str) -> str:
     return code.strip().casefold()
+
+
+def _constraint_name(exc: IntegrityError) -> str | None:
+    orig = getattr(exc, "orig", None)
+    if orig is None:
+        return None
+    diag = getattr(orig, "diag", None)
+    name = getattr(diag, "constraint_name", None) if diag is not None else None
+    if isinstance(name, str) and name:
+        return name
+    text = str(orig)
+    if _RUBRIC_CODE_UNIQUE in text:
+        return _RUBRIC_CODE_UNIQUE
+    return None
+
+
+def _is_rubric_code_unique_violation(exc: IntegrityError) -> bool:
+    """True only for tenant+code unique conflicts (PG UniqueViolation / SQLite UNIQUE)."""
+    orig = getattr(exc, "orig", None)
+    sqlstate = getattr(orig, "sqlstate", None) or getattr(orig, "pgcode", None)
+    constraint = _constraint_name(exc)
+    if sqlstate == _UNIQUE_SQLSTATE:
+        return constraint == _RUBRIC_CODE_UNIQUE
+    # SQLite (local API tests via create_all): UNIQUE message includes constraint name.
+    if constraint == _RUBRIC_CODE_UNIQUE:
+        return True
+    if orig is not None and sqlstate is None:
+        msg = str(orig).lower()
+        return "unique" in msg and _RUBRIC_CODE_UNIQUE in msg
+    return False
 
 
 class MarketingRubricService:
@@ -81,7 +115,17 @@ class MarketingRubricService:
                 updated_by_user_id=user.id,
             )
         except IntegrityError as exc:
-            raise MarketingRubricDuplicateError() from exc
+            self.db.rollback()
+            if _is_rubric_code_unique_violation(exc):
+                raise MarketingRubricDuplicateError() from exc
+            logger.error(
+                "marketing_rubric_create_integrity_error constraint=%s sqlstate=%s",
+                _constraint_name(exc) or "unknown",
+                getattr(getattr(exc, "orig", None), "sqlstate", None)
+                or getattr(getattr(exc, "orig", None), "pgcode", None)
+                or "unknown",
+            )
+            raise
         return self._to_response(rubric)
 
     def update_rubric(

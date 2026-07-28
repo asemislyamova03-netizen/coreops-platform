@@ -6,8 +6,8 @@
 **Baseline:** `origin/main` @ `5348dcea9d28a704d3d5a680e4e4fae32889c6bd`  
 **Category:** `universal_module` (Marketing Cabinet)  
 **Slice:** M7.5-D only  
-**Status:** implemented locally — **not committed** (await HQ)  
-**VERDICT:** `M7_5_D_READY_FOR_COMMIT`
+**Status:** **CLOSED** with M7.5 formal closeout — merged lineage ends at `origin/main` `438e39c` (includes M7.5-D + timestamp hotfix). Canonical: `docs/ai/reports/2026-07-28-marketing-m7-5-closeout-report.md`  
+**VERDICT:** `M7_5_D_READY_FOR_COMMIT` *(historical slice verdict; stage dogfood later GREEN)*
 
 ## Scope delivered
 
@@ -98,4 +98,4 @@ Nav: `MarketingPageHeader` + dashboard quick links (existing cabinet, no new mod
 
 ## Next safe step
 
-HQ review → separate approval to **commit** `feature/marketing-m7-5-d-dogfood-ui`.
+Superseded by formal closeout: `docs/ai/reports/2026-07-28-marketing-m7-5-closeout-report.md`. M7.5 **CLOSED**; production promotion and M8-D3 require separate HQ decisions.

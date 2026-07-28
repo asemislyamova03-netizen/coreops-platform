@@ -68,6 +68,8 @@ After commit approval:
 4. Re-run Guide/Rubric create dogfood.
 5. Production: **not** until separate HQ approval (prod still on 0026 / `c90e482`).
 
+**Closeout note (2026-07-28):** stage steps 1–4 completed; formal closeout GREEN at `438e39c`. Canonical: `docs/ai/reports/2026-07-28-marketing-m7-5-closeout-report.md`. Production still not promoted.
+
 ## Confirmations
 
 - Global `TimestampMixin`: **unchanged** (`git diff` empty for `backend/app/core/models.py`)

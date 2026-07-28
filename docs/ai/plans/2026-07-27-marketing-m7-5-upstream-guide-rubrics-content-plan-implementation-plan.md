@@ -5,7 +5,7 @@
 **Category:** `universal_module` (Marketing Cabinet)
 **Branch / worktree:** `feature/marketing-m7-5-upstream-plan` @ `.worktrees/m7-5-upstream-plan`
 **Baseline:** `origin/main` @ `51ed8b8`
-**Status:** M7.5-A **implemented in this worktree** (uncommitted); B/C/D not started
+**Status:** **CLOSED** — M7.5 COMPLETE / STAGE DOGFOOD GREEN (`origin/main` `438e39c`). Canonical: `docs/ai/reports/2026-07-28-marketing-m7-5-closeout-report.md`
 **HQ gate:** M8-D3 remains **PAUSED**. This plan does not authorize D3, publish, adapters, or AI API calls.
 **Cabinet lock:** extend existing Marketing Cabinet only — no new cabinet/module/app/UI.
 

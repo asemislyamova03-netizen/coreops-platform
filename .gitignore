@@ -1,6 +1,7 @@
 .venv/
 venv/
 .env
+backend/.local-dev-credentials
 *.log
 .idea/
 .vscode/

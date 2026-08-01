@@ -65,9 +65,9 @@ No merge, push, PR, deploy, nginx, production/stage writes, or test-identity cle
 
 | Field | Value |
 |---|---|
-| Revision | `0030_client_onboarding_idempotency` |
+| Revision | `0030_client_onboarding_idem` (≤32; was briefly `…_idempotency` at 34 chars, fixed in follow-up commit) |
 | Down revision | `0029_mkt_timestamp_defaults` |
-| Alembic head (script) | `0030_client_onboarding_idempotency` |
+| Alembic head (script) | `0030_client_onboarding_idem` |
 | Table | `client_onboarding_idempotency_keys` |
 
 **Validation notes:**

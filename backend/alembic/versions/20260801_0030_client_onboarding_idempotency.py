@@ -1,8 +1,10 @@
 """Add client onboarding idempotency keys table.
 
-Revision ID: 0030_client_onboarding_idempotency
+Revision ID: 0030_client_onboarding_idem
 Revises: 0029_mkt_timestamp_defaults
 Create Date: 2026-08-01
+
+Revision ID kept <= 32 chars for alembic_version.version_num (VARCHAR(32)).
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0030_client_onboarding_idempotency"
+revision: str = "0030_client_onboarding_idem"
 down_revision: Union[str, None] = "0029_mkt_timestamp_defaults"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

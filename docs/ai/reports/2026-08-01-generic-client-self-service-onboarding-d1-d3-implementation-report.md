@@ -27,7 +27,7 @@ No merge, push, PR, deploy, nginx, production/stage writes, or test-identity cle
 
 - `backend/app/api/v1/router.py` — include client-onboarding router
 - `backend/app/core/config.py` — feature flag + provider slug settings
-- `backend/app/core/enums.py` — `SecurityEventType.CLIENT_ONBOARDING_COMPLETED`
+- `backend/app/core/enums.py` — `SecurityEventType.CLIENT_ONB_DONE` (`client_onb_done`, ≤15 for `security_events.event_type`)
 - `backend/app/core/exceptions.py` — `ServiceUnavailableError`
 - `backend/app/core/exception_handlers.py` — map 503
 - `backend/app/modules/models.py` — register idempotency model

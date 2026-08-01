@@ -9,13 +9,16 @@ import pytest
 from sqlalchemy import func, select
 
 from app.core.config import get_settings
-from app.core.enums import ModuleStatus, TenantRole
+from app.core.enums import ModuleStatus, SecurityEventType, TenantRole
+from app.modules.audit.models import SecurityEvent
 from app.modules.auth.models import User
 from app.modules.module_registry.models import TenantModule
 from app.modules.provider.models import ProviderStaff
 from app.modules.provider.repository import ProviderRepository
 from app.modules.tenants.models import Tenant, UserTenantMembership
 
+# Production security_events.event_type is VARCHAR(15) (Alembic 0011 max label).
+SECURITY_EVENT_TYPE_DB_LIMIT = 15
 HOST_PROVIDER_SLUG = "flexity-host"
 SIGNUP_PATH = "/api/v1/client-onboarding/signup"
 
@@ -142,6 +145,79 @@ def test_successful_complete_signup(client, db_session, host_provider, onboardin
     assert me_body["provider"] is None
     assert len(me_body["tenants"]) == 1
     assert me_body["tenants"][0]["role"] == "tenant_owner"
+
+
+def test_security_event_type_labels_fit_varchar15():
+    """Guard production VARCHAR(15) on security_events.event_type (names + values)."""
+    for member in SecurityEventType:
+        assert len(member.name) <= SECURITY_EVENT_TYPE_DB_LIMIT, member.name
+        assert len(member.value) <= SECURITY_EVENT_TYPE_DB_LIMIT, member.value
+    assert SecurityEventType.CLIENT_ONB_DONE.value == "client_onb_done"
+    assert len(SecurityEventType.CLIENT_ONB_DONE.value) == 15
+    assert len(SecurityEventType.CLIENT_ONB_DONE.name) == 15
+
+
+def test_signup_writes_client_onb_done_security_event(
+    client, db_session, host_provider, onboarding_settings
+):
+    response, payload, _ = _signup(client)
+    assert response.status_code == 201, response.text
+    data = response.json()
+    user_id = uuid.UUID(data["user"]["id"])
+    tenant_id = uuid.UUID(data["tenant"]["id"])
+
+    events = list(
+        db_session.scalars(
+            select(SecurityEvent).where(
+                SecurityEvent.event_type == SecurityEventType.CLIENT_ONB_DONE,
+                SecurityEvent.user_id == user_id,
+                SecurityEvent.tenant_id == tenant_id,
+            )
+        ).all()
+    )
+    assert len(events) == 1
+    event = events[0]
+    assert event.event_type == SecurityEventType.CLIENT_ONB_DONE
+    assert event.event_type.value == "client_onb_done"
+    assert len(event.event_type.value) <= SECURITY_EVENT_TYPE_DB_LIMIT
+    assert len(event.event_type.name) <= SECURITY_EVENT_TYPE_DB_LIMIT
+    assert event.email == payload["email"].lower()
+    details = event.details_json or {}
+    blob = str(details).lower()
+    assert "password" not in blob
+    assert "token" not in blob
+    assert "access_token" not in details
+    assert "refresh_token" not in details
+    assert "securepass" not in blob
+
+
+def test_signup_rolls_back_when_security_event_flush_fails(
+    client, db_session, host_provider, onboarding_settings
+):
+    """Atomicity: security_event failure must not leave partial onboarding rows."""
+    payload = _payload()
+    with patch(
+        "app.modules.client_onboarding.service.AuditRecorder.security_event",
+        side_effect=RuntimeError("security event boom"),
+    ):
+        with pytest.raises(RuntimeError, match="security event boom"):
+            client.post(
+                SIGNUP_PATH,
+                json=payload,
+                headers={"Idempotency-Key": str(uuid.uuid4())},
+            )
+    assert (
+        db_session.scalar(select(User).where(User.email == payload["email"].lower())) is None
+    )
+    assert (
+        db_session.scalar(select(Tenant).where(Tenant.slug == payload["tenant_slug"])) is None
+    )
+    assert (
+        db_session.scalar(
+            select(SecurityEvent).where(SecurityEvent.email == payload["email"].lower())
+        )
+        is None
+    )
 
 
 def test_provider_module_role_injection_rejected(client, host_provider, onboarding_settings):

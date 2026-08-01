@@ -193,7 +193,7 @@ class ClientOnboardingService:
             self.db.flush()
 
             self.audit.security_event(
-                event_type=SecurityEventType.CLIENT_ONBOARDING_COMPLETED,
+                event_type=SecurityEventType.CLIENT_ONB_DONE,
                 user_id=user.id,
                 tenant_id=tenant.id,
                 email=user.email,

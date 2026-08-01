@@ -195,7 +195,8 @@ class SecurityEventType(str, enum.Enum):
     LOGOUT = "logout"
     TOKEN_REFRESH = "token_refresh"
     REGISTER = "register"
-    CLIENT_ONBOARDING_COMPLETED = "client_onboarding_completed"
+    # Stored in security_events.event_type VARCHAR(15) — name and value must be ≤15.
+    CLIENT_ONB_DONE = "client_onb_done"
     PASSWORD_CHANGE = "password_change"
     ACCOUNT_LOCKED = "account_locked"
     OTHER = "other"

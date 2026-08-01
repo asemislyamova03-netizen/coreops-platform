@@ -44,3 +44,7 @@ class UsageLimitExceededError(CoreOpsError):
 
 class RateLimitExceededError(CoreOpsError):
     """Client exceeded a request rate limit."""
+
+
+class ServiceUnavailableError(CoreOpsError):
+    """Required server configuration or dependency is unavailable."""

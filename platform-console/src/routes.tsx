@@ -4,6 +4,7 @@ import { TenantWorkspaceGuard } from "./auth/TenantWorkspaceGuard";
 import { AppLayout } from "./components/layout/AppLayout";
 import { WorkspaceLayout } from "./components/layout/WorkspaceLayout";
 import { AccessDeniedPage } from "./pages/AccessDeniedPage";
+import { ClientSignupPage } from "./pages/ClientSignupPage";
 import { LoginPage } from "./pages/LoginPage";
 import { TenantCreatePage } from "./pages/TenantCreatePage";
 import { TenantDetailPage } from "./pages/TenantDetailPage";
@@ -32,6 +33,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<ClientSignupPage />} />
       <Route path="/access-denied" element={<AccessDeniedPage />} />
       <Route path="/workspace-access-denied" element={<WorkspaceAccessDeniedPage />} />
       <Route path="/workspace/:tenantSlug" element={<TenantWorkspaceGuard />}>

@@ -195,6 +195,7 @@ class SecurityEventType(str, enum.Enum):
     LOGOUT = "logout"
     TOKEN_REFRESH = "token_refresh"
     REGISTER = "register"
+    CLIENT_ONBOARDING_COMPLETED = "client_onboarding_completed"
     PASSWORD_CHANGE = "password_change"
     ACCOUNT_LOCKED = "account_locked"
     OTHER = "other"

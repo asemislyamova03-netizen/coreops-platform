@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Process Overlay LOCAL/ops bootstrap — disabled by default; never enable in production
     process_overlay_bootstrap_enabled: bool = False
 
+    # Generic client self-service onboarding (D1–D3). Fail closed when misconfigured.
+    client_self_service_onboarding_enabled: bool = False
+    client_onboarding_provider_slug: str | None = None
+
     # Secret vault adapter selection (M8-B2). No secret material defaults.
     # auto | in_memory | envelope_pg — in_memory only in allow-listed app_env.
     secret_vault_adapter: str = "auto"

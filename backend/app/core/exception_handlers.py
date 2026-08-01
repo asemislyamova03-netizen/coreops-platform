@@ -12,6 +12,7 @@ from app.core.exceptions import (
     NotFoundError,
     PermissionDeniedError,
     RateLimitExceededError,
+    ServiceUnavailableError,
     UsageLimitExceededError,
 )
 
@@ -37,4 +38,6 @@ async def core_ops_error_handler(_request: Request, exc: CoreOpsError) -> JSONRe
         return _error_response(403, exc.message)
     if isinstance(exc, (UsageLimitExceededError, RateLimitExceededError)):
         return _error_response(429, exc.message)
+    if isinstance(exc, ServiceUnavailableError):
+        return _error_response(503, exc.message)
     return _error_response(400, exc.message)

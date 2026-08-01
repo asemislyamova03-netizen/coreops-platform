@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { hasTokens } from "../auth/tokenStorage";
@@ -106,6 +106,9 @@ export function LoginPage() {
             <Button type="submit" disabled={submitting} className="full-width">
               {submitting ? "Вход..." : "Войти"}
             </Button>
+            <p className="muted login-form-sub" style={{ marginTop: "1rem" }}>
+              Нет аккаунта? <Link to="/register">Создать кабинет</Link>
+            </p>
           </form>
         </section>
 

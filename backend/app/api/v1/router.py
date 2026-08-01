@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import health
 from app.api.v1.public_leads import router as public_leads_router
 from app.modules.auth.routes import router as auth_router
+from app.modules.client_onboarding.routes import router as client_onboarding_router
 from app.modules.catalog.routes import items_router as catalog_items_router
 from app.modules.catalog.routes import price_lists_router as catalog_price_lists_router
 from app.modules.catalog.routes import units_router as catalog_units_router
@@ -31,6 +32,7 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(public_leads_router)
 api_router.include_router(auth_router)
+api_router.include_router(client_onboarding_router)
 api_router.include_router(tenants_router)
 api_router.include_router(registry_router)
 api_router.include_router(tenant_modules_router)

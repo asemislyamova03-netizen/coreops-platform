@@ -10,6 +10,8 @@ ALEMBIC_INI = str(BACKEND_ROOT / "alembic.ini")
 
 REVISION_0027 = "0027_mkt_guides_rubrics"
 REVISION_0028 = "0028_mkt_content_plans"
+REVISION_0029 = "0029_mkt_timestamp_defaults"
+REVISION_0030 = "0030_client_onboarding_idem"
 MIGRATION_FILENAME = "20260727_0028_mkt_content_plans.py"
 
 
@@ -20,10 +22,15 @@ def test_0028_migration_revision_chain():
     assert rev.down_revision == REVISION_0027
     assert len(REVISION_0028) <= 32
 
+    rev_0030 = script.get_revision(REVISION_0030)
+    assert rev_0030 is not None
+    assert rev_0030.down_revision == REVISION_0029
+    assert len(REVISION_0030) <= 32
+
     heads = script.get_heads()
     assert len(heads) == 1
-    # Head advances with later additive revisions (timestamp hotfix 0029).
-    assert heads[0] == "0029_mkt_timestamp_defaults"
+    # Head advances with later additive revisions (timestamp hotfix 0029, onboarding 0030).
+    assert heads[0] == REVISION_0030
     assert REVISION_0028 not in heads
 
 

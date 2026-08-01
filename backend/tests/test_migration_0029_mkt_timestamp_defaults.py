@@ -19,6 +19,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = str(BACKEND_ROOT / "alembic.ini")
 REVISION_0028 = "0028_mkt_content_plans"
 REVISION_0029 = "0029_mkt_timestamp_defaults"
+REVISION_0030 = "0030_client_onboarding_idem"
 MIGRATION_FILENAME = "20260728_0029_mkt_timestamp_defaults.py"
 EPHEMERAL_PG_DIR = BACKEND_ROOT / ".pytest_ephemeral_pg_m75_0029"
 
@@ -47,9 +48,16 @@ def test_0029_migration_revision_chain():
     assert rev.down_revision == REVISION_0028
     assert len(REVISION_0029) <= 32
 
+    rev_0030 = script.get_revision(REVISION_0030)
+    assert rev_0030 is not None
+    assert rev_0030.down_revision == REVISION_0029
+    assert len(REVISION_0030) <= 32
+
     heads = script.get_heads()
     assert len(heads) == 1
-    assert heads[0] == REVISION_0029
+    # Global head advanced by additive 0030; 0029 remains ancestor, not head.
+    assert heads[0] == REVISION_0030
+    assert REVISION_0029 not in heads
 
 
 def test_0029_migration_module_importable():
